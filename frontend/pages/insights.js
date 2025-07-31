@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider } from '@mui/material';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
@@ -47,7 +47,38 @@ const technicalData = {
   ],
 };
 
+import { usePdfText } from '../src/context/PdfTextContext';
+
+
+
 export default function ResumeInsights() {
+  // Access the extracted PDF text from context
+  const { pdfText } = usePdfText();
+  const [resumeScore, setResumeScore] = useState(null);
+  const [loadingScore, setLoadingScore] = useState(false);
+  const [scoreError, setScoreError] = useState(null);
+  useEffect(() => {
+    if (!pdfText) return;
+    setLoadingScore(true);
+    setScoreError(null);
+    fetch('http://127.0.0.1:5000/scoreResume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resumeText: pdfText }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        setResumeScore(data.score);
+        setLoadingScore(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch score:', err);
+        setScoreError('Failed to fetch score');
+        setLoadingScore(false);
+      });
+  }, [pdfText]);
+  // You can now process pdfText as needed below (do not display it directly)
+  
   return (
     <Box sx={{ background: '#f7faff', minHeight: '100vh', p: 4 }}>
       <Grid container spacing={3}>
@@ -55,7 +86,11 @@ export default function ResumeInsights() {
         <Grid item xs={12} md={3}>
           <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
             <Typography variant="h4" color="success.main" fontWeight={700}>
-              91%
+              {loadingScore
+                ? 'Loading...'
+                : scoreError
+                  ? scoreError
+                  : resumeScore || '--'}
             </Typography>
             <Typography variant="subtitle1" sx={{ mb: 2 }}>
               Resume Score

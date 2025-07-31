@@ -16,11 +16,15 @@ const theme = createTheme({
   },
 });
 
+import { PdfTextProvider } from '../src/context/PdfTextContext';
+
 export default function MyApp({ Component, pageProps }) {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Component {...pageProps} />
-    </ThemeProvider>
+    <PdfTextProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Component {...pageProps} />
+      </ThemeProvider>
+    </PdfTextProvider>
   );
 }

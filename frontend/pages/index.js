@@ -6,15 +6,39 @@ import {
 import Image from 'next/image';
 
 import { useState } from 'react';
+import { usePdfText } from '../src/context/PdfTextContext';
 
 export default function Home() {
   const [resumeFile, setResumeFile] = useState(null);
+  const { setPdfText } = usePdfText();
   const router = require('next/router').useRouter ? require('next/router').useRouter() : require('next/router').default.useRouter();
-  const handleResumeSubmit = () => {
-    if (resumeFile) {
-      router.push('/insights');
+  
+  // PDF text extraction and navigation logic
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    setResumeFile(file);
+    if (file && file.type === 'application/pdf') {
+      const pdfjsLib = await import('pdfjs-dist/build/pdf');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+      const fileReader = new FileReader();
+      fileReader.onload = async function () {
+        const typedarray = new Uint8Array(this.result);
+        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+        let text = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map(item => item.str).join(' ') + '\n';
+        }
+        setPdfText(text);
+        router.push('/insights');
+      };
+      fileReader.readAsArrayBuffer(file);
     }
-  }
+  };
+
+  // Remove default handleResumeSubmit, let upload trigger navigation
+
   return (
     <Box sx={{ background: '#f7faff', minHeight: '100vh', pb: 8 }}>
       {/* Navbar-like Header */}
@@ -69,7 +93,7 @@ export default function Home() {
                   style={{ display: 'none' }}
                   id="resume-upload"
                   type="file"
-                  onChange={e => setResumeFile(e.target.files[0])}
+                  onChange={handleFileChange}
                 />
                 <label htmlFor="resume-upload">
                   <Button variant="outlined" color="success" component="span" sx={{ width: '100%' }}>
@@ -78,9 +102,6 @@ export default function Home() {
                 </label>
               </Box>
               <Box sx={{ flexGrow: 1 }} />
-              <Button variant="contained" color="success" sx={{ fontWeight: 700, width: '100%', mb: 2 }} disabled={!resumeFile} onClick={handleResumeSubmit}>
-                Submit Resume
-              </Button>
             </CardContent>
           </Card>
         </Grid>
