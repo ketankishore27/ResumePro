@@ -10,14 +10,28 @@ import { usePdfText } from '../src/context/PdfTextContext';
 
 export default function Home() {
   const [resumeFile, setResumeFile] = useState(null);
-  const { setPdfText } = usePdfText();
+  const [jobRole, setJobRole] = useState('');
+  const { setPdfText, setJobRole: setContextJobRole } = usePdfText();
   const router = require('next/router').useRouter ? require('next/router').useRouter() : require('next/router').default.useRouter();
   
-  // PDF text extraction and navigation logic
+  // PDF text extraction logic (without auto-navigation)
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     setResumeFile(file);
-    if (file && file.type === 'application/pdf') {
+  };
+
+  // Handle submit with both resume and job role
+  const handleSubmitInsights = async () => {
+    if (!resumeFile) {
+      alert('Please select a resume file first.');
+      return;
+    }
+    if (!jobRole.trim()) {
+      alert('Please enter your job role.');
+      return;
+    }
+
+    if (resumeFile && resumeFile.type === 'application/pdf') {
       const pdfjsLib = await import('pdfjs-dist/build/pdf');
       pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
       const fileReader = new FileReader();
@@ -31,9 +45,10 @@ export default function Home() {
           text += content.items.map(item => item.str).join(' ') + '\n';
         }
         setPdfText(text);
+        setContextJobRole(jobRole);
         router.push('/insights');
       };
-      fileReader.readAsArrayBuffer(file);
+      fileReader.readAsArrayBuffer(resumeFile);
     }
   };
 
@@ -100,8 +115,25 @@ export default function Home() {
                     {resumeFile ? resumeFile.name : 'Choose PDF or Word File'}
                   </Button>
                 </label>
+                <TextField
+                  placeholder="Enter your job role (e.g., Software Engineer, Data Analyst)"
+                  variant="outlined"
+                  fullWidth
+                  value={jobRole}
+                  onChange={(e) => setJobRole(e.target.value)}
+                  sx={{ bgcolor: '#f7faff' }}
+                />
               </Box>
               <Box sx={{ flexGrow: 1 }} />
+              <Button 
+                variant="contained" 
+                color="success" 
+                sx={{ fontWeight: 700, width: '100%', mb: 2 }}
+                onClick={handleSubmitInsights}
+                disabled={!resumeFile || !jobRole.trim()}
+              >
+                Submit Request
+              </Button>
             </CardContent>
           </Card>
         </Grid>
