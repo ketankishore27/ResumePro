@@ -1,7 +1,8 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from ai_operations.chains import scoring_chain, contact_extractor_chain, \
-                                 summary_chain, custom_score_chain
+                                 summary_chain, custom_score_chain, \
+                                 other_comments_chain
 
 app = Flask(__name__)
 CORS(app)
@@ -125,6 +126,32 @@ def getCustomScores():
                     'soft_skill_score': 0,
                     'formatting_score': 0})
 
+@app.route("/getOtherComments", methods=["POST"])
+def getOtherComments():
+    print("Received request for getOtherComments")
+    data = request.get_json()
+    resumeText = data.get("resumeText")
+    jobRole = data.get("jobRole", "")
+    
+    max_iter = 5
+    for iteration in range(max_iter):
+        try:
+            other_comments_info = other_comments_chain.invoke({"resume_text": resumeText, "job_role": jobRole})
+            keys_to_check = ['headings_feedback', 'title_match', 'formatting_feedback']
+            if isinstance(other_comments_info, dict):
+                if all(key in other_comments_info for key in keys_to_check):
+                    return jsonify(other_comments_info)
+
+            print(other_comments_info)
+        except Exception as e:
+            print("Exception in otherComments:", e)
+            pass
+
+        print("Retrying. Ended Iteration:", iteration)    
+        
+    return jsonify({'headings_feedback': '',
+                    'title_match': '',
+                    'formatting_feedback': ''})
 
 if __name__ == "__main__":
     app.run(debug=True, threaded=True)

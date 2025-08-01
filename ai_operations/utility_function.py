@@ -240,3 +240,63 @@ def get_custom_scores():
 
     return chain
 
+
+def get_other_comments():
+
+    class other_feedbacks(BaseModel):
+        
+        headings_feedback: str = Field("Feedback text for the Section Headings")
+        title_match: str = Field("Feedback text for the Job Title Match")
+        formatting_feedback: str = Field("Feedback text for the Data Formatting")
+        
+
+    output_parser = PydanticOutputParser(pydantic_object=other_feedbacks).get_format_instructions()
+        
+    instruction_format = """
+    You are a professional resume reviewer.
+    
+    Your task is to analyze the resume and provide concise, aspect-wise feedback across the following three dimensions:
+    
+    ---
+    
+    ### Aspects to Evaluate:
+    
+    1. **Section Headings**  
+       - Are all key sections present (e.g., Summary, Experience, Education, Skills)?
+       - Are headings clearly labeled and easy to identify?
+    
+    2. **Job Title Match**  
+       - Does the resume include job titles that closely match or are relevant to the target job role?
+       - Are these titles prominently placed and easy to interpret?
+    
+    3. **Data Formatting**  
+       - Is the content consistently formatted?
+       - Are bullet points, spacing, dates, and alignment professional and easy to scan?
+    
+    ---
+    
+    ### Inputs:
+    **Job Role**: {job_role}  
+    **Resume Text**:  
+    {resume_text}
+    
+    ---
+    
+    ### Output Instructions:
+    
+    - For each aspect, provide a **short, crisp feedback (1–2 lines)**
+    - Focus the feedback on **relevance to the job role**, clarity, and professionalism
+    - Do **not** include scores or overall evaluation
+    
+    ---
+    
+    ### Output Format (JSON):
+    {output_format}
+    """
+
+    prompt_template = PromptTemplate.from_template(template=instruction_format,
+                                                   partial_variables={"output_format": output_parser})
+
+    chain = prompt_template | llm | JsonOutputParser()
+
+    return chain

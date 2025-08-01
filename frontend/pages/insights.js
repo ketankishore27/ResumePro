@@ -68,6 +68,8 @@ export default function ResumeInsights() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [customScores, setCustomScores] = useState({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
   const [loadingCustomScores, setLoadingCustomScores] = useState(false);
+  const [otherComments, setOtherComments] = useState({ headings_feedback: '', title_match: '', formatting_feedback: '' });
+  const [loadingOtherComments, setLoadingOtherComments] = useState(false);
 
   // Helper function to determine progress bar color based on score
   const getProgressColor = (score) => {
@@ -87,6 +89,7 @@ export default function ResumeInsights() {
     setLoadingContact(true);
     setLoadingSummary(true);
     setLoadingCustomScores(true);
+    setLoadingOtherComments(true);
     setScoreError(null);
     console.log(pdfText);
     console.log(jobRole);
@@ -201,8 +204,35 @@ export default function ResumeInsights() {
         setLoadingCustomScores(false);
       });
     
+    // Request 5: Other Comments (async)
+    const otherCommentsRequest = fetch('http://127.0.0.1:5000/getOtherComments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log('Received other comments response:', data);
+        setOtherComments({
+          headings_feedback: data.headings_feedback || 'Section headings analysis not available',
+          title_match: data.title_match || 'Job title match analysis not available',
+          formatting_feedback: data.formatting_feedback || 'Data formatting analysis not available'
+        });
+        setLoadingOtherComments(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch other comments:', err);
+        console.error('Other comments API error details:', err.message);
+        setOtherComments({ 
+          headings_feedback: 'Failed to analyze section headings',
+          title_match: 'Failed to analyze job title match',
+          formatting_feedback: 'Failed to analyze data formatting'
+        });
+        setLoadingOtherComments(false);
+      });
+    
     // Optional: Log when all requests complete
-    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest]).then((results) => {
+    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest, otherCommentsRequest]).then((results) => {
       console.log('All async requests completed:', results);
     });
   }, [pdfText]);
@@ -219,6 +249,7 @@ export default function ResumeInsights() {
       setLoadingContact(true);
       setLoadingSummary(true);
       setLoadingCustomScores(true);
+      setLoadingOtherComments(true);
       setScoreError(null);
       
       const pdfjsLib = await import('pdfjs-dist/build/pdf');
@@ -345,8 +376,34 @@ export default function ResumeInsights() {
             setLoadingCustomScores(false);
           });
         
+        // Request 5: Other Comments for re-upload (async)
+        const reuploadOtherCommentsRequest = fetch('http://127.0.0.1:5000/getOtherComments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            console.log('Received re-upload other comments response:', data);
+            setOtherComments({
+              headings_feedback: data.headings_feedback || 'Section headings analysis not available',
+              title_match: data.title_match || 'Job title match analysis not available',
+              formatting_feedback: data.formatting_feedback || 'Data formatting analysis not available'
+            });
+            setLoadingOtherComments(false);
+          })
+          .catch(err => {
+            console.error('Failed to fetch other comments for re-upload:', err);
+            setOtherComments({ 
+              headings_feedback: 'Failed to analyze section headings',
+              title_match: 'Failed to analyze job title match',
+              formatting_feedback: 'Failed to analyze data formatting'
+            });
+            setLoadingOtherComments(false);
+          });
+        
         // Optional: Log when all re-upload requests complete
-        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest]).then((results) => {
+        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest, reuploadOtherCommentsRequest]).then((results) => {
           console.log('All re-upload async requests completed:', results);
         });
       };
@@ -594,17 +651,23 @@ export default function ResumeInsights() {
                   <TableRow>
                     <TableCell>Section Headings</TableCell>
                     <TableCell><Chip label="Good" color="success" size="small" /></TableCell>
-                    <TableCell>You have proper section titles like "Work History" or "Professional Experience" or ATS-recognizable work sections.</TableCell>
+                    <TableCell>
+                      {loadingOtherComments ? 'Analyzing section headings...' : otherComments.headings_feedback}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Job Title Match</TableCell>
-                    <TableCell><Chip label="Warning" color="warning" size="small" /></TableCell>
-                    <TableCell>The Business Systems Analyst, DevOps job title provided in the job description was not found in your resume. We recommend having your most recent job title match the recruiter search by job title. If you haven't held this position before, include it as part of your summary or skills section.</TableCell>
+                    <TableCell><Chip label="Good" color="success" size="small" /></TableCell>
+                    <TableCell>
+                      {loadingOtherComments ? 'Analyzing job title match...' : otherComments.title_match}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Data Formatting</TableCell>
                     <TableCell><Chip label="Good" color="success" size="small" /></TableCell>
-                    <TableCell>The dates in your work experience section are properly formatted/standardized.</TableCell>
+                    <TableCell>
+                      {loadingOtherComments ? 'Analyzing data formatting...' : otherComments.formatting_feedback}
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
