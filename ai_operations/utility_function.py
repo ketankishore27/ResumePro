@@ -4,6 +4,8 @@ from langchain_core.output_parsers import PydanticOutputParser, JsonOutputParser
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
+from enum import Enum
+from typing import Dict, List
 
 load_dotenv(override=True)
 #llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
@@ -296,6 +298,92 @@ def get_other_comments():
 
     prompt_template = PromptTemplate.from_template(template=instruction_format,
                                                    partial_variables={"output_format": output_parser})
+
+    chain = prompt_template | llm | JsonOutputParser()
+
+    return chain
+
+
+def functional_constituent():
+
+    class IndustryEnum(str, Enum):
+        IT = "IT"
+        Telecom = "Telecom"
+        Banking = "Banking"
+        Insurance = "Insurance"
+        Healthcare = "Healthcare"
+        Retail = "Retail"
+        Manufacturing = "Manufacturing"
+        Logistics = "Logistics"
+        Education = "Education"
+        Consulting = "Consulting"
+        Ecommerce = "E-commerce"
+        Government = "Government"
+        RealEstate = "Real Estate"
+        Energy = "Energy"
+        Hospitality = "Hospitality"
+        Aerospace = "Aerospace"
+        Automotive = "Automotive"
+        Media = "Media"
+        Agriculture = "Agriculture"
+        Construction = "Construction"
+        Other = "Other"
+        
+    class FunctionalExposure(BaseModel):
+        has_industry_experience: bool = Field(description="True if the candidate has any relevant work experience (including internships); else False")
+        has_completed_college: bool = Field(description="True if the candidate has finished their college education; else False")
+        constituent: Dict[str, str] = Field(default_factory=dict, description="Industry-to-percentage mapping based on functional exposure (e.g., {'Telecom': '40%'}). Must sum to 100%.")
+        industries: List[str] = Field(default_factory=list, description="List of industries the candidate has worked in or been exposed to")
+    
+    output_parser = PydanticOutputParser(pydantic_object=FunctionalExposure).get_format_instructions()
+    
+    instruction_format = """
+    You are a resume analysis expert.
+
+    Your task is to analyze the following resume and extract structured information about:
+    
+    1. Whether the candidate has any real-world industry exposure (including internships)
+    2. Whether the candidate has completed their college education
+    3. The candidate's functional exposure — i.e., which industries they have worked in and in what proportion
+    
+    ---
+    
+    ### Step-by-Step Instructions:
+    
+    1. **Determine education status:**
+       - Look for degree end dates (e.g., “2021–2025”) or phrases like “Pursuing”, “Ongoing”, “Expected”.
+       - If the candidate has completed their degree, set `has_completed_college` to `true`.
+       - If they are still pursuing or haven’t yet completed college, set `has_completed_college` to `false`.
+    
+    2. **Determine industry experience:**
+       - Look for full-time jobs or internships in real-world companies or industry projects.
+       - If the candidate has any such experience (internship or full-time), set `has_industry_experience` to `true`.
+       - Otherwise, set it to `false`.
+    
+    3. **Identify functional exposure (industries):**
+       - Extract company names, roles, and projects to infer the industry for each.
+       - Estimate **relative exposure** in percentages — based on time spent, emphasis in the resume, and role recency.
+       - Ensure the values in `constituent` add up to exactly **100%**, formatted as strings with a `%` sign (e.g., `"40%"`).
+    
+    ---
+    
+    ### ⚠️ Strict Industry Naming Rules:
+    
+    You must use **only one** of the following predefined industry names for each entry in `constituent` and `industries`:
+
+    ---    
+    ### Input Resume:
+    {resume_text}
+    
+    ---
+    
+    ### Output Format:
+    {output_format}
+    
+    """
+
+    prompt_template = PromptTemplate(template=instruction_format,
+                                     partial_variables = {"output_format": output_parser})
 
     chain = prompt_template | llm | JsonOutputParser()
 

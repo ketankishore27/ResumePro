@@ -61,7 +61,17 @@ export default function Home() {
         <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
           Resume<span style={{ color: '#2563eb' }}>Pro</span>
         </Typography>
-        <Button component={Link} href="/request" variant="contained" color="success" sx={{ fontWeight: 700, borderRadius: 2 }}>
+        <Button 
+          variant="contained" 
+          color="success" 
+          sx={{ fontWeight: 700, borderRadius: 2 }}
+          onClick={() => {
+            const requestSection = document.getElementById('resume-requests-section');
+            if (requestSection) {
+              requestSection.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+        >
           Get Feedback
         </Button>
       </Box>
@@ -138,7 +148,7 @@ export default function Home() {
           </Card>
         </Grid>
         {/* Resume Requests */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={4} id="resume-requests-section">
           <Card sx={{ height: '100%', minHeight: 370, borderRadius: 3, boxShadow: 2, p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'stretch' }}>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', height: 1, p: 0 }}>
               <Box sx={{ minHeight: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>

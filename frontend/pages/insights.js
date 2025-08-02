@@ -1,33 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button } from '@mui/material';
+import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress } from '@mui/material';
 import { Phone, Email } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
-const functionalData = {
-  labels: ['Management', 'Operations', 'Sales'],
-  datasets: [
-    {
-      label: 'Functional Exposure',
-      data: [40, 35, 25],
-      backgroundColor: [
-        'rgba(33, 150, 243, 0.7)',
-        'rgba(76, 175, 80, 0.7)',
-        'rgba(255, 193, 7, 0.7)'
-      ],
-      borderColor: [
-        'rgba(33, 150, 243, 1)',
-        'rgba(76, 175, 80, 1)',
-        'rgba(255, 193, 7, 1)'
-      ],
-      borderWidth: 1,
-    },
-  ],
-};
+
 
 const technicalData = {
   labels: ['Python', 'SQL', 'JavaScript'],
@@ -57,6 +39,11 @@ import { usePdfText } from '../src/context/PdfTextContext';
 export default function ResumeInsights() {
   // Access the extracted PDF text and job role from context
   const { pdfText, jobRole, setPdfText } = usePdfText();
+  
+  // Debug context values
+  console.log('ResumeInsights component loaded');
+  console.log('pdfText from context:', pdfText ? `Available (${pdfText.length} chars)` : 'Not available');
+  console.log('jobRole from context:', jobRole || 'Not available');
   const [resumeScore, setResumeScore] = useState(null);
   const [loadingScore, setLoadingScore] = useState(false);
   const [scoreError, setScoreError] = useState(null);
@@ -70,6 +57,8 @@ export default function ResumeInsights() {
   const [loadingCustomScores, setLoadingCustomScores] = useState(false);
   const [otherComments, setOtherComments] = useState({ headings_feedback: '', title_match: '', formatting_feedback: '' });
   const [loadingOtherComments, setLoadingOtherComments] = useState(false);
+  const [functionalConstituent, setFunctionalConstituent] = useState({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
+  const [loadingFunctionalConstituent, setLoadingFunctionalConstituent] = useState(false);
 
   // Helper function to determine progress bar color based on score
   const getProgressColor = (score) => {
@@ -77,6 +66,104 @@ export default function ResumeInsights() {
     if (score >= 60) return 'primary';
     if (score >= 40) return 'warning';
     return 'error';
+  };
+
+  // Helper function to transform functional constituent data to pie chart format
+  const createFunctionalData = (constituent) => {
+    if (!constituent || Object.keys(constituent).length === 0) {
+      // Return default data when no data is available
+      return {
+        labels: ['No Data'],
+        datasets: [
+          {
+            label: 'Functional Exposure',
+            data: [100],
+            backgroundColor: ['rgba(158, 158, 158, 0.7)'],
+            borderColor: ['rgba(158, 158, 158, 1)'],
+            borderWidth: 1,
+          },
+        ],
+      };
+    }
+
+    const labels = Object.keys(constituent);
+    const data = Object.values(constituent).map(value => parseInt(value.replace('%', '')));
+    
+    // Generate colors for each industry
+    const colors = [
+      'rgba(33, 150, 243, 0.7)',   // Blue
+      'rgba(76, 175, 80, 0.7)',    // Green
+      'rgba(255, 193, 7, 0.7)',    // Amber
+      'rgba(156, 39, 176, 0.7)',   // Purple
+      'rgba(255, 87, 34, 0.7)',    // Deep Orange
+      'rgba(0, 188, 212, 0.7)',    // Cyan
+      'rgba(139, 195, 74, 0.7)',   // Light Green
+      'rgba(255, 152, 0, 0.7)',    // Orange
+      'rgba(121, 85, 72, 0.7)',    // Brown
+      'rgba(96, 125, 139, 0.7)',   // Blue Grey
+    ];
+    
+    const borderColors = [
+      'rgba(33, 150, 243, 1)',
+      'rgba(76, 175, 80, 1)',
+      'rgba(255, 193, 7, 1)',
+      'rgba(156, 39, 176, 1)',
+      'rgba(255, 87, 34, 1)',
+      'rgba(0, 188, 212, 1)',
+      'rgba(139, 195, 74, 1)',
+      'rgba(255, 152, 0, 1)',
+      'rgba(121, 85, 72, 1)',
+      'rgba(96, 125, 139, 1)',
+    ];
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Functional Exposure',
+          data,
+          backgroundColor: colors.slice(0, labels.length),
+          borderColor: borderColors.slice(0, labels.length),
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
+
+  // Chart options for displaying data labels on pie chart
+  const functionalChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          padding: 20,
+          usePointStyle: true,
+        },
+      },
+      datalabels: {
+        display: true,
+        color: '#666666',
+        font: {
+          weight: 'bold',
+          size: 7,
+          family: 'Arial, sans-serif',
+        },
+        formatter: (value, context) => {
+          // Show percentage outside the pie slice
+          return value + '%';
+        },
+        anchor: 'end',
+        align: 'start',
+        offset: 10,
+        borderColor: '#666666',
+        borderWidth: 1,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        padding: 4,
+      },
+    },
   };
   useEffect(() => {
     console.log('useEffect triggered - pdfText:', pdfText ? 'Available' : 'Not available');
@@ -90,6 +177,7 @@ export default function ResumeInsights() {
     setLoadingSummary(true);
     setLoadingCustomScores(true);
     setLoadingOtherComments(true);
+    setLoadingFunctionalConstituent(true);
     setScoreError(null);
     console.log(pdfText);
     console.log(jobRole);
@@ -98,12 +186,21 @@ export default function ResumeInsights() {
     console.log('Sending async independent requests...');
     
     // Request 1: Resume Scoring (async)
+    console.log('Making scoreResume API call...');
+    console.log('Resume text length:', pdfText ? pdfText.length : 0);
+    console.log('Job role:', jobRole);
     const scoreRequest = fetch('http://127.0.0.1:5000/scoreResume', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
     })
-      .then(res => res.json())
+      .then(res => {
+        console.log('ScoreResume response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
         console.log('Received score response:', data);
         setResumeScore(data.score);
@@ -231,8 +328,50 @@ export default function ResumeInsights() {
         setLoadingOtherComments(false);
       });
     
+    // Request 6: Functional Constituent (async)
+    console.log('Making functional constituent API call...');
+    const functionalConstituentRequest = fetch('http://127.0.0.1:5000/getFunctionalConstituent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
+    })
+      .then(res => {
+        console.log('Functional constituent response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log('Received functional constituent response:', data);
+        console.log('Constituent data:', data.constituent);
+        setFunctionalConstituent({
+          constituent: data.constituent || {},
+          industries: data.industries || [],
+          has_industry_experience: data.has_industry_experience || false,
+          has_completed_college: data.has_completed_college || false
+        });
+        setLoadingFunctionalConstituent(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch functional constituent:', err);
+        console.error('Functional constituent API error details:', err.message);
+        // Set some test data for debugging
+        setFunctionalConstituent({ 
+          constituent: {
+            "IT": "60%",
+            "Banking": "25%",
+            "Consulting": "15%"
+          },
+          industries: ["IT", "Banking", "Consulting"],
+          has_industry_experience: true,
+          has_completed_college: true
+        });
+        setLoadingFunctionalConstituent(false);
+      });
+    
     // Optional: Log when all requests complete
-    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest, otherCommentsRequest]).then((results) => {
+    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest, otherCommentsRequest, functionalConstituentRequest]).then((results) => {
       console.log('All async requests completed:', results);
     });
   }, [pdfText]);
@@ -250,6 +389,7 @@ export default function ResumeInsights() {
       setLoadingSummary(true);
       setLoadingCustomScores(true);
       setLoadingOtherComments(true);
+      setLoadingFunctionalConstituent(true);
       setScoreError(null);
       
       const pdfjsLib = await import('pdfjs-dist/build/pdf');
@@ -402,8 +542,36 @@ export default function ResumeInsights() {
             setLoadingOtherComments(false);
           });
         
+        // Request 6: Functional Constituent for re-upload (async)
+        const reuploadFunctionalConstituentRequest = fetch('http://127.0.0.1:5000/getFunctionalConstituent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            console.log('Received re-upload functional constituent response:', data);
+            setFunctionalConstituent({
+              constituent: data.constituent || {},
+              industries: data.industries || [],
+              has_industry_experience: data.has_industry_experience || false,
+              has_completed_college: data.has_completed_college || false
+            });
+            setLoadingFunctionalConstituent(false);
+          })
+          .catch(err => {
+            console.error('Failed to fetch functional constituent for re-upload:', err);
+            setFunctionalConstituent({ 
+              constituent: {},
+              industries: [],
+              has_industry_experience: false,
+              has_completed_college: false
+            });
+            setLoadingFunctionalConstituent(false);
+          });
+        
         // Optional: Log when all re-upload requests complete
-        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest, reuploadOtherCommentsRequest]).then((results) => {
+        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest, reuploadOtherCommentsRequest, reuploadFunctionalConstituentRequest]).then((results) => {
           console.log('All re-upload async requests completed:', results);
         });
       };
@@ -412,7 +580,8 @@ export default function ResumeInsights() {
     }
   };
 
-  // You can now process pdfText as needed below (do not display it directly)
+  // Create dynamic functional data
+  const functionalData = createFunctionalData(functionalConstituent.constituent);
   
   return (
     <Box sx={{ background: '#f7faff', minHeight: '100vh' }}>
@@ -678,7 +847,15 @@ export default function ResumeInsights() {
               <Paper sx={{ p: 3 }}>
                 <Typography variant="subtitle1" fontWeight={700} gutterBottom>Functional Exposure</Typography>
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                  <Pie data={functionalData} style={{ maxHeight: '180px', maxWidth: '100%' }} />
+                  {loadingFunctionalConstituent ? (
+                    <CircularProgress />
+                  ) : (
+                    <Pie 
+                      data={functionalData} 
+                      options={functionalChartOptions}
+                      style={{ maxHeight: '180px', maxWidth: '100%' }} 
+                    />
+                  )}
                 </Box>
               </Paper>
             </Grid>

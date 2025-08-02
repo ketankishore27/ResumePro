@@ -9,6 +9,7 @@
     "@mui/material": "^5.15.6",
     "axios": "^1.6.7",
     "chart.js": "^4.5.0",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "next": "^15.4.5",
     "pdfjs-dist": "^5.4.54",
     "react": "^18.3.1",

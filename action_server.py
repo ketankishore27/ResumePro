@@ -2,10 +2,27 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from ai_operations.chains import scoring_chain, contact_extractor_chain, \
                                  summary_chain, custom_score_chain, \
-                                 other_comments_chain
+                                 other_comments_chain, functional_constituent_chain
 
 app = Flask(__name__)
-CORS(app)
+# CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"], 
+#      methods=["GET", "POST", "OPTIONS"],
+#      allow_headers=["Content-Type", "Authorization"])
+
+CORS(app, origins="*", 
+     methods=["GET", "POST", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"])
+
+@app.before_request
+def log_request_info():
+    print(f"Request: {request.method} {request.url}")
+    print(f"Headers: {dict(request.headers)}")
+    if request.is_json:
+        print(f"JSON Data: {request.get_json()}")
+
+@app.route("/test", methods=["GET", "POST"])
+def test_endpoint():
+    return jsonify({"status": "success", "message": "Server is working!"})
 
 @app.route("/scoreResume", methods=["POST"])
 def scoreResume():
@@ -152,6 +169,35 @@ def getOtherComments():
     return jsonify({'headings_feedback': '',
                     'title_match': '',
                     'formatting_feedback': ''})
+
+@app.route("/getFunctionalConstituent", methods=["POST"])
+def getFunctionalConstituent():
+    print("Received request for getFunctionalConstituent")
+    data = request.get_json()
+    resumeText = data.get("resumeText")
+    jobRole = data.get("jobRole", "")
+    
+    max_iter = 5
+    for iteration in range(max_iter):
+        try:
+            functional_constituent_info = functional_constituent_chain.invoke({"resume_text": resumeText, "job_role": jobRole})
+            keys_to_check = ['constituent', 'industries', 'has_industry_experience', 'has_completed_college']
+            if isinstance(functional_constituent_info, dict):
+                if all(key in functional_constituent_info for key in keys_to_check):
+                    return jsonify(functional_constituent_info)
+
+            print(functional_constituent_info)
+        except Exception as e:
+            print("Exception in functionalConstituent:", e)
+            pass
+
+        print("Retrying. Ended Iteration:", iteration)    
+        
+    return jsonify({'constituent': '',
+                    'industries': '', 
+                    'has_industry_experience': '',
+                    'has_completed_college': ''})
+
 
 if __name__ == "__main__":
     app.run(debug=True, threaded=True)
