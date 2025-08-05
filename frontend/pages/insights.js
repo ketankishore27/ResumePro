@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress } from '@mui/material';
+import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent } from '@mui/material';
 import { Phone, Email } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -11,26 +11,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
 
 
-const technicalData = {
-  labels: ['Python', 'SQL', 'JavaScript'],
-  datasets: [
-    {
-      label: 'Technical Exposure',
-      data: [50, 30, 20],
-      backgroundColor: [
-        'rgba(76, 175, 80, 0.7)',
-        'rgba(255, 152, 0, 0.7)',
-        'rgba(244, 67, 54, 0.7)'
-      ],
-      borderColor: [
-        'rgba(76, 175, 80, 1)',
-        'rgba(255, 152, 0, 1)',
-        'rgba(244, 67, 54, 1)'
-      ],
-      borderWidth: 1,
-    },
-  ],
-};
+
 
 import { usePdfText } from '../src/context/PdfTextContext';
 
@@ -51,7 +32,7 @@ export default function ResumeInsights() {
   const [resumeItems, setResumeItems] = useState([]);
   const [contactInfo, setContactInfo] = useState({ mobile_number: '', email_id: '', color: '', comment: '' });
   const [loadingContact, setLoadingContact] = useState(false);
-  const [summaryInfo, setSummaryInfo] = useState({ score: 0, color: 'red', label: 'critical', comment: 'Loading summary analysis...' });
+  const [summaryInfo, setSummaryInfo] = useState({ score: 0, color: 'red', label: 'critical', comment: 'Loading summary analysis...', summary: [] });
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [customScores, setCustomScores] = useState({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
   const [loadingCustomScores, setLoadingCustomScores] = useState(false);
@@ -59,6 +40,12 @@ export default function ResumeInsights() {
   const [loadingOtherComments, setLoadingOtherComments] = useState(false);
   const [functionalConstituent, setFunctionalConstituent] = useState({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
   const [loadingFunctionalConstituent, setLoadingFunctionalConstituent] = useState(false);
+  const [technicalConstituent, setTechnicalConstituent] = useState({ high: [], medium: [], low: [] });
+  const [loadingTechnicalConstituent, setLoadingTechnicalConstituent] = useState(false);
+  const [educationHistory, setEducationHistory] = useState([]);
+  const [loadingEducation, setLoadingEducation] = useState(false);
+  const [projectsInfo, setProjectsInfo] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
 
   // Helper function to determine progress bar color based on score
   const getProgressColor = (score) => {
@@ -178,21 +165,22 @@ export default function ResumeInsights() {
     setLoadingCustomScores(true);
     setLoadingOtherComments(true);
     setLoadingFunctionalConstituent(true);
+    setLoadingTechnicalConstituent(true);
+    setLoadingEducation(true);
+    setLoadingProjects(true);
     setScoreError(null);
     console.log(pdfText);
     console.log(jobRole);
     
-    // Send async independent requests
-    console.log('Sending async independent requests...');
-    
-    // Request 1: Resume Scoring (async)
-    console.log('Making scoreResume API call...');
-    console.log('Resume text length:', pdfText ? pdfText.length : 0);
-    console.log('Job role:', jobRole);
-    const scoreRequest = fetch('http://127.0.0.1:5000/scoreResume', {
+    const scoreRequest = fetch('http://127.0.0.1:8000/scoreResume', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText,
+        jobRole: jobRole
+      }),
     })
       .then(res => {
         console.log('ScoreResume response status:', res.status);
@@ -214,11 +202,15 @@ export default function ResumeInsights() {
         setLoadingScore(false);
       });
     
-    // Request 2: Contact Information (async)
-    const contactRequest = fetch('http://127.0.0.1:5000/getContacts', {
+    const contactRequest = fetch('http://127.0.0.1:8000/getContacts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText,
+        jobRole: jobRole
+      }),
     })
       .then(res => res.json())
       .then(data => {
@@ -243,11 +235,15 @@ export default function ResumeInsights() {
         setLoadingContact(false);
       });
     
-    // Request 3: Summary Overview (async)
-    const summaryRequest = fetch('http://127.0.0.1:5000/getSummaryOverview', {
+    const summaryRequest = fetch('http://127.0.0.1:8000/getSummaryOverview', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText,
+        jobRole: jobRole
+      }),
     })
       .then(res => res.json())
       .then(data => {
@@ -256,7 +252,8 @@ export default function ResumeInsights() {
           score: data.score || 0,
           color: data.color || 'red',
           label: data.label || 'critical',
-          comment: data.comment || 'Summary analysis not available'
+          comment: data.comment || 'Summary analysis not available',
+          summary: data.summary || []
         });
         setLoadingSummary(false);
       })
@@ -267,16 +264,21 @@ export default function ResumeInsights() {
           score: 0,
           color: 'red', 
           label: 'critical',
-          comment: 'Failed to analyze summary section' 
+          comment: 'Failed to analyze summary section',
+          summary: []
         });
         setLoadingSummary(false);
       });
     
-    // Request 4: Custom Scores (async)
-    const customScoresRequest = fetch('http://127.0.0.1:5000/getCustomScores', {
+    const customScoresRequest = fetch('http://127.0.0.1:8000/getCustomScores', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText,
+        jobRole: jobRole
+      }),
     })
       .then(res => res.json())
       .then(data => {
@@ -301,11 +303,15 @@ export default function ResumeInsights() {
         setLoadingCustomScores(false);
       });
     
-    // Request 5: Other Comments (async)
-    const otherCommentsRequest = fetch('http://127.0.0.1:5000/getOtherComments', {
+    const otherCommentsRequest = fetch('http://127.0.0.1:8000/getOtherComments', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText,
+        jobRole: jobRole
+      }),
     })
       .then(res => res.json())
       .then(data => {
@@ -328,12 +334,15 @@ export default function ResumeInsights() {
         setLoadingOtherComments(false);
       });
     
-    // Request 6: Functional Constituent (async)
-    console.log('Making functional constituent API call...');
-    const functionalConstituentRequest = fetch('http://127.0.0.1:5000/getFunctionalConstituent', {
+    const functionalConstituentRequest = fetch('http://127.0.0.1:8000/getFunctionalConstituent', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resumeText: pdfText, jobRole: jobRole }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText,
+        jobRole: jobRole
+      }),
     })
       .then(res => {
         console.log('Functional constituent response status:', res.status);
@@ -344,7 +353,6 @@ export default function ResumeInsights() {
       })
       .then(data => {
         console.log('Received functional constituent response:', data);
-        console.log('Constituent data:', data.constituent);
         setFunctionalConstituent({
           constituent: data.constituent || {},
           industries: data.industries || [],
@@ -356,7 +364,6 @@ export default function ResumeInsights() {
       .catch(err => {
         console.error('Failed to fetch functional constituent:', err);
         console.error('Functional constituent API error details:', err.message);
-        // Set some test data for debugging
         setFunctionalConstituent({ 
           constituent: {
             "IT": "60%",
@@ -370,8 +377,130 @@ export default function ResumeInsights() {
         setLoadingFunctionalConstituent(false);
       });
     
+    const technicalConstituentRequest = fetch('http://127.0.0.1:8000/getTechnicalConstituent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText,
+        jobRole: jobRole
+      }),
+    })
+      .then(res => {
+        console.log('Technical constituent response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log('Received technical constituent response:', data);
+        setTechnicalConstituent({
+          high: data.high || [],
+          medium: data.medium || [],
+          low: data.low || []
+        });
+        setLoadingTechnicalConstituent(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch technical constituent:', err);
+        console.error('Technical constituent API error details:', err.message);
+        setTechnicalConstituent({ 
+          high: ['Python', 'React', 'Node.js'],
+          medium: ['SQL', 'Docker', 'AWS'],
+          low: ['PHP', 'jQuery', 'Bootstrap']
+        });
+        setLoadingTechnicalConstituent(false);
+      });
+    
+    const educationRequest = fetch('http://127.0.0.1:8000/getEducation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText
+      }),
+    })
+      .then(res => {
+        console.log('Education response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log('Received education response:', data);
+        setEducationHistory(Array.isArray(data) ? data : []);
+        setLoadingEducation(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch education history:', err);
+        console.error('Education API error details:', err.message);
+        // Set some test data for debugging
+        setEducationHistory([
+          {
+            degree: 'M.Tech in Data Science and Engineering',
+            institution: 'BITS - Work Integrated',
+            start_year: 2021,
+            end_year: 2023
+          },
+          {
+            degree: 'B.Tech. in Electronics and Communication',
+            institution: 'SRM University, Chennai',
+            start_year: 2013,
+            end_year: 2017
+          }
+        ]);
+        setLoadingEducation(false);
+      });
+    
+    const projectsRequest = fetch('http://127.0.0.1:8000/getProjects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText,
+        jobRole: jobRole
+      }),
+    })
+      .then(res => {
+        console.log('Projects response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log('Received projects response:', data);
+        setProjectsInfo(Array.isArray(data.projects) ? data.projects : []);
+        setLoadingProjects(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch projects:', err);
+        console.error('Projects API error details:', err.message);
+        // Set some test data for debugging
+        setProjectsInfo([
+          {
+            title: 'E-commerce Web Application',
+            description: 'Developed a full-stack e-commerce platform with user authentication, shopping cart, and payment integration.',
+            technologies: ['React', 'Node.js', 'MongoDB', 'Express.js', 'Stripe API'],
+            duration: '3 months'
+          },
+          {
+            title: 'Data Analytics Dashboard',
+            description: 'Created an interactive dashboard for business intelligence with real-time data visualization.',
+            technologies: ['Python', 'Flask', 'D3.js', 'PostgreSQL', 'Chart.js'],
+            duration: '2 months'
+          }
+        ]);
+        setLoadingProjects(false);
+      });
+    
     // Optional: Log when all requests complete
-    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest, otherCommentsRequest, functionalConstituentRequest]).then((results) => {
+    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest, otherCommentsRequest, functionalConstituentRequest, technicalConstituentRequest, educationRequest, projectsRequest]).then((results) => {
       console.log('All async requests completed:', results);
     });
   }, [pdfText]);
@@ -390,6 +519,9 @@ export default function ResumeInsights() {
       setLoadingCustomScores(true);
       setLoadingOtherComments(true);
       setLoadingFunctionalConstituent(true);
+      setLoadingTechnicalConstituent(true);
+      setLoadingEducation(true);
+      setLoadingProjects(true);
       setScoreError(null);
       
       const pdfjsLib = await import('pdfjs-dist/build/pdf');
@@ -414,7 +546,7 @@ export default function ResumeInsights() {
         console.log('Sending async independent requests for re-upload...');
         
         // Request 1: Resume Scoring (async)
-        const reuploadScoreRequest = fetch('http://127.0.0.1:5000/scoreResume', {
+        const reuploadScoreRequest = fetch('http://127.0.0.1:8000/scoreResume', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
@@ -433,7 +565,7 @@ export default function ResumeInsights() {
           });
         
         // Request 2: Contact Information (async)
-        const reuploadContactRequest = fetch('http://127.0.0.1:5000/getContacts', {
+        const reuploadContactRequest = fetch('http://127.0.0.1:8000/getContacts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
@@ -461,7 +593,7 @@ export default function ResumeInsights() {
           });
         
         // Request 3: Summary Overview for re-upload (async)
-        const reuploadSummaryRequest = fetch('http://127.0.0.1:5000/getSummaryOverview', {
+        const reuploadSummaryRequest = fetch('http://127.0.0.1:8000/getSummaryOverview', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
@@ -473,7 +605,8 @@ export default function ResumeInsights() {
               score: data.score || 0,
               color: data.color || 'red',
               label: data.label || 'critical',
-              comment: data.comment || 'Summary analysis not available'
+              comment: data.comment || 'Summary analysis not available',
+              summary: data.summary || []
             });
             setLoadingSummary(false);
           })
@@ -483,13 +616,14 @@ export default function ResumeInsights() {
               score: 0,
               color: 'red', 
               label: 'critical',
-              comment: 'Failed to analyze summary section' 
+              comment: 'Failed to analyze summary section',
+              summary: []
             });
             setLoadingSummary(false);
           });
         
         // Request 4: Custom Scores for re-upload (async)
-        const reuploadCustomScoresRequest = fetch('http://127.0.0.1:5000/getCustomScores', {
+        const reuploadCustomScoresRequest = fetch('http://127.0.0.1:8000/getCustomScores', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
@@ -517,7 +651,7 @@ export default function ResumeInsights() {
           });
         
         // Request 5: Other Comments for re-upload (async)
-        const reuploadOtherCommentsRequest = fetch('http://127.0.0.1:5000/getOtherComments', {
+        const reuploadOtherCommentsRequest = fetch('http://127.0.0.1:8000/getOtherComments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
@@ -543,7 +677,7 @@ export default function ResumeInsights() {
           });
         
         // Request 6: Functional Constituent for re-upload (async)
-        const reuploadFunctionalConstituentRequest = fetch('http://127.0.0.1:5000/getFunctionalConstituent', {
+        const reuploadFunctionalConstituentRequest = fetch('http://127.0.0.1:8000/getFunctionalConstituent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
@@ -570,8 +704,84 @@ export default function ResumeInsights() {
             setLoadingFunctionalConstituent(false);
           });
         
+        // Request 7: Technical Constituent for re-upload (async)
+        const reuploadTechnicalConstituentRequest = fetch('http://127.0.0.1:8000/getTechnicalConstituent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            console.log('Received re-upload technical constituent response:', data);
+            setTechnicalConstituent({
+              high: data.high || [],
+              medium: data.medium || [],
+              low: data.low || []
+            });
+            setLoadingTechnicalConstituent(false);
+          })
+          .catch(err => {
+            console.error('Failed to fetch technical constituent for re-upload:', err);
+            setTechnicalConstituent({ 
+              high: [],
+              medium: [],
+              low: []
+            });
+            setLoadingTechnicalConstituent(false);
+          });
+        
+        // Request 8: Education History for re-upload (async)
+        const reuploadEducationRequest = fetch('http://127.0.0.1:8000/getEducation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeText: text }),
+        })
+          .then(res => {
+            console.log('Education re-upload response status:', res.status);
+            if (!res.ok) {
+              throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+          })
+          .then(data => {
+            console.log('Received re-upload education response:', data);
+            setEducationHistory(Array.isArray(data) ? data : []);
+            setLoadingEducation(false);
+          })
+          .catch(err => {
+            console.error('Failed to fetch education history for re-upload:', err);
+            console.error('Education re-upload API error details:', err.message);
+            setEducationHistory([]);
+            setLoadingEducation(false);
+          });
+        
+        // Request 9: Projects for re-upload (async)
+        const reuploadProjectsRequest = fetch('http://127.0.0.1:8000/getProjects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
+        })
+          .then(res => {
+            console.log('Projects re-upload response status:', res.status);
+            if (!res.ok) {
+              throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+          })
+          .then(data => {
+            console.log('Received re-upload projects response:', data);
+            setProjectsInfo(Array.isArray(data.projects) ? data.projects : []);
+            setLoadingProjects(false);
+          })
+          .catch(err => {
+            console.error('Failed to fetch projects for re-upload:', err);
+            console.error('Projects re-upload API error details:', err.message);
+            setProjectsInfo([]);
+            setLoadingProjects(false);
+          });
+        
         // Optional: Log when all re-upload requests complete
-        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest, reuploadOtherCommentsRequest, reuploadFunctionalConstituentRequest]).then((results) => {
+        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest, reuploadOtherCommentsRequest, reuploadFunctionalConstituentRequest, reuploadTechnicalConstituentRequest, reuploadEducationRequest, reuploadProjectsRequest]).then((results) => {
           console.log('All re-upload async requests completed:', results);
         });
       };
@@ -732,9 +942,276 @@ export default function ResumeInsights() {
               )}
             </Box>
           </Paper>
+          
+          {/* Functional Exposure Section */}
+          <Paper sx={{ p: 3, mt: 3 }}>
+            <Typography variant="subtitle1" fontWeight={700} gutterBottom>Functional Exposure</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+              {loadingFunctionalConstituent ? (
+                <CircularProgress />
+              ) : (
+                <Pie 
+                  data={functionalData} 
+                  options={functionalChartOptions}
+                  style={{ maxHeight: '180px', maxWidth: '100%' }} 
+                />
+              )}
+            </Box>
+          </Paper>
+          
+          {/* Technical Exposure Section */}
+          <Paper sx={{ p: 3, mt: 3 }}>
+            <Typography variant="subtitle1" fontWeight={700} gutterBottom>Technical Exposure</Typography>
+            {loadingTechnicalConstituent ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                {/* High Relevance Row */}
+                <Grid item xs={12}>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={600} color="success.main" gutterBottom>
+                      High
+                    </Typography>
+                    <Box sx={{ minHeight: 60, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1, p: 1, border: '1px solid', borderColor: 'success.main' }}>
+                      {technicalConstituent.high && technicalConstituent.high.length > 0 ? (
+                        technicalConstituent.high.map((skill, index) => (
+                          <Chip 
+                            key={index} 
+                            label={skill} 
+                            size="small" 
+                            color="success" 
+                            variant="outlined"
+                            sx={{ m: 0.5, fontSize: '0.75rem' }}
+                          />
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="text.secondary" sx={{ pt: 1 }}>
+                          No high relevance skills
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
+                
+                {/* Medium Relevance Row */}
+                <Grid item xs={12}>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={600} color="warning.main" gutterBottom>
+                      Medium
+                    </Typography>
+                    <Box sx={{ minHeight: 60, backgroundColor: 'rgba(255, 152, 0, 0.1)', borderRadius: 1, p: 1, border: '1px solid', borderColor: 'warning.main' }}>
+                      {technicalConstituent.medium && technicalConstituent.medium.length > 0 ? (
+                        technicalConstituent.medium.map((skill, index) => (
+                          <Chip 
+                            key={index} 
+                            label={skill} 
+                            size="small" 
+                            color="warning" 
+                            variant="outlined"
+                            sx={{ m: 0.5, fontSize: '0.75rem' }}
+                          />
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="text.secondary" sx={{ pt: 1 }}>
+                          No medium relevance skills
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
+                
+                {/* Low Relevance Row */}
+                <Grid item xs={12}>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={600} color="error.main" gutterBottom>
+                      Low
+                    </Typography>
+                    <Box sx={{ minHeight: 60, backgroundColor: 'rgba(244, 67, 54, 0.1)', borderRadius: 1, p: 1, border: '1px solid', borderColor: 'error.main' }}>
+                      {technicalConstituent.low && technicalConstituent.low.length > 0 ? (
+                        technicalConstituent.low.map((skill, index) => (
+                          <Chip 
+                            key={index} 
+                            label={skill} 
+                            size="small" 
+                            color="error" 
+                            variant="outlined"
+                            sx={{ m: 0.5, fontSize: '0.75rem' }}
+                          />
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="text.secondary" sx={{ pt: 1 }}>
+                          No low relevance skills
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+            )}
+          </Paper>
         </Grid>
         {/* Main Content */}
         <Grid item xs={12} md={9}>
+          {/* Summary Section */}
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" fontWeight={700}>Summary</Typography>
+            <Typography variant="body2" sx={{ my: 2 }}>
+              AI-powered analysis of your resume summary section and overall presentation.
+            </Typography>
+            
+            {loadingSummary ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : (
+              <Box sx={{ mt: 2 }}>
+                {/* Summary Points Section */}
+                {summaryInfo.summary && summaryInfo.summary.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
+                      Extracted Summary:
+                    </Typography>
+                    <Box component="ul" sx={{ 
+                      margin: 0, 
+                      paddingLeft: 3, 
+                      listStyleType: 'disc'
+                    }}>
+                      {summaryInfo.summary.map((point, index) => (
+                        <Box component="li" key={index} sx={{ mb: 1, lineHeight: 1.5 }}>
+                          <Typography variant="body2" component="span">
+                            {point}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+                
+                {/* Summary Quality Section */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    Summary Quality:
+                  </Typography>
+                  <Chip 
+                    label={summaryInfo.label || 'N/A'} 
+                    size="small" 
+                    color={summaryInfo.color === 'green' ? 'success' : 
+                           summaryInfo.color === 'blue' ? 'primary' : 
+                           summaryInfo.color === 'orange' ? 'warning' : 'error'}
+                    sx={{ textTransform: 'capitalize' }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    Score: {summaryInfo.score || 0}/100
+                  </Typography>
+                </Box>
+                
+                <Typography variant="body2" sx={{ 
+                  p: 2, 
+                  backgroundColor: 'grey.50', 
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'grey.200'
+                }}>
+                  {summaryInfo.comment || 'No summary analysis available'}
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+          
+          {/* Projects Section */}
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" fontWeight={700}>Projects</Typography>
+            <Typography variant="body2" sx={{ my: 2 }}>
+              AI-powered analysis of your project experience and technical implementations.
+            </Typography>
+            {loadingProjects ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box>
+                {projectsInfo && projectsInfo.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {projectsInfo.map((project, index) => (
+                      <Grid item xs={12} md={6} key={index}>
+                        <Card sx={{ 
+                          height: '100%', 
+                          border: '1px solid', 
+                          borderColor: (project.score || 0) >= 80 ? 'success.main' : 
+                                     (project.score || 0) >= 60 ? 'warning.main' : 'error.main'
+                        }}>
+                          <CardContent>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                              <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
+                                {project.title || `Project ${index + 1}`}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <Chip 
+                                  label={`${project.score || 0}%`}
+                                  size="small"
+                                  color={(project.score || 0) >= 80 ? 'success' : 
+                                         (project.score || 0) >= 60 ? 'warning' : 'error'}
+                                  sx={{ fontWeight: 600 }}
+                                />
+                                <Chip 
+                                  label={project.stage || 'Unknown'}
+                                  size="small"
+                                  variant="outlined"
+                                  color={project.stage === 'Production' ? 'primary' : 'default'}
+                                />
+                              </Box>
+                            </Box>
+                            
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              {project.description || 'No description available'}
+                            </Typography>
+                            
+                            {project.comment && (
+                              <Box sx={{ mb: 2 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                  AI Analysis:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                                  {project.comment}
+                                </Typography>
+                              </Box>
+                            )}
+                            
+                            {project.technologies && project.technologies.length > 0 && (
+                              <Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
+                                  Technologies:
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                  {project.technologies.map((tech, techIndex) => (
+                                    <Chip 
+                                      key={techIndex}
+                                      label={tech}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ fontSize: '0.75rem' }}
+                                    />
+                                  ))}
+                                </Box>
+                              </Box>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+                    No projects found in your resume. Consider adding project details to showcase your technical experience.
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </Paper>
+          
+          {/* Resume Fixes Section */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" fontWeight={700}>Resume Fixes <Chip label="IMPORTANT" size="small" color="default" sx={{ ml: 1 }} /></Typography>
             <Typography variant="body2" sx={{ my: 2 }}>
@@ -796,28 +1273,6 @@ export default function ResumeInsights() {
                   
                   {/* Static sections */}
                   <TableRow>
-                    <TableCell>Summary</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={
-                          summaryInfo.label === 'good' ? 'Good' : 
-                          summaryInfo.label === 'warning' ? 'Warning' : 
-                          'Critical'
-                        } 
-                        color={
-                          summaryInfo.color === 'green' ? 'success' : 
-                          summaryInfo.color === 'orange' ? 'warning' : 
-                          summaryInfo.color === 'red' ? 'error' : 
-                          'error'
-                        } 
-                        size="small" 
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {loadingSummary ? 'Analyzing summary section...' : summaryInfo.comment}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
                     <TableCell>Section Headings</TableCell>
                     <TableCell><Chip label="Good" color="success" size="small" /></TableCell>
                     <TableCell>
@@ -842,32 +1297,69 @@ export default function ResumeInsights() {
               </Table>
             </TableContainer>
           </Paper>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="subtitle1" fontWeight={700} gutterBottom>Functional Exposure</Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                  {loadingFunctionalConstituent ? (
-                    <CircularProgress />
-                  ) : (
-                    <Pie 
-                      data={functionalData} 
-                      options={functionalChartOptions}
-                      style={{ maxHeight: '180px', maxWidth: '100%' }} 
-                    />
-                  )}
-                </Box>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="subtitle1" fontWeight={700} gutterBottom>Technical Exposure</Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                  <Pie data={technicalData} style={{ maxHeight: '180px', maxWidth: '100%' }} />
-                </Box>
-              </Paper>
-            </Grid>
-          </Grid>
+          
+          {/* Education History Section */}
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              Education History
+            </Typography>
+            {loadingEducation ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box sx={{ mt: 2 }}>
+                {educationHistory && educationHistory.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {educationHistory.map((education, index) => (
+                      <Grid item xs={12} md={6} key={index}>
+                        <Box 
+                          sx={{ 
+                            p: 2, 
+                            border: '1px solid', 
+                            borderColor: 'divider', 
+                            borderRadius: 2, 
+                            backgroundColor: 'background.paper',
+                            boxShadow: 1
+                          }}
+                        >
+                          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                            {education.degree}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            {education.institution}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                            <Chip 
+                              label={`${education.start_year} - ${education.end_year === 'ongoing' ? 'Ongoing' : education.end_year}`}
+                              size="small" 
+                              color="primary" 
+                              variant="outlined"
+                            />
+                            {education.end_year === 'ongoing' && (
+                              <Chip 
+                                label="Current" 
+                                size="small" 
+                                color="success" 
+                                sx={{ ml: 1 }}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No education history found in the resume
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+          </Paper>
+
         </Grid>
       </Grid>
       </Box>

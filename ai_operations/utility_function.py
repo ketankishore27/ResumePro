@@ -1,15 +1,15 @@
 from langchain_core.prompts import PromptTemplate
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel, conint
 from langchain_core.output_parsers import PydanticOutputParser, JsonOutputParser
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Union, Literal, Optional
 
 load_dotenv(override=True)
 #llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
-llm = ChatOpenAI(model="gpt-4o", temperature=0.)
+llm = ChatOpenAI(model="gpt-4.1", temperature=0.)
 
 def create_resume_score():
 
@@ -126,52 +126,106 @@ def get_contact_information():
 
 def get_summary_overview():
 
-    class summary_score_extractor(BaseModel):
+    class ResumeSummaryScore(BaseModel):
+        summary: List[str] = Field(..., description="List of bullet points extracted from the summary section")
+        score: conint(ge=0, le=100) = Field(..., description="Integer score between 0 and 100")
+        label: Literal["critical", "warning", "good"] = Field(..., description="Label based on score range")
+        color: Literal["red", "orange", "green"] = Field(..., description="Color indicating severity level")
+        comment: str = Field(..., description="Short justification for the score")
 
-        score: int = Field("Score of the resume based on Summary Section Analysis, an Applicant Tracking System would give.")
-        color: str = Field("`'green'` if score is above 80, `'orange'` if the score is between 40 and 80 and `'red'` if the score is less than 40")
-        label: str = Field("`'good'` if score is above 80, `warning` if the score is between 40 and 80 and `critical` if the score is less than 40")
-        comment: str = Field("A brief justification of the score awarded")
-
-    output_parser = PydanticOutputParser(pydantic_object = summary_score_extractor).get_format_instructions()
+    output_parser = PydanticOutputParser(pydantic_object = ResumeSummaryScore).get_format_instructions()
     
     instruction_format = """
     You are an expert resume evaluator.
-
-    Your task is to analyze the **Summary section** of a resume and score it based on how well it aligns with a specific job role.
-    - Clarity and conciseness
-    - Relevance to job roles
-    - Use of strong, action-oriented language
-    - Mention of key skills and experience
-    - Overall professionalism and tone
+    
+    Your task is to:
+    1. Extract the **Summary section** from the full resume.
+    2. If the summary is a paragraph, split it into clear bullet points.
+    3. Score how well the summary aligns with the given job role.
+    4. Return your output in structured JSON format.
     
     ---
-
+    
+    ### 🎯 Inputs:
     **Job Role**: {job_role}  
-    **Resume Summary**:
-    {resume}
+    **Full Resume Text**:  
+    {resume_text}
     
     ---
     
-    ### Evaluation Logic:
+    ### 🔍 Step 1: Identify and Extract the Summary Section
     
-    1. If the summary is **missing, empty, or irrelevant**, return:
-       - score: any value below 40 (e.g. 20)
-       - label: `"critical"`
-       - color: `"red"`
-       - comment: `"No summary section was provided in the resume."` or equivalent
+    Search for a section labeled (or resembling):
+    - "Summary"
+    - "Profile Summary"
+    - "Professional Summary"
+    - "Career Overview"
+    - "About Me"
+    - "Executive Summary"
     
-    2. Otherwise:
-       - Evaluate the summary and assign a **score from 0–100**
-       - Based on the score, assign:
-         - score < 40 → `"critical"` + `"red"`
-         - 40 ≤ score ≤ 80 → `"warning"` + `"orange"`
-         - score > 80 → `"good"` + `"green"`
-       - Add a comment explaining the rating in 1–3 lines
+    Extract only the most relevant part.
+    
+    If no such section is found, return `summary: []`, score `0`, and provide a comment indicating the absence of a summary.
     
     ---
     
-    ### Output Format (JSON):
+    ### 🧩 Step 2: Format the Extracted Summary
+    
+    If the extracted summary is **a paragraph** or block of text:
+    - Split it into **clear bullet points** or concise **statements** (one idea per string).
+    - Each point should be professional, relevant, and self-contained.
+    
+    If already pointwise, preserve the original list.
+    
+    ---
+    
+    ### 📊 Step 3: Evaluate the Summary
+    
+    Criteria:
+    - Relevance to the job role
+    - Mention of tools, skills, industries, or accomplishments
+    - Professional tone and clarity
+    - Concise and purposeful language
+    
+    ---
+    
+    ### 📈 Scoring Logic:
+    
+    1. **Missing Summary**:
+       - `"summary"`: `[]`
+       - `"score"`: `0`
+       - `"label"`: `"critical"`
+       - `"color"`: `"red"`
+       - `"comment"`: `"No relevant summary section found."`
+    
+    2. **Irrelevant Summary**:
+       - `"score"`: `1–10`
+       - `"label"`: `"critical"`
+       - `"color"`: `"red"`
+       - `"comment"`: `"The summary does not relate to the job role."`
+    
+    3. **Generic Summary**:
+       - `"score"`: `11–30`
+       - `"label"`: `"critical"`
+       - `"color"`: `"red"`
+       - `"comment"`: `"The summary is too generic and lacks job-specific relevance."`
+    
+    4. **Partially Relevant Summary**:
+       - `"score"`: `31–80`
+       - `"label"`: `"warning"`
+       - `"color"`: `"orange"`
+    
+    5. **Highly Relevant Summary**:
+       - `"score"`: `81–100`
+       - `"label"`: `"good"`
+       - `"color"`: `"green"`
+    
+    Always add a short `"comment"` (1–3 lines) explaining the score.
+    ---
+    
+    ### ✅ Output Format (JSON):
+    
+    Return the following JSON:
     {output_information}
     
     """
@@ -386,5 +440,226 @@ def functional_constituent():
                                      partial_variables = {"output_format": output_parser})
 
     chain = prompt_template | llm | JsonOutputParser()
+
+    return chain
+
+
+def technical_constituent():
+
+    class TechnicalExposureGrouped(BaseModel):
+        high: List[str]
+        medium: List[str]
+        low: List[str]
+        
+    
+    output_parser = PydanticOutputParser(pydantic_object=TechnicalExposureGrouped).get_format_instructions()
+    
+    instruction_format = """
+    You are an expert in resume analysis and technical skill evaluation.
+    
+    Your task is to extract only the **technologies, tools, and programming languages** that the candidate has **actually worked with**, based on their resume.
+    
+    Then, categorize them into three levels of relevance and usage confidence based on the candidate’s **past experience** and the specified **job role**.
+    
+    ---
+    
+    ### 📌 Guidelines:
+    
+    1. **Read the resume thoroughly.**
+    2. **Extract only the technologies** that show evidence of hands-on use — in projects, job roles, internships, or education.
+    3. **Standardize each technology/tool name** to its commonly recognized form.
+       - `python3` → `"Python"`
+       - `Amazon Web Services` → `"AWS"`
+       - `react js` → `"React"`
+       - `postgres` → `"PostgreSQL"`
+    
+    ---
+    
+    ### 🎯 Classification Criteria:
+    
+    - `"high"`: Strong usage demonstrated in multiple roles or major projects, **highly relevant** to the given job role.
+    - `"medium"`: Moderate usage or mention in one role/project, **somewhat relevant** to the job role.
+    - `"low"`: Brief or indirect mention, or **not highly relevant** to the job role — but with some evidence of exposure.
+    
+    ⚠️ Do not include any technology that does not appear in the resume.
+    
+    ---
+    
+    ### 📄 Resume:
+    {resume_text}
+    
+    ---
+    
+    ### 💼 Job Role:
+    {job_role}
+    
+    ---
+    
+    ### ✅ Output Format:
+    
+    Return a JSON object with exactly three keys: `"high"`, `"medium"`, and `"low"`.
+    
+    Each key must return a **list of standardized technology names**.  
+    If there are no technologies in a category, return an **empty list** (`[]`) — not null, not missing.
+    
+    ---
+    ### Output Format:
+    Return a JSON object with 3 keys: `"high"`, `"medium"`, and `"low"`. Each contains a **list of standardized technologies** that the candidate has worked with, even if briefly.
+    {output_format}
+    
+    """
+
+    prompt_template = PromptTemplate(template=instruction_format, 
+                                     partial_variables={"output_format": output_parser})
+
+    chain = prompt_template | llm | JsonOutputParser()
+    
+    return chain
+
+    
+def education_extractor():
+
+    class EducationEntry(BaseModel):
+        degree: str
+        institution: str
+        start_year: int
+        end_year: Union[int, str]  # Can be an integer (year) or "ongoing"
+    
+    class EducationHistory(RootModel[List[EducationEntry]]):
+        pass
+        
+    
+    output_parser = PydanticOutputParser(pydantic_object=EducationHistory).get_format_instructions()
+    
+    instruction_format = """
+        You are an expert in resume parsing and candidate profiling.
+    
+    Your task is to analyze the resume text below and extract all **formal education qualifications**, including their **timelines**, and return them in **descending order of end year** (i.e., most recent education first).
+    
+    ---
+    
+    ### ✅ Instructions:
+    
+    1. Read the full resume carefully.
+    2. Extract all entries related to **formal education only** (e.g., degrees, diplomas, academic programs).
+       - Exclude certifications, bootcamps, training courses, and online learning unless clearly stated as a formal degree program.
+    3. For each valid entry, extract the following fields:
+       - `degree`: The full degree or qualification name (e.g., "B.Tech in Computer Science").
+       - `institution`: Name of the institution (e.g., "IIT Delhi", "Stanford University").
+       - `start_year`: The year the program started (in `YYYY` format).
+       - `end_year`: The year the program ended or is expected to end (in `YYYY` format), or `"ongoing"` if still in progress.
+    
+    4. Sort all extracted education entries in **descending order by `end_year`**. Place `"ongoing"` entries at the top.
+    
+    ---
+    
+    ### 📄 Resume Text:
+    {resume_text}
+    
+    ---
+    
+    ### ✅ Output Format (JSON):
+    
+    Return an array of JSON objects sorted as described. Example:
+    {output_format}
+    """
+
+    prompt_template = PromptTemplate(template=instruction_format, 
+                                     partial_variables={"output_format": output_parser})
+
+    chain = prompt_template | llm | JsonOutputParser()
+    
+    return chain
+
+
+def project_extractor():
+
+    
+    
+    class Project(BaseModel):
+        title: str
+        description: str = Field(default="")
+        technologies: List[str] = Field(default_factory=list)
+        score: conint(ge=0, le=100)
+        color: Literal["light red", "light orange", "light green"]
+        comment: str
+        stage: Literal["POC", "Production", "Intern"]
+
+
+    class ProjectEvaluationResult(BaseModel):
+        projects: List[Project] = Field(default_factory=list)
+
+    output_parser = PydanticOutputParser(pydantic_object=ProjectEvaluationResult).get_format_instructions()
+
+    instruction_format = """
+    You are an expert resume evaluator.
+
+    Your task is to analyze the **Projects** section of a resume and evaluate how well each project aligns with a specific job role.
+
+    ---
+
+    ### 🎯 Inputs:
+    - **Job Role**: {job_role}
+    - **Full Resume Text**: {resume_text}
+
+    ---
+
+    ### 🧠 Instructions:
+
+    1. **Extract Projects (in order)**:
+    - Identify all distinct projects in the resume, preserving the **original order of appearance**.
+    - For each project, extract:
+        - `title`: The name or headline of the project
+        - `description`: A brief one-line summary (if available)
+        - `technologies`: List of programming languages, frameworks, tools, or methods used (if mentioned)
+
+    2. **Evaluate Relevance**:
+    - Assign a **score between 0 and 100** based on how well the project aligns with the job role.
+    - Scoring should consider:
+        - Overlap of tools, methods, or challenges with the target role
+        - Domain or business relevance
+        - Outcomes or responsibilities demonstrated
+
+    3. **Color Coding**:
+    - Based on score, assign a color:
+        - Score < 40 → `"light red"`
+        - 40 ≤ score < 80 → `"light orange"`
+        - Score ≥ 80 → `"light green"`
+
+    4. **Comment**:
+    - Add a brief (1–2 line) comment explaining the reasoning behind the score.
+
+    5. **Stage Classification (Mandatory Logic)**:
+
+        You must assign one of the following values to the `"stage"` key:
+        - `"Intern"`
+        - `"POC"`
+        - `"Production"`
+
+        Apply this logic in the following strict order:
+
+        1. **Intern Override Rule (Highest Priority)**:  
+            - If the project was done **while the candidate was an intern, trainee, apprentice, or student**,  
+                then set `"stage"` to `"Intern"` —  
+                even if the project was deployed in production or described as a real-world implementation.
+
+        2. If NOT an intern project, then:
+            - Set `"stage"` to `"POC"` if the project is a prototype, hackathon, research, or academic demo.
+            - Set `"stage"` to `"Production"` if the project was used by real users, deployed, integrated into systems, or had measurable impact.
+
+        🛑 Do not ignore the **intern override rule** under any circumstance.
+
+    - Use the most reasonable inference from resume context.
+
+    ---
+    
+    ### ✅ Output Format (JSON):
+    {output_format}
+    """
+
+    prompt = PromptTemplate(template=instruction_format, 
+                                     partial_variables={"output_format": output_parser})
+
+    chain = prompt | llm | JsonOutputParser()
 
     return chain

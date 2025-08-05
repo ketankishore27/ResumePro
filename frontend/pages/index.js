@@ -10,8 +10,11 @@ import { usePdfText } from '../src/context/PdfTextContext';
 
 export default function Home() {
   const [resumeFile, setResumeFile] = useState(null);
-  const [jobRole, setJobRole] = useState('');
-  const { setPdfText, setJobRole: setContextJobRole } = usePdfText();
+  const [description, setDescription] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
+  const [userName, setUserName] = useState('');
+  const [userJobRole, setUserJobRole] = useState('');
+  const { setPdfText, setJobRole: setContextJobRole, setDescription: setContextDescription } = usePdfText();
   const router = require('next/router').useRouter ? require('next/router').useRouter() : require('next/router').default.useRouter();
   
   // PDF text extraction logic (without auto-navigation)
@@ -26,7 +29,7 @@ export default function Home() {
       alert('Please select a resume file first.');
       return;
     }
-    if (!jobRole.trim()) {
+    if (!userJobRole.trim()) {
       alert('Please enter your job role.');
       return;
     }
@@ -45,8 +48,40 @@ export default function Home() {
           text += content.items.map(item => item.str).join(' ') + '\n';
         }
         setPdfText(text);
-        setContextJobRole(jobRole);
+        setContextJobRole(userJobRole);
         router.push('/insights');
+      };
+      fileReader.readAsArrayBuffer(resumeFile);
+    }
+  };
+
+  // Handle submit request for cover letter generation
+  const handleSubmitRequest = async () => {
+    if (!resumeFile) {
+      alert('Please select a resume file first.');
+      return;
+    }
+    if (!description.trim()) {
+      alert('Please describe your resume needs or questions.');
+      return;
+    }
+
+    if (resumeFile && resumeFile.type === 'application/pdf') {
+      const pdfjsLib = await import('pdfjs-dist/build/pdf');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+      const fileReader = new FileReader();
+      fileReader.onload = async function () {
+        const typedarray = new Uint8Array(this.result);
+        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+        let text = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map(item => item.str).join(' ') + '\n';
+        }
+        setPdfText(text);
+        setContextDescription(description);
+        router.push('/cover-letter');
       };
       fileReader.readAsArrayBuffer(resumeFile);
     }
@@ -97,6 +132,57 @@ export default function Home() {
         </Box>
       </Box>
 
+      {/* User Information Section */}
+      <Box sx={{ maxWidth: 1200, mx: 'auto', mb: 4, px: 3 }}>
+        <Typography variant="h5" fontWeight={700} align="center" gutterBottom sx={{ mb: 3 }}>
+          Enter Your Information
+        </Typography>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={4}>
+            <TextField
+              placeholder="Enter your full name"
+              variant="outlined"
+              fullWidth
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              sx={{ bgcolor: '#fff' }}
+              label="Name"
+            />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              placeholder="Enter your job role (e.g., Software Engineer)"
+              variant="outlined"
+              fullWidth
+              value={userJobRole}
+              onChange={(e) => setUserJobRole(e.target.value)}
+              sx={{ bgcolor: '#fff' }}
+              label="Job Role"
+            />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <input
+              accept=".pdf,.doc,.docx,.txt"
+              style={{ display: 'none' }}
+              id="main-resume-upload"
+              type="file"
+              onChange={handleFileChange}
+            />
+            <label htmlFor="main-resume-upload">
+              <Button 
+                variant="contained" 
+                color="primary" 
+                component="span" 
+                fullWidth
+                sx={{ fontWeight: 700, py: 1.5, borderRadius: 2, height: '56px' }}
+              >
+                {resumeFile ? resumeFile.name : 'Choose PDF or Word File'}
+              </Button>
+            </label>
+          </Grid>
+        </Grid>
+      </Box>
+
       {/* Feature Cards */}
       <Grid container spacing={3} sx={{ maxWidth: 1300, mx: 'auto' }}>
         {/* Resume Insights */}
@@ -112,35 +198,13 @@ export default function Home() {
               <Typography variant="body2" color="text.secondary" align="center" sx={{ fontStyle: 'italic', mb: 2 }}>
                 Use this section to understand what your resume says to the recruiter. Also this section suggests the improvement
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
-                <input
-                  accept=".pdf,.doc,.docx,.txt"
-                  style={{ display: 'none' }}
-                  id="resume-upload"
-                  type="file"
-                  onChange={handleFileChange}
-                />
-                <label htmlFor="resume-upload">
-                  <Button variant="outlined" color="success" component="span" sx={{ width: '100%' }}>
-                    {resumeFile ? resumeFile.name : 'Choose PDF or Word File'}
-                  </Button>
-                </label>
-                <TextField
-                  placeholder="Enter your job role (e.g., Software Engineer, Data Analyst)"
-                  variant="outlined"
-                  fullWidth
-                  value={jobRole}
-                  onChange={(e) => setJobRole(e.target.value)}
-                  sx={{ bgcolor: '#f7faff' }}
-                />
-              </Box>
               <Box sx={{ flexGrow: 1 }} />
               <Button 
                 variant="contained" 
                 color="success" 
                 sx={{ fontWeight: 700, width: '100%', mb: 2 }}
                 onClick={handleSubmitInsights}
-                disabled={!resumeFile || !jobRole.trim()}
+                disabled={!resumeFile || !userJobRole.trim()}
               >
                 Submit Request
               </Button>
@@ -162,23 +226,24 @@ export default function Home() {
                   Use this section to make adjustments to your resume on your prompt. Its your personal assistant
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
-                <input
-                  accept=".pdf,.doc,.docx,.txt"
-                  style={{ display: 'none' }}
-                  id="resume-upload-req"
-                  type="file"
-                  onChange={e => setResumeFile(e.target.files[0])}
-                />
-                <label htmlFor="resume-upload-req">
-                  <Button variant="outlined" color="success" component="span" sx={{ width: '100%' }}>
-                    {resumeFile ? resumeFile.name : 'Choose PDF or Word File'}
-                  </Button>
-                </label>
-              </Box>
-              <TextField multiline minRows={5} placeholder="Describe your resume needs or questions..." variant="outlined" fullWidth sx={{ mb: 0, bgcolor: '#f7faff', mt: 1 }} />
+              <TextField 
+                multiline 
+                minRows={5} 
+                placeholder="Describe your resume needs or questions..." 
+                variant="outlined" 
+                fullWidth 
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                sx={{ mb: 0, bgcolor: '#f7faff', mt: 1 }} 
+              />
               <Box sx={{ flexGrow: 1 }} />
-              <Button variant="contained" color="success" sx={{ fontWeight: 700, width: '100%', mb: 2 }}>
+              <Button 
+                variant="contained" 
+                color="success" 
+                onClick={handleSubmitRequest}
+                disabled={!resumeFile || !description.trim()}
+                sx={{ fontWeight: 700, width: '100%', mb: 2 }}
+              >
                 Submit Request
               </Button>
             </CardContent>
@@ -199,23 +264,23 @@ export default function Home() {
                   Use this section to check other resumes for the job profile you are looking for. Also finds right candidates
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
-                <input
-                  accept=".pdf,.doc,.docx,.txt"
-                  style={{ display: 'none' }}
-                  id="resume-upload-query"
-                  type="file"
-                  onChange={e => setResumeFile(e.target.files[0])}
-                />
-                <label htmlFor="resume-upload-query">
-                  <Button variant="outlined" color="success" component="span" sx={{ width: '100%' }}>
-                    {resumeFile ? resumeFile.name : 'Choose PDF or Word File'}
-                  </Button>
-                </label>
-              </Box>
-              <TextField multiline minRows={5} placeholder="Enter job description here..." variant="outlined" fullWidth sx={{ mb: 2, bgcolor: '#f7faff', mt: 1 }} />
+              <TextField 
+                multiline 
+                minRows={5} 
+                placeholder="Enter job description here..." 
+                variant="outlined" 
+                fullWidth 
+                value={jobDescription}
+                onChange={e => setJobDescription(e.target.value)}
+                sx={{ mb: 2, bgcolor: '#f7faff', mt: 1 }} 
+              />
               <Box sx={{ flexGrow: 1 }} />
-              <Button variant="contained" color="success" sx={{ fontWeight: 700, width: '100%', mb: 2 }}>
+              <Button 
+                variant="contained" 
+                color="success" 
+                disabled={!jobDescription.trim()}
+                sx={{ fontWeight: 700, width: '100%', mb: 2 }}
+              >
                 Search Resumes
               </Button>
             </CardContent>

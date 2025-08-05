@@ -1,31 +1,35 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 from ai_operations.chains import scoring_chain, contact_extractor_chain, \
                                  summary_chain, custom_score_chain, \
                                  other_comments_chain, functional_constituent_chain, \
-                                 technical_constituent_chain, education_extractor_chain, \
-                                 project_extractor_chain
+                                 technical_constituent_chain, education_extractor_chain
 
-app = FastAPI()
+app = Flask(__name__)
+# CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"], 
+#      methods=["GET", "POST", "OPTIONS"],
+#      allow_headers=["Content-Type", "Authorization"])
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
-)
+CORS(app, origins="*", 
+     methods=["GET", "POST", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"])
 
-@app.post("/test")
+@app.before_request
+def log_request_info():
+    print(f"Request: {request.method} {request.url}")
+    print(f"Headers: {dict(request.headers)}")
+    if request.is_json:
+        print(f"JSON Data: {request.get_json()}")
+
+@app.route("/test", methods=["GET", "POST"])
 def test_endpoint():
-    return {"status": "success", "message": "Server is working!"}
+    return jsonify({"status": "success", "message": "Server is working!"})
 
-
-@app.post("/scoreResume")
-def scoreResume(data: dict):
+@app.route("/scoreResume", methods=["POST"])
+def scoreResume():
     print("Received request for scoreResume")
-    resumeText = data.get("resumeText", "")
+    data = request.get_json()
+    resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
     max_iter = 5
@@ -35,11 +39,11 @@ def scoreResume(data: dict):
             
             if isinstance(scores_resume, dict):
                 if isinstance(scores_resume['score'], int) and isinstance(scores_resume['items'], list):
-                    return {
-                            "score": f"{scores_resume['score']}%",
-                            "jobRole": jobRole,
-                            "items": scores_resume['items']
-                            }
+                    return jsonify({
+                                    "score": f"{scores_resume['score']}%",
+                                    "jobRole": jobRole,
+                                    "items": scores_resume['items']
+                                })
 
             print(scores_resume)
         except Exception as e:
@@ -47,17 +51,17 @@ def scoreResume(data: dict):
             pass
 
         print("Retrying. Ended Iteration:", iteration)    
-
-    return {    
+        
+    return jsonify({    
         "score": "0.1%",
         "jobRole": jobRole,
         "items": []
-    }
-    
+    })
 
-@app.post("/getContacts")
-def getContacts(data: dict):
+@app.route("/getContacts", methods=["POST"])
+def getContacts():
     print("Received request for getContacts")
+    data = request.get_json()
     resumeText = data.get("resumeText")
     
     max_iter = 5
@@ -68,7 +72,7 @@ def getContacts(data: dict):
             if isinstance(contact_info, dict):
                 
                 if all(key in contact_info for key in keys_to_check):
-                    return contact_info
+                    return jsonify(contact_info)
 
             print(contact_info)
         except Exception as e:
@@ -77,28 +81,28 @@ def getContacts(data: dict):
 
         print("Retrying. Ended Iteration:", iteration)    
         
-    return {    
+    return jsonify({    
         "color": "red",
         "comment": "Issue in Processing",
         "email_id": "",
         "mobile_number": ""
-    }
+    })
 
-
-@app.post("/getSummaryOverview")
-def getSummaryOverview(data: dict):
+@app.route("/getSummaryOverview", methods=["POST"])
+def getSummaryOverview():
     print("Received request for getSummaryOverview")
+    data = request.get_json()
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
     max_iter = 5
     for iteration in range(max_iter):
         try:
-            summary_info = summary_chain.invoke({"resume_text": resumeText, "job_role": jobRole})
-            keys_to_check = ['color', 'score', 'label', 'comment', 'summary']
+            summary_info = summary_chain.invoke({"resume": resumeText, "job_role": jobRole})
+            keys_to_check = ['color', 'score', 'label', 'comment']
             if isinstance(summary_info, dict):
-                if all(key in summary_info for key in keys_to_check) and isinstance(summary_info['summary'], list):
-                    return summary_info
+                if all(key in summary_info for key in keys_to_check):
+                    return jsonify(summary_info)
 
             print(summary_info)
         except Exception as e:
@@ -107,14 +111,15 @@ def getSummaryOverview(data: dict):
 
         print("Retrying. Ended Iteration:", iteration)    
         
-    return {'score': 0,
-            'color': 'red',
-            'label': 'critical',
-            'comment': 'Issue in Processing'}
+    return jsonify({'score': 0,
+                    'color': 'red',
+                    'label': 'critical',
+                    'comment': 'Issue in Processing'})
 
-@app.post("/getCustomScores")
-def getCustomScores(data: dict):
+@app.route("/getCustomScores", methods=["POST"])
+def getCustomScores():
     print("Received request for getCustomScores")
+    data = request.get_json()
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -125,7 +130,7 @@ def getCustomScores(data: dict):
             keys_to_check = ['searchibility_score', 'hard_skills_score', 'soft_skill_score', 'formatting_score']
             if isinstance(custom_scores_info, dict):
                 if all(key in custom_scores_info for key in keys_to_check):
-                    return custom_scores_info
+                    return jsonify(custom_scores_info)
 
             print(custom_scores_info)
         except Exception as e:
@@ -134,14 +139,15 @@ def getCustomScores(data: dict):
 
         print("Retrying. Ended Iteration:", iteration)    
         
-    return {'searchibility_score': 0,
-            'hard_skills_score': 0,
-            'soft_skill_score': 0,
-            'formatting_score': 0}
+    return jsonify({'searchibility_score': 0,
+                    'hard_skills_score': 0,
+                    'soft_skill_score': 0,
+                    'formatting_score': 0})
 
-@app.post("/getOtherComments")
-def getOtherComments(data: dict):
+@app.route("/getOtherComments", methods=["POST"])
+def getOtherComments():
     print("Received request for getOtherComments")
+    data = request.get_json()
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -152,7 +158,7 @@ def getOtherComments(data: dict):
             keys_to_check = ['headings_feedback', 'title_match', 'formatting_feedback']
             if isinstance(other_comments_info, dict):
                 if all(key in other_comments_info for key in keys_to_check):
-                    return other_comments_info
+                    return jsonify(other_comments_info)
 
             print(other_comments_info)
         except Exception as e:
@@ -161,13 +167,14 @@ def getOtherComments(data: dict):
 
         print("Retrying. Ended Iteration:", iteration)    
         
-    return {'headings_feedback': '',
-            'title_match': '',
-            'formatting_feedback': ''}
+    return jsonify({'headings_feedback': '',
+                    'title_match': '',
+                    'formatting_feedback': ''})
 
-@app.post("/getFunctionalConstituent")
-def getFunctionalConstituent(data: dict):
+@app.route("/getFunctionalConstituent", methods=["POST"])
+def getFunctionalConstituent():
     print("Received request for getFunctionalConstituent")
+    data = request.get_json()
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -178,7 +185,7 @@ def getFunctionalConstituent(data: dict):
             keys_to_check = ['constituent', 'industries', 'has_industry_experience', 'has_completed_college']
             if isinstance(functional_constituent_info, dict):
                 if all(key in functional_constituent_info for key in keys_to_check):
-                    return functional_constituent_info
+                    return jsonify(functional_constituent_info)
 
             print(functional_constituent_info)
         except Exception as e:
@@ -187,14 +194,15 @@ def getFunctionalConstituent(data: dict):
 
         print("Retrying. Ended Iteration:", iteration)    
         
-    return {'constituent': '',
-            'industries': '', 
-            'has_industry_experience': '',
-            'has_completed_college': ''}
+    return jsonify({'constituent': '',
+                    'industries': '', 
+                    'has_industry_experience': '',
+                    'has_completed_college': ''})
 
-@app.post("/getTechnicalConstituent")
-def getTechnicalConstituent(data: dict):
+@app.route("/getTechnicalConstituent", methods=["POST"])
+def getTechnicalConstituent():
     print("Received request for getTechnicalConstituent")
+    data = request.get_json()
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -205,7 +213,7 @@ def getTechnicalConstituent(data: dict):
             keys_to_check = ['high', 'medium', 'low']
             if isinstance(technical_constituent_info, dict):
                 if all(key in technical_constituent_info for key in keys_to_check):
-                    return technical_constituent_info
+                    return jsonify(technical_constituent_info)
 
             print(technical_constituent_info)
         except Exception as e:
@@ -214,11 +222,12 @@ def getTechnicalConstituent(data: dict):
 
         print("Retrying. Ended Iteration:", iteration)    
         
-    return {'technical_exposure': ''}
+    return jsonify({'technical_exposure': ''})
 
-@app.post("/generateCoverLetter")
-def generateCoverLetter(data: dict):
+@app.route("/generateCoverLetter", methods=["POST"])
+def generateCoverLetter():
     print("Received request for generateCoverLetter")
+    data = request.get_json()
     resumeText = data.get("resumeText")
     description = data.get("description", "")
     
@@ -238,14 +247,15 @@ Thank you for considering my application. I look forward to the opportunity to d
 Sincerely,
 Applicant"""
         
-        return {'coverLetter': sample_cover_letter}
+        return jsonify({'coverLetter': sample_cover_letter})
     except Exception as e:
         print("Exception in generateCoverLetter:", e)
-        return {'error': 'Failed to generate cover letter'}, 500
+        return jsonify({'error': 'Failed to generate cover letter'}), 500
 
-@app.post("/getEducation")
-def getEducation(data: dict):
+@app.route("/getEducation", methods=["POST"])
+def getEducation():
     print("Received request for getEducation")
+    data = request.get_json()
     resumeText = data.get("resumeText")
     schema_iteration_check = 0
     
@@ -260,7 +270,7 @@ def getEducation(data: dict):
                         schema_iteration_check += 1
 
             if schema_iteration_check == len(education_info):
-                return education_info
+                return jsonify(education_info)
     
             print(education_info)
         except Exception as e:
@@ -269,38 +279,7 @@ def getEducation(data: dict):
 
         print("Retrying. Ended Iteration:", iteration)    
         
-    return {'education_history': []}
+    return jsonify({'education_history': []})
 
-@app.post("/getProjects")
-def getProjects(data: dict):
-    print("Received request for getProjects")
-    resumeText = data.get("resumeText")
-    jobRole = data.get("jobRole", "")
-    schema_iteration_check = 0
-    
-    max_iter = 5
-    for iteration in range(max_iter):
-        try:
-            project_info = project_extractor_chain.invoke({"resume_text": resumeText, "job_role": jobRole})
-            if isinstance(project_info['projects'], list):
-                for ent in project_info['projects']:
-                    keys_to_check = ['title', 'description', 'technologies', 'score', 'color', 'comment', 'stage']
-                    if isinstance(ent, dict):
-                        if all(key in ent for key in keys_to_check):
-                            schema_iteration_check += 1
-
-            if schema_iteration_check == len(project_info['projects']):
-                print(project_info)
-                return project_info
-    
-            print(project_info)
-        except Exception as e:
-            print("Exception in projectExtractor:", e)
-            pass
-
-        print("Retrying. Ended Iteration:", iteration)    
-        
-    return {'projects': []}
-        
-
-
+if __name__ == "__main__":
+    app.run(debug=True, threaded=True)
