@@ -9,7 +9,7 @@ from typing import Dict, List, Union, Literal, Optional
 
 load_dotenv(override=True)
 #llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
-llm = ChatOpenAI(model="gpt-4.1", temperature=0.)
+llm = ChatOpenAI(model="gpt-4o", temperature=0.)
 
 def create_resume_score():
 
@@ -659,6 +659,90 @@ def project_extractor():
 
     prompt = PromptTemplate(template=instruction_format, 
                                      partial_variables={"output_format": output_parser})
+
+    chain = prompt | llm | JsonOutputParser()
+
+    return chain
+
+
+def company_extractor():
+
+    class EmploymentEntry(BaseModel):
+        company: str = Field(..., description="Name of the company or organization")
+        position: str = Field(..., description="Role or job title held by the candidate")
+        start_year: int = Field(..., ge=1900, le=2100, description="4-digit year of job start")
+        end_year: Union[int, Literal["Currently Working"]] = Field(
+            ..., description="4-digit year of job end or 'Currently Working'"
+        )
+        employment_type: Literal[
+            "Permanent", "Intern", "Part Time", "Contractual", "Non Permanent"
+        ] = Field(..., description="Type of employment")
+
+    class EmploymentHistory(BaseModel):
+        employment_history: List[EmploymentEntry]
+
+    
+    output_parser = PydanticOutputParser(pydantic_object=EmploymentHistory).get_format_instructions()
+        
+    instruction_format = """
+    You are an expert resume parser.
+    
+    Your task is to analyze the resume and extract the candidate's **employment history**, with emphasis on position, company, duration, and type of employment.
+    
+    ---
+
+    ### Resume Text:
+    {resume_text}
+    
+    ---
+    
+    ### Your Output Should Include:
+    
+    For each job listed in the resume, extract the following fields:
+    
+    1. **company**: Name of the company or organization  
+    2. **position**: Role or job title held by the candidate  
+    3. **start_year**: Year the candidate started this job (as a 4-digit integer, e.g., 2018)  
+    4. **end_year**: Year the candidate ended the job.  
+       - If the candidate is still working in this company, set this to `"Currently Working"`  
+    5. **employment_type**: One of the following categories, based on context clues:
+       - `"Permanent"`
+       - `"Intern"`
+       - `"Part Time"`
+       - `"Contractual"`
+       - `"Non Permanent"` (includes freelance, temporary, consultant, volunteer, etc.)
+    
+    ---
+    
+    ### Logic Guidelines:
+    
+    - If the candidate **is still employed**, based on phrases like `Present`, `Currently`, `Current`, or missing end date → set `"end_year"` as `"Currently Working"`
+    - Use keywords or role context to determine **employment_type**:
+      - If job title includes `Intern`, `Trainee`, or similar → `"Intern"`
+      - If the role is `Part-time`, `Evening job`, or `Side gig` → `"Part Time"`
+      - If it includes `Contract`, `Contractual`, `Freelancer`, or `Outsourced` → `"Contractual"`
+      - If temporary, freelance, project-based, or volunteer → `"Non Permanent"`
+      - Else → `"Permanent"`
+    - Try to infer job type even if labels are implicit (e.g., "6-month assignment" could mean `"Contractual"`)
+    - Only include positions where both **company** and **position** can be reasonably identified
+    - List jobs in **reverse chronological order** (most recent first)
+
+    ---
+
+    ### Final Instruction:
+
+    - Do not invent or hallucinate companies, roles, or dates.
+    - Ensure the final output is in valid JSON format and includes all specified keys for each job.
+    
+    ---
+    
+    ### Output Format (JSON):
+    {output_format}
+    
+    """
+
+    prompt = PromptTemplate.from_template(template=instruction_format, 
+                                          partial_variables = {"output_format": output_parser})
 
     chain = prompt | llm | JsonOutputParser()
 

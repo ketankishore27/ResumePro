@@ -6,8 +6,9 @@ export function PdfTextProvider({ children }) {
   const [pdfText, setPdfText] = useState('');
   const [jobRole, setJobRole] = useState('');
   const [description, setDescription] = useState('');
+  const [userName, setUserName] = useState('');
   return (
-    <PdfTextContext.Provider value={{ pdfText, setPdfText, jobRole, setJobRole, description, setDescription }}>
+    <PdfTextContext.Provider value={{ pdfText, setPdfText, jobRole, setJobRole, description, setDescription, userName, setUserName }}>
       {children}
     </PdfTextContext.Provider>
   );

@@ -1,10 +1,13 @@
+from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from ai_operations.chains import scoring_chain, contact_extractor_chain, \
                                  summary_chain, custom_score_chain, \
                                  other_comments_chain, functional_constituent_chain, \
                                  technical_constituent_chain, education_extractor_chain, \
-                                 project_extractor_chain
+                                 project_extractor_chain, company_extractor_chain
+
+from db_operations.utility_db import insert_data
 
 app = FastAPI()
 
@@ -36,7 +39,7 @@ def scoreResume(data: dict):
             if isinstance(scores_resume, dict):
                 if isinstance(scores_resume['score'], int) and isinstance(scores_resume['items'], list):
                     return {
-                            "score": f"{scores_resume['score']}%",
+                            "score": scores_resume['score'],
                             "jobRole": jobRole,
                             "items": scores_resume['items']
                             }
@@ -49,7 +52,7 @@ def scoreResume(data: dict):
         print("Retrying. Ended Iteration:", iteration)    
 
     return {    
-        "score": "0.1%",
+        "score": 0.1,
         "jobRole": jobRole,
         "items": []
     }
@@ -290,7 +293,6 @@ def getProjects(data: dict):
                             schema_iteration_check += 1
 
             if schema_iteration_check == len(project_info['projects']):
-                print(project_info)
                 return project_info
     
             print(project_info)
@@ -302,5 +304,43 @@ def getProjects(data: dict):
         
     return {'projects': []}
         
+@app.post("/getCompany")
+def getCompany(data: dict):
+    print("Received request for getCompany")
+    resumeText = data.get("resumeText")
+    schema_iteration_check = 0
+    
+    max_iter = 5
+    for iteration in range(max_iter):
+        try:
+            company_info = company_extractor_chain.invoke({"resume_text": resumeText})
+            if isinstance(company_info['employment_history'], list):
+                for ent in company_info['employment_history']:
+                    keys_to_check = ['company', 'position', 'start_year', 'end_year', 'employment_type']
+                    if isinstance(ent, dict):
+                        if all(key in ent for key in keys_to_check):
+                            schema_iteration_check += 1
+
+            if schema_iteration_check == len(company_info['employment_history']):
+                return company_info
+    
+            print(company_info)
+        except Exception as e:
+            print("Exception in companyExtractor:", e)
+            pass
+
+        print("Retrying. Ended Iteration:", iteration)    
+        
+    return {'employment_history': []}
+
+@app.post("/assembleData")
+def assembleData(data: dict):
+    try:
+        print("Received request for assembleData")
+        status = insert_data(data)
+        return status
+    except Exception as e:
+        print("Exception in assembleData:", e)
+        return {"response": "Failed to assemble data"}
 
 

@@ -18,13 +18,14 @@ import { usePdfText } from '../src/context/PdfTextContext';
 
 
 export default function ResumeInsights() {
-  // Access the extracted PDF text and job role from context
-  const { pdfText, jobRole, setPdfText } = usePdfText();
+  // Access the extracted PDF text, job role, and user name from context
+  const { pdfText, jobRole, setPdfText, userName } = usePdfText();
   
   // Debug context values
   console.log('ResumeInsights component loaded');
   console.log('pdfText from context:', pdfText ? `Available (${pdfText.length} chars)` : 'Not available');
   console.log('jobRole from context:', jobRole || 'Not available');
+  console.log('userName from context:', userName || 'Not available');
   const [resumeScore, setResumeScore] = useState(null);
   const [loadingScore, setLoadingScore] = useState(false);
   const [scoreError, setScoreError] = useState(null);
@@ -44,8 +45,36 @@ export default function ResumeInsights() {
   const [loadingTechnicalConstituent, setLoadingTechnicalConstituent] = useState(false);
   const [educationHistory, setEducationHistory] = useState([]);
   const [loadingEducation, setLoadingEducation] = useState(false);
+  const [employmentHistory, setEmploymentHistory] = useState([]);
+  const [loadingEmployment, setLoadingEmployment] = useState(false);
   const [projectsInfo, setProjectsInfo] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
+
+  // Cache state variables
+  const [cache, setCache] = useState({});
+  const [lastInputHash, setLastInputHash] = useState(null);
+
+  // Helper function to check if all data is loaded
+  const isAllDataLoaded = () => {
+    return !loadingScore && !loadingContact && !loadingSummary && 
+           !loadingCustomScores && !loadingOtherComments && 
+           !loadingFunctionalConstituent && !loadingTechnicalConstituent && 
+           !loadingEducation && !loadingProjects && !loadingEmployment;
+  };
+
+  // Helper function to create hash from input data
+  const createInputHash = (pdfText, jobRole) => {
+    if (!pdfText) return null;
+    // Simple hash function for input data
+    const input = `${pdfText}_${jobRole || ''}`;
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      const char = input.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
+  };
 
   // Helper function to determine progress bar color based on score
   const getProgressColor = (score) => {
@@ -159,6 +188,44 @@ export default function ResumeInsights() {
       console.log('No pdfText available, skipping API calls');
       return;
     }
+
+    // Check if input data has changed
+    const currentInputHash = createInputHash(pdfText, jobRole);
+    if (currentInputHash === lastInputHash && cache[currentInputHash]) {
+      console.log('Input data unchanged, using cached results');
+      const cachedData = cache[currentInputHash];
+      
+      // Restore cached data
+      setResumeScore(cachedData.resumeScore);
+      setResumeItems(cachedData.resumeItems || []);
+      setContactInfo(cachedData.contactInfo);
+      setSummaryInfo(cachedData.summaryInfo);
+      setCustomScores(cachedData.customScores);
+      setOtherComments(cachedData.otherComments);
+      setFunctionalConstituent(cachedData.functionalConstituent);
+      setTechnicalConstituent(cachedData.technicalConstituent);
+      setEducationHistory(cachedData.educationHistory);
+      setProjectsInfo(cachedData.projectsInfo);
+      setEmploymentHistory(cachedData.employmentHistory || []);
+      
+      // Set loading states to false
+      setLoadingScore(false);
+      setLoadingContact(false);
+      setLoadingSummary(false);
+      setLoadingCustomScores(false);
+      setLoadingOtherComments(false);
+      setLoadingFunctionalConstituent(false);
+      setLoadingTechnicalConstituent(false);
+      setLoadingEducation(false);
+      setLoadingProjects(false);
+      setLoadingEmployment(false);
+      setScoreError(null);
+      
+      return;
+    }
+
+    console.log('Input data changed or no cache available, making API calls');
+    setLastInputHash(currentInputHash);
     setLoadingScore(true);
     setLoadingContact(true);
     setLoadingSummary(true);
@@ -168,6 +235,7 @@ export default function ResumeInsights() {
     setLoadingTechnicalConstituent(true);
     setLoadingEducation(true);
     setLoadingProjects(true);
+    setLoadingEmployment(true);
     setScoreError(null);
     console.log(pdfText);
     console.log(jobRole);
@@ -499,11 +567,91 @@ export default function ResumeInsights() {
         setLoadingProjects(false);
       });
     
-    // Optional: Log when all requests complete
-    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest, otherCommentsRequest, functionalConstituentRequest, technicalConstituentRequest, educationRequest, projectsRequest]).then((results) => {
+    const employmentRequest = fetch('http://127.0.0.1:8000/getCompany', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeText: pdfText
+      }),
+    })
+      .then(res => {
+        console.log('Employment response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log('Received employment response:', data);
+        setEmploymentHistory(Array.isArray(data.employment_history) ? data.employment_history : []);
+        setLoadingEmployment(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch employment history:', err);
+        console.error('Employment API error details:', err.message);
+        // Set some test data for debugging
+        setEmploymentHistory([
+          {
+            company: 'Deutsche Telekom AG',
+            position: 'Senior Software Engineer',
+            start_year: 2020,
+            end_year: 'Currently Working',
+            employment_type: 'Permanent'
+          },
+          {
+            company: 'Tech Solutions Inc',
+            position: 'Software Developer',
+            start_year: 2018,
+            end_year: 2020,
+            employment_type: 'Permanent'
+          }
+        ]);
+        setLoadingEmployment(false);
+      });
+    
+    // Log when all requests complete
+    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest, otherCommentsRequest, functionalConstituentRequest, technicalConstituentRequest, educationRequest, projectsRequest, employmentRequest]).then((results) => {
       console.log('All async requests completed:', results);
     });
   }, [pdfText]);
+
+  // Cache results after all data is loaded
+  useEffect(() => {
+    // Only cache if we have a valid input hash and all loading states are false
+    if (lastInputHash && 
+        !loadingScore && !loadingContact && !loadingSummary && 
+        !loadingCustomScores && !loadingOtherComments && 
+        !loadingFunctionalConstituent && !loadingTechnicalConstituent && 
+        !loadingEducation && !loadingProjects && !loadingEmployment) {
+      
+      const cacheData = {
+        resumeScore,
+        resumeItems,
+        contactInfo,
+        summaryInfo,
+        customScores,
+        otherComments,
+        functionalConstituent,
+        technicalConstituent,
+        educationHistory,
+        projectsInfo,
+        employmentHistory
+      };
+      
+      setCache(prevCache => ({
+        ...prevCache,
+        [lastInputHash]: cacheData
+      }));
+      
+      console.log('Results cached for input hash:', lastInputHash);
+    }
+  }, [lastInputHash, loadingScore, loadingContact, loadingSummary, loadingCustomScores, 
+      loadingOtherComments, loadingFunctionalConstituent, loadingTechnicalConstituent, 
+      loadingEducation, loadingProjects, loadingEmployment, resumeScore, resumeItems, contactInfo, 
+      summaryInfo, customScores, otherComments, functionalConstituent, 
+      technicalConstituent, educationHistory, projectsInfo, employmentHistory]);
 
   // Note: Both resume scoring and contact information are fetched via async independent requests
 
@@ -522,6 +670,8 @@ export default function ResumeInsights() {
       setLoadingTechnicalConstituent(true);
       setLoadingEducation(true);
       setLoadingProjects(true);
+      setLoadingEmployment(true);
+      setLoadingEmployment(true);
       setScoreError(null);
       
       const pdfjsLib = await import('pdfjs-dist/build/pdf');
@@ -780,8 +930,33 @@ export default function ResumeInsights() {
             setLoadingProjects(false);
           });
         
+        // Request 10: Employment History for re-upload (async)
+        const reuploadEmploymentRequest = fetch('http://127.0.0.1:8000/getCompany', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeText: text }),
+        })
+          .then(res => {
+            console.log('Employment re-upload response status:', res.status);
+            if (!res.ok) {
+              throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+          })
+          .then(data => {
+            console.log('Received re-upload employment response:', data);
+            setEmploymentHistory(Array.isArray(data.employment_history) ? data.employment_history : []);
+            setLoadingEmployment(false);
+          })
+          .catch(err => {
+            console.error('Failed to fetch employment history for re-upload:', err);
+            console.error('Employment re-upload API error details:', err.message);
+            setEmploymentHistory([]);
+            setLoadingEmployment(false);
+          });
+        
         // Optional: Log when all re-upload requests complete
-        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest, reuploadOtherCommentsRequest, reuploadFunctionalConstituentRequest, reuploadTechnicalConstituentRequest, reuploadEducationRequest, reuploadProjectsRequest]).then((results) => {
+        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest, reuploadOtherCommentsRequest, reuploadFunctionalConstituentRequest, reuploadTechnicalConstituentRequest, reuploadEducationRequest, reuploadProjectsRequest, reuploadEmploymentRequest]).then((results) => {
           console.log('All re-upload async requests completed:', results);
         });
       };
@@ -1298,57 +1473,419 @@ export default function ResumeInsights() {
             </TableContainer>
           </Paper>
           
+          {/* Professional Timeline Section */}
+          <Paper sx={{ p: 3, mb: 3 }}>  
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              Career Growth
+            </Typography>
+            {loadingEmployment ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box sx={{ mt: 3 }}>
+                {employmentHistory && employmentHistory.length > 0 ? (
+                  <Box sx={{ position: 'relative', padding: '100px 20px' }}>
+                    {/* Timeline Line */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '40px',
+                        right: '40px',
+                        height: '8px',
+                        background: 'linear-gradient(90deg, #ff9800, #9c27b0, #2196f3, #4caf50, #f44336)',
+                        borderRadius: '4px',
+                        zIndex: 1,
+                        transform: 'translateY(-50%)'
+                      }}
+                    />
+                    
+                    {/* Career Positions */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', height: '300px' }}>
+                      {employmentHistory
+                        .sort((a, b) => a.start_year - b.start_year) // Sort chronologically
+                        .map((job, index) => {
+                          // Get position colors based on employment type
+                          const getPositionColor = (type) => {
+                            switch(type) {
+                              case 'Permanent': return { main: '#4CAF50', light: '#E8F5E8' };
+                              case 'Intern': return { main: '#FF9800', light: '#FFF3E0' };
+                              case 'Part Time': return { main: '#2196F3', light: '#E3F2FD' };
+                              case 'Contractual': return { main: '#9C27B0', light: '#F3E5F5' };
+                              case 'Non Permanent': return { main: '#F44336', light: '#FFEBEE' };
+                              default: return { main: '#1976D2', light: '#E3F2FD' };
+                            }
+                          };
+                          
+                          const colors = [
+                            { main: '#FF9800', bg: '#FFF3E0', text: '#E65100' }, // Orange
+                            { main: '#9C27B0', bg: '#F3E5F5', text: '#6A1B9A' }, // Purple
+                            { main: '#2196F3', bg: '#E3F2FD', text: '#1565C0' }, // Blue
+                            { main: '#4CAF50', bg: '#E8F5E8', text: '#2E7D32' }, // Green
+                            { main: '#F44336', bg: '#FFEBEE', text: '#C62828' }  // Red
+                          ];
+                          const color = colors[index % colors.length];
+                          const isAbove = index % 2 === 0;
+                          const isCurrentJob = job.end_year === 'Currently Working';
+                          
+                          return (
+                            <Box
+                              key={index}
+                              sx={{
+                                position: 'relative',
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                height: '100%',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              {/* Year Circle - Always on the timeline */}
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: '50%',
+                                  left: '50%',
+                                  transform: 'translate(-50%, -50%)',
+                                  width: '50px',
+                                  height: '50px',
+                                  borderRadius: '50%',
+                                  border: `2px solid white`,
+                                  backgroundColor: color.main,
+                                  boxShadow: `0 0 0 2px ${color.main}, 0 2px 8px rgba(0,0,0,0.15)`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 'bold',
+                                  fontSize: '12px',
+                                  color: 'white',
+                                  zIndex: 3
+                                }}
+                              >
+                                {isCurrentJob ? 'Now' : job.start_year}
+                                {isCurrentJob && (
+                                  <Box sx={{
+                                    position: 'absolute',
+                                    top: -3,
+                                    right: -3,
+                                    width: 14,
+                                    height: 14,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#4CAF50',
+                                    border: '3px solid white'
+                                  }} />
+                                )}
+                              </Box>
+
+                              {/* Position Card - Alternating above/below */}
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: isAbove ? '-70px' : 'auto',
+                                  bottom: isAbove ? 'auto' : '-70px',
+                                  left: '50%',
+                                  transform: 'translateX(-50%)',
+                                  minWidth: 160,
+                                  maxWidth: 180,
+                                  backgroundColor: color.bg,
+                                  border: `1px solid ${color.main}`,
+                                  borderRadius: 3,
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                  zIndex: 2,
+                                  padding: 1.5
+                                }}
+                              >
+                                <Typography variant="subtitle2" fontWeight={600} sx={{ 
+                                  color: color.text, 
+                                  mb: 0.5,
+                                  fontSize: '0.8rem',
+                                  textAlign: 'center'
+                                }}>
+                                  {job.position}
+                                </Typography>
+                                
+                                <Typography variant="body2" color="text.secondary" sx={{ 
+                                  mb: 0.5,
+                                  fontSize: '0.7rem',
+                                  textAlign: 'center',
+                                  lineHeight: 1.2
+                                }}>
+                                  {job.company}
+                                </Typography>
+                                
+                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                                  <Chip 
+                                    label={`${job.start_year} - ${isCurrentJob ? 'Present' : job.end_year}`}
+                                    size="small"
+                                    sx={{ 
+                                      backgroundColor: color.main,
+                                      color: 'white',
+                                      fontSize: '0.65rem',
+                                      fontWeight: 'bold'
+                                    }}
+                                  />
+                                  {isCurrentJob && (
+                                    <Chip
+                                      label="Current"
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: '#4caf50',
+                                        color: 'white',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 'bold'
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+
+                                {/* Arrow pointing to year circle */}
+                                <Box
+                                  sx={{
+                                    position: 'absolute',
+                                    [isAbove ? 'bottom' : 'top']: '-8px',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    width: 0,
+                                    height: 0,
+                                    borderLeft: '8px solid transparent',
+                                    borderRight: '8px solid transparent',
+                                    [isAbove ? 'borderTop' : 'borderBottom']: `8px solid ${color.main}`
+                                  }}
+                                />
+                              </Box>
+
+                              {/* Position Type Label */}
+                              <Typography variant="caption" sx={{ 
+                                position: 'absolute',
+                                [isAbove ? 'top' : 'bottom']: '-10px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                color: color.text, 
+                                fontWeight: 600,
+                                fontSize: '0.65rem',
+                                textAlign: 'center',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {job.employment_type}
+                              </Typography>
+                            </Box>
+                          );
+                        })
+                      }
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No employment history found
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+          </Paper>
+          
           {/* Education History Section */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" fontWeight={700} gutterBottom>
-              Education History
+              Education Timeline
             </Typography>
             {loadingEducation ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
                 <CircularProgress />
               </Box>
             ) : (
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 3 }}>
                 {educationHistory && educationHistory.length > 0 ? (
-                  <Grid container spacing={2}>
-                    {educationHistory.map((education, index) => (
-                      <Grid item xs={12} md={6} key={index}>
-                        <Box 
-                          sx={{ 
-                            p: 2, 
-                            border: '1px solid', 
-                            borderColor: 'divider', 
-                            borderRadius: 2, 
-                            backgroundColor: 'background.paper',
-                            boxShadow: 1
-                          }}
-                        >
-                          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            {education.degree}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            {education.institution}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                            <Chip 
-                              label={`${education.start_year} - ${education.end_year === 'ongoing' ? 'Ongoing' : education.end_year}`}
-                              size="small" 
-                              color="primary" 
-                              variant="outlined"
-                            />
-                            {education.end_year === 'ongoing' && (
-                              <Chip 
-                                label="Current" 
-                                size="small" 
-                                color="success" 
-                                sx={{ ml: 1 }}
-                              />
-                            )}
-                          </Box>
-                        </Box>
-                      </Grid>
-                    ))}
-                  </Grid>
+                  <Box sx={{ position: 'relative', padding: '100px 20px' }}>
+                    {/* Timeline Line */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '40px',
+                        right: '40px',
+                        height: '8px',
+                        background: 'linear-gradient(90deg, #ff9800, #9c27b0, #2196f3, #4caf50, #f44336)',
+                        borderRadius: '4px',
+                        zIndex: 1,
+                        transform: 'translateY(-50%)'
+                      }}
+                    />
+
+                    {/* Education Items */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', height: '200px' }}>
+                      {educationHistory
+                        .sort((a, b) => {
+                          const yearA = a.start_year ? parseInt(a.start_year) : 0;
+                          const yearB = b.start_year ? parseInt(b.start_year) : 0;
+                          return yearA - yearB;
+                        })
+                        .map((education, index) => {
+                          const colors = [
+                            { main: '#FF9800', bg: '#FFF3E0', text: '#E65100' }, // Orange
+                            { main: '#9C27B0', bg: '#F3E5F5', text: '#6A1B9A' }, // Purple
+                            { main: '#2196F3', bg: '#E3F2FD', text: '#1565C0' }, // Blue
+                            { main: '#4CAF50', bg: '#E8F5E8', text: '#2E7D32' }, // Green
+                            { main: '#F44336', bg: '#FFEBEE', text: '#C62828' }  // Red
+                          ];
+                          const color = colors[index % colors.length];
+                          const isAbove = index % 2 === 0;
+                          const currentYear = new Date().getFullYear();
+                          const isOngoing = education.end_year === 'ongoing' || (education.end_year && parseInt(education.end_year) > currentYear);
+
+                          return (
+                            <Box
+                              key={index}
+                              sx={{
+                                position: 'relative',
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                height: '100%',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              {/* Year Circle - Always on the timeline */}
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: '50%',
+                                  left: '50%',
+                                  transform: 'translate(-50%, -50%)',
+                                  width: '50px',
+                                  height: '50px',
+                                  borderRadius: '50%',
+                                  border: `2px solid white`,
+                                  backgroundColor: color.main,
+                                  boxShadow: `0 0 0 2px ${color.main}, 0 2px 8px rgba(0,0,0,0.15)`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 'bold',
+                                  fontSize: '12px',
+                                  color: 'white',
+                                  zIndex: 3
+                                }}
+                              >
+                                {isOngoing ? 'Now' : (education.end_year || education.start_year)}
+                                {isOngoing && (
+                                  <Box sx={{
+                                    position: 'absolute',
+                                    top: -3,
+                                    right: -3,
+                                    width: 14,
+                                    height: 14,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#4CAF50',
+                                    border: '3px solid white'
+                                  }} />
+                                )}
+                              </Box>
+
+                              {/* Education Card - Alternating above/below */}
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: isAbove ? '-70px' : 'auto',
+                                  bottom: isAbove ? 'auto' : '-70px',
+                                  left: '50%',
+                                  transform: 'translateX(-50%)',
+                                  minWidth: 160,
+                                  maxWidth: 180,
+                                  backgroundColor: color.bg,
+                                  border: `1px solid ${color.main}`,
+                                  borderRadius: 3,
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                  zIndex: 2,
+                                  padding: 1.5
+                                }}
+                              >
+                                <Typography variant="subtitle2" fontWeight={600} sx={{ 
+                                  color: color.text, 
+                                  mb: 0.5,
+                                  fontSize: '0.8rem',
+                                  textAlign: 'center'
+                                }}>
+                                  {education.degree}
+                                </Typography>
+                                
+                                <Typography variant="body2" color="text.secondary" sx={{ 
+                                  mb: 0.5,
+                                  fontSize: '0.7rem',
+                                  textAlign: 'center',
+                                  lineHeight: 1.2
+                                }}>
+                                  {education.institution}
+                                </Typography>
+                                
+                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                                  <Chip 
+                                    label={`${education.start_year} - ${isOngoing ? 'Present' : education.end_year}`}
+                                    size="small"
+                                    sx={{ 
+                                      backgroundColor: color.main,
+                                      color: 'white',
+                                      fontSize: '0.65rem',
+                                      fontWeight: 'bold'
+                                    }}
+                                  />
+                                  {isOngoing && (
+                                    <Chip
+                                      label="Current"
+                                      size="small"
+                                      sx={{
+                                        backgroundColor: '#4caf50',
+                                        color: 'white',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 'bold'
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+
+                                {/* Arrow pointing to year circle */}
+                                <Box
+                                  sx={{
+                                    position: 'absolute',
+                                    [isAbove ? 'bottom' : 'top']: '-8px',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    width: 0,
+                                    height: 0,
+                                    borderLeft: '8px solid transparent',
+                                    borderRight: '8px solid transparent',
+                                    [isAbove ? 'borderTop' : 'borderBottom']: `8px solid ${color.main}`
+                                  }}
+                                />
+                              </Box>
+
+                              {/* Education Type Label */}
+                              <Typography variant="caption" sx={{ 
+                                position: 'absolute',
+                                [isAbove ? 'top' : 'bottom']: '-10px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                color: color.text, 
+                                fontWeight: 600,
+                                fontSize: '0.65rem',
+                                textAlign: 'center',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {education.degree.toLowerCase().includes('phd') || education.degree.toLowerCase().includes('doctorate') ? 'Doctorate' :
+                                 education.degree.toLowerCase().includes('master') || education.degree.toLowerCase().includes('m.') ? 'Post Graduation' :
+                                 education.degree.toLowerCase().includes('bachelor') || education.degree.toLowerCase().includes('b.') ? 'Graduation' :
+                                 education.degree.toLowerCase().includes('diploma') ? 'Diploma' : 'Education'}
+                              </Typography>
+                            </Box>
+                          );
+                        })
+                      }
+                    </Box>
+                  </Box>
                 ) : (
                   <Box sx={{ textAlign: 'center', py: 4 }}>
                     <Typography variant="body2" color="text.secondary">
@@ -1359,6 +1896,114 @@ export default function ResumeInsights() {
               </Box>
             )}
           </Paper>
+
+          {/* Save Resume Button */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 3 }}>
+            <Button 
+              variant="contained" 
+              size="large"
+              disabled={!isAllDataLoaded()}
+              sx={{ 
+                px: 4, 
+                py: 1.5,
+                fontSize: '1.1rem',
+                fontWeight: 'bold',
+                borderRadius: 2,
+                boxShadow: isAllDataLoaded() ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+                opacity: isAllDataLoaded() ? 1 : 0.6,
+                '&:hover': {
+                  boxShadow: isAllDataLoaded() ? '0 6px 16px rgba(0,0,0,0.2)' : 'none'
+                },
+                '&:disabled': {
+                  backgroundColor: 'grey.400',
+                  color: 'grey.600'
+                }
+              }}
+              onClick={async () => {
+                console.log('Save Resume clicked');
+                
+                try {
+                  // Accumulate all results from the web services
+                  const accumulatedData = {
+                    "input_data": {
+                      name: userName || 'Not provided',
+                      resume_text: pdfText || '',
+                      job_role: jobRole || 'Not provided'
+                    },
+                    "mode": "Manual",
+                    "getContacts": {
+                      mobile_number: contactInfo.mobile_number,
+                      email_id: contactInfo.email_id,
+                      color: contactInfo.color,
+                      comment: contactInfo.comment
+                    },
+                    "getCustomScores": {
+                      searchibility_score: customScores.searchibility_score,
+                      hard_skills_score: customScores.hard_skills_score,
+                      soft_skill_score: customScores.soft_skill_score,
+                      formatting_score: customScores.formatting_score
+                    },
+                    "getSummaryOverview": {
+                      score: summaryInfo.score,
+                      color: summaryInfo.color,
+                      label: summaryInfo.label,
+                      comment: summaryInfo.comment,
+                      summary: summaryInfo.summary
+                    },
+                    "getFunctionalConstituent": {
+                      constituent: functionalConstituent.constituent,
+                      industries: functionalConstituent.industries,
+                      has_industry_experience: functionalConstituent.has_industry_experience,
+                      has_completed_college: functionalConstituent.has_completed_college
+                    },
+                    "getOtherComments": {
+                      headings_feedback: otherComments.headings_feedback,
+                      title_match: otherComments.title_match,
+                      formatting_feedback: otherComments.formatting_feedback
+                    },
+                    "getEducation": educationHistory,
+                    "scoreResume": {
+                      score: resumeScore,
+                      items: resumeItems
+                    },
+                    "getTechnicalConstituent": {
+                      high: technicalConstituent.high,
+                      medium: technicalConstituent.medium,
+                      low: technicalConstituent.low
+                    },
+                    "getCompany": employmentHistory,
+                    "getProjects": projectsInfo
+                  };
+                  
+                  console.log('Accumulated data to send:', accumulatedData);
+                  
+                  // Send accumulated data to assembleData endpoint
+                  const response = await fetch('http://127.0.0.1:8000/assembleData', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(accumulatedData)
+                  });
+                  
+                  if (response.ok) {
+                    const result = await response.json();
+                    console.log('Save Resume response:', result);
+                    alert('Resume data saved successfully!');
+                  } else {
+                    console.error('Failed to save resume data:', response.status);
+                    alert('Failed to save resume data. Please try again.');
+                  }
+                  
+                } catch (error) {
+                  console.error('Error saving resume data:', error);
+                  alert('Error saving resume data. Please try again.');
+                }
+              }}
+            >
+              {isAllDataLoaded() ? 'Save Resume' : 'Loading Analysis...'}
+            </Button>
+          </Box>
 
         </Grid>
       </Grid>
