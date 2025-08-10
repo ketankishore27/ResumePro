@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {
   Box, Typography, Button, Grid, Card, CardContent, TextField, Input, Stack,
   LinearProgress, Paper, Chip, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Divider, CircularProgress
+  TableHead, TableRow, Divider, CircularProgress, Select, MenuItem, FormControl
 } from '@mui/material';
 import { Phone, Email } from '@mui/icons-material';
 import Image from 'next/image';
@@ -154,7 +154,7 @@ export default function Home() {
     setResumeFile(file);
   };
 
-  // API call functions
+  // Function to call all APIs and handle responses progressively
   const callAllAPIs = async (resumeText, jobRole) => {
     try {
       // Set all loading states to true
@@ -169,238 +169,220 @@ export default function Home() {
       setLoadingEmployment(true);
       setLoadingProjects(true);
 
+      // Define API calls with individual handlers
       const apiCalls = [
-        fetch('http://127.0.0.1:8000/scoreResume', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText, jobRole })
-        }),
-        fetch('http://127.0.0.1:8000/getContacts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        }),
-        fetch('http://127.0.0.1:8000/getSummaryOverview', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        }),
-        fetch('http://127.0.0.1:8000/getCustomScores', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        }),
-        fetch('http://127.0.0.1:8000/getOtherComments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        }),
-        fetch('http://127.0.0.1:8000/getFunctionalConstituent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        }),
-        fetch('http://127.0.0.1:8000/getTechnicalConstituent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        }),
-        fetch('http://127.0.0.1:8000/getEducation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        }),
-        fetch('http://127.0.0.1:8000/getCompany', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        }),
-        fetch('http://127.0.0.1:8000/getProjects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText })
-        })
+        { 
+          name: 'scoreResume',
+          promise: fetch('http://127.0.0.1:8000/scoreResume', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText, jobRole })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Score Resume API Response:', data);
+            setResumeScore(data.score || 0);
+            setResumeItems(data.items || []);
+            setLoadingScore(false);
+          }
+        },
+        {
+          name: 'getContacts',
+          promise: fetch('http://127.0.0.1:8000/getContacts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Contacts API Response:', data);
+            setContactInfo(data);
+            setLoadingContact(false);
+          }
+        },
+        {
+          name: 'getSummaryOverview',
+          promise: fetch('http://127.0.0.1:8000/getSummaryOverview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Summary Overview API Response:', data);
+            setSummaryInfo(data);
+            setLoadingSummary(false);
+          }
+        },
+        {
+          name: 'getCustomScores',
+          promise: fetch('http://127.0.0.1:8000/getCustomScores', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Custom Scores API Response:', data);
+            setCustomScores(data);
+            setLoadingCustomScores(false);
+          }
+        },
+        {
+          name: 'getOtherComments',
+          promise: fetch('http://127.0.0.1:8000/getOtherComments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Other Comments API Response:', data);
+            setOtherComments(data);
+            setLoadingOtherComments(false);
+          }
+        },
+        {
+          name: 'getFunctionalConstituent',
+          promise: fetch('http://127.0.0.1:8000/getFunctionalConstituent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Functional Constituent API Response:', data);
+            setFunctionalConstituent(data);
+            setLoadingFunctionalConstituent(false);
+          }
+        },
+        {
+          name: 'getTechnicalConstituent',
+          promise: fetch('http://127.0.0.1:8000/getTechnicalConstituent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Technical Constituent API Response:', data);
+            setTechnicalConstituent(data);
+            setLoadingTechnicalConstituent(false);
+          }
+        },
+        {
+          name: 'getEducation',
+          promise: fetch('http://127.0.0.1:8000/getEducation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Education API Response:', data);
+            if (Array.isArray(data)) {
+              setEducationHistory(data);
+            } else if (data && data.education) {
+              setEducationHistory(Array.isArray(data.education) ? data.education : [data.education]);
+            } else if (data && data.data) {
+              setEducationHistory(Array.isArray(data.data) ? data.data : [data.data]);
+            } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+              setEducationHistory([data]);
+            } else {
+              setEducationHistory([]);
+            }
+            setLoadingEducation(false);
+          }
+        },
+        {
+          name: 'getCompany',
+          promise: fetch('http://127.0.0.1:8000/getCompany', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Company API Response:', data);
+            if (Array.isArray(data)) {
+              setEmploymentHistory(data);
+            } else if (data && data.employment_history) {
+              setEmploymentHistory(Array.isArray(data.employment_history) ? data.employment_history : [data.employment_history]);
+            } else if (data && data.data) {
+              setEmploymentHistory(Array.isArray(data.data) ? data.data : [data.data]);
+            } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+              setEmploymentHistory([data]);
+            } else {
+              setEmploymentHistory([]);
+            }
+            setLoadingEmployment(false);
+          }
+        },
+        {
+          name: 'getProjects',
+          promise: fetch('http://127.0.0.1:8000/getProjects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText })
+          }),
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Projects API Response:', data);
+            if (Array.isArray(data)) {
+              setProjectsInfo(data);
+            } else if (data && data.projects) {
+              setProjectsInfo(Array.isArray(data.projects) ? data.projects : [data.projects]);
+            } else if (data && data.data) {
+              setProjectsInfo(Array.isArray(data.data) ? data.data : [data.data]);
+            } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+              setProjectsInfo([data]);
+            } else {
+              setProjectsInfo([]);
+            }
+            setLoadingProjects(false);
+          }
+        }
       ];
 
-      const results = await Promise.allSettled(apiCalls);
-
-      // Process scoreResume
-      if (results[0].status === 'fulfilled') {
-        const scoreData = await results[0].value.json();
-        setResumeScore(scoreData.score || 0);
-        setResumeItems(scoreData.items || []);
-      }
-      setLoadingScore(false);
-
-      // Process getContacts
-      if (results[1].status === 'fulfilled') {
-        const contactData = await results[1].value.json();
-        setContactInfo(contactData);
-      }
-      setLoadingContact(false);
-
-      // Process getSummaryOverview
-      if (results[2].status === 'fulfilled') {
-        const summaryData = await results[2].value.json();
-        setSummaryInfo(summaryData);
-      }
-      setLoadingSummary(false);
-
-      // Process getCustomScores
-      if (results[3].status === 'fulfilled') {
+      // Process each API call as it completes
+      apiCalls.forEach(async ({ name, promise, handler }) => {
         try {
-          const customData = await results[3].value.json();
-          console.log('Custom Scores API Response:', customData);
-          console.log('Custom Scores API Response Type:', typeof customData);
-          console.log('Custom Scores API Response Keys:', Object.keys(customData || {}));
-          console.log('Custom Scores Values:', {
-            searchibility_score: customData.searchibility_score,
-            hard_skills_score: customData.hard_skills_score,
-            soft_skill_score: customData.soft_skill_score,
-            formatting_score: customData.formatting_score
-          });
-          setCustomScores(customData);
-        } catch (error) {
-          console.error('Error processing custom scores data:', error);
-          setCustomScores({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
-        }
-      } else {
-        console.error('Custom Scores API call failed:', results[3].reason);
-        setCustomScores({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
-      }
-      setLoadingCustomScores(false);
-
-      // Process getOtherComments
-      if (results[4].status === 'fulfilled') {
-        const otherData = await results[4].value.json();
-        setOtherComments(otherData);
-      }
-      setLoadingOtherComments(false);
-
-      // Process getFunctionalConstituent
-      if (results[5].status === 'fulfilled') {
-        const functionalData = await results[5].value.json();
-        setFunctionalConstituent(functionalData);
-      }
-      setLoadingFunctionalConstituent(false);
-
-      // Process getTechnicalConstituent
-      if (results[6].status === 'fulfilled') {
-        const technicalData = await results[6].value.json();
-        setTechnicalConstituent(technicalData);
-      }
-      setLoadingTechnicalConstituent(false);
-
-      // Process getEducation
-      if (results[7].status === 'fulfilled') {
-        try {
-          const educationData = await results[7].value.json();
-          console.log('Education API Response:', educationData);
-          console.log('Education API Response Type:', typeof educationData);
-          console.log('Education API Response Keys:', Object.keys(educationData || {}));
-          
-          // Handle different response formats
-          if (Array.isArray(educationData)) {
-            console.log('Education: Setting as array with length:', educationData.length);
-            setEducationHistory(educationData);
-          } else if (educationData && educationData.education) {
-            console.log('Education: Found nested education property');
-            setEducationHistory(Array.isArray(educationData.education) ? educationData.education : [educationData.education]);
-          } else if (educationData && educationData.data) {
-            console.log('Education: Found nested data property');
-            setEducationHistory(Array.isArray(educationData.data) ? educationData.data : [educationData.data]);
-          } else if (educationData && typeof educationData === 'object' && Object.keys(educationData).length > 0) {
-            console.log('Education: Converting single object to array');
-            setEducationHistory([educationData]);
+          const response = await promise;
+          if (response.ok) {
+            await handler(response);
           } else {
-            console.log('Education: No valid data found, setting empty array');
-            setEducationHistory([]);
+            console.error(`${name} API call failed:`, response.statusText);
+            // Set appropriate loading state to false on error
+            switch (name) {
+              case 'scoreResume': setLoadingScore(false); break;
+              case 'getContacts': setLoadingContact(false); break;
+              case 'getSummaryOverview': setLoadingSummary(false); break;
+              case 'getCustomScores': setLoadingCustomScores(false); break;
+              case 'getOtherComments': setLoadingOtherComments(false); break;
+              case 'getFunctionalConstituent': setLoadingFunctionalConstituent(false); break;
+              case 'getTechnicalConstituent': setLoadingTechnicalConstituent(false); break;
+              case 'getEducation': setLoadingEducation(false); break;
+              case 'getCompany': setLoadingEmployment(false); break;
+              case 'getProjects': setLoadingProjects(false); break;
+            }
           }
         } catch (error) {
-          console.error('Error processing education data:', error);
-          setEducationHistory([]);
-        }
-      } else {
-        console.error('Education API call failed:', results[7].reason);
-        setEducationHistory([]);
-      }
-      setLoadingEducation(false);
-
-      // Process getCompany
-      if (results[8].status === 'fulfilled') {
-        try {
-          const companyData = await results[8].value.json();
-          console.log('Employment API Response:', companyData);
-          console.log('Employment API Response Type:', typeof companyData);
-          console.log('Employment API Response Keys:', Object.keys(companyData || {}));
-          
-          // Handle different response formats
-          if (Array.isArray(companyData)) {
-            console.log('Employment: Setting as array with length:', companyData.length);
-            setEmploymentHistory(companyData);
-          } else if (companyData && companyData.employment_history) {
-            console.log('Employment: Found nested employment_history property');
-            setEmploymentHistory(Array.isArray(companyData.employment_history) ? companyData.employment_history : [companyData.employment_history]);
-          } else if (companyData && companyData.employment) {
-            console.log('Employment: Found nested employment property');
-            setEmploymentHistory(Array.isArray(companyData.employment) ? companyData.employment : [companyData.employment]);
-          } else if (companyData && companyData.companies) {
-            console.log('Employment: Found nested companies property');
-            setEmploymentHistory(Array.isArray(companyData.companies) ? companyData.companies : [companyData.companies]);
-          } else if (companyData && companyData.data) {
-            console.log('Employment: Found nested data property');
-            setEmploymentHistory(Array.isArray(companyData.data) ? companyData.data : [companyData.data]);
-          } else if (companyData && typeof companyData === 'object' && Object.keys(companyData).length > 0) {
-            console.log('Employment: Converting single object to array');
-            setEmploymentHistory([companyData]);
-          } else {
-            console.log('Employment: No valid data found, setting empty array');
-            setEmploymentHistory([]);
+          console.error(`Error in ${name} API call:`, error);
+          // Set appropriate loading state to false on error
+          switch (name) {
+            case 'scoreResume': setLoadingScore(false); break;
+            case 'getContacts': setLoadingContact(false); break;
+            case 'getSummaryOverview': setLoadingSummary(false); break;
+            case 'getCustomScores': setLoadingCustomScores(false); break;
+            case 'getOtherComments': setLoadingOtherComments(false); break;
+            case 'getFunctionalConstituent': setLoadingFunctionalConstituent(false); break;
+            case 'getTechnicalConstituent': setLoadingTechnicalConstituent(false); break;
+            case 'getEducation': setLoadingEducation(false); break;
+            case 'getCompany': setLoadingEmployment(false); break;
+            case 'getProjects': setLoadingProjects(false); break;
           }
-        } catch (error) {
-          console.error('Error processing employment data:', error);
-          setEmploymentHistory([]);
         }
-      } else {
-        console.error('Employment API call failed:', results[8].reason);
-        setEmploymentHistory([]);
-      }
-      setLoadingEmployment(false);
-
-      // Process getProjects
-      if (results[9].status === 'fulfilled') {
-        try {
-          const projectsData = await results[9].value.json();
-          console.log('Projects API Response:', projectsData);
-          console.log('Projects API Response Type:', typeof projectsData);
-          console.log('Projects API Response Keys:', Object.keys(projectsData || {}));
-          
-          // Handle different response formats
-          if (Array.isArray(projectsData)) {
-            console.log('Projects: Setting as array with length:', projectsData.length);
-            setProjectsInfo(projectsData);
-          } else if (projectsData && projectsData.projects) {
-            console.log('Projects: Found nested projects property');
-            setProjectsInfo(Array.isArray(projectsData.projects) ? projectsData.projects : [projectsData.projects]);
-          } else if (projectsData && projectsData.data) {
-            console.log('Projects: Found nested data property');
-            setProjectsInfo(Array.isArray(projectsData.data) ? projectsData.data : [projectsData.data]);
-          } else if (projectsData && typeof projectsData === 'object' && Object.keys(projectsData).length > 0) {
-            console.log('Projects: Converting single object to array');
-            setProjectsInfo([projectsData]);
-          } else {
-            console.log('Projects: No valid data found, setting empty array');
-            setProjectsInfo([]);
-          }
-        } catch (error) {
-          console.error('Error processing projects data:', error);
-          setProjectsInfo([]);
-        }
-      } else {
-        console.error('Projects API call failed:', results[9].reason);
-        setProjectsInfo([]);
-      }
-      setLoadingProjects(false);
+      });
 
     } catch (error) {
       console.error('Error calling APIs:', error);
@@ -602,15 +584,54 @@ export default function Home() {
             />
           </Grid>
           <Grid item xs={12} md={4}>
-            <TextField
-              placeholder="Enter your job role (e.g., Software Engineer)"
-              variant="outlined"
-              fullWidth
-              value={userJobRole}
-              onChange={(e) => setUserJobRole(e.target.value)}
-              sx={{ bgcolor: '#fff' }}
-              label="Job Role"
-            />
+            <FormControl fullWidth sx={{ bgcolor: '#fff' }}>
+              <Select
+                value={userJobRole}
+                onChange={(e) => setUserJobRole(e.target.value)}
+                displayEmpty
+                variant="outlined"
+                sx={{ 
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              >
+                <MenuItem value="" disabled>
+                  <em>Select a job role</em>
+                </MenuItem>
+                <MenuItem value="Entry-Level / Junior Roles">Entry-Level / Junior Roles</MenuItem>
+                <MenuItem value="IT Support Technician">IT Support Technician</MenuItem>
+                <MenuItem value="Network Support Engineer">Network Support Engineer</MenuItem>
+                <MenuItem value="QA Tester">QA Tester</MenuItem>
+                <MenuItem value="IT Intern">IT Intern</MenuItem>
+                <MenuItem value="Full Stack Developer">Full Stack Developer</MenuItem>
+                <MenuItem value="Frontend Developer">Frontend Developer</MenuItem>
+                <MenuItem value="Backend Developer">Backend Developer</MenuItem>
+                <MenuItem value="Mobile App Developer (Android / iOS)">Mobile App Developer (Android / iOS)</MenuItem>
+                <MenuItem value="DevOps Engineer">DevOps Engineer</MenuItem>
+                <MenuItem value="Cloud Engineer">Cloud Engineer</MenuItem>
+                <MenuItem value="Site Reliability Engineer (SRE)">Site Reliability Engineer (SRE)</MenuItem>
+                <MenuItem value="Network Engineer">Network Engineer</MenuItem>
+                <MenuItem value="Cloud Infrastructure Engineer">Cloud Infrastructure Engineer</MenuItem>
+                <MenuItem value="IT Infrastructure Manager">IT Infrastructure Manager</MenuItem>
+                <MenuItem value="Cybersecurity Analyst">Cybersecurity Analyst</MenuItem>
+                <MenuItem value="Data Analyst">Data Analyst</MenuItem>
+                <MenuItem value="Business Intelligence (BI) Developer">Business Intelligence (BI) Developer)</MenuItem>
+                <MenuItem value="Data Engineer">Data Engineer</MenuItem>
+                <MenuItem value="Data Scientist">Data Scientist</MenuItem>
+                <MenuItem value="Machine Learning Engineer">Machine Learning Engineer</MenuItem>
+                <MenuItem value="AI Engineer">AI Engineer</MenuItem>
+                <MenuItem value="Database Administrator (DBA)">Database Administrator (DBA)</MenuItem>
+                <MenuItem value="Automation Test Engineer">Automation Test Engineer</MenuItem>
+                <MenuItem value="Performance Test Engineer">Performance Test Engineer</MenuItem>
+                <MenuItem value="QA Lead / Manager">QA Lead / Manager</MenuItem>
+                <MenuItem value="Scrum Master">Scrum Master</MenuItem>
+                <MenuItem value="Product Owner">Product Owner</MenuItem>
+                <MenuItem value="Product Manager">Product Manager</MenuItem>
+                <MenuItem value="Program Manager">Program Manager</MenuItem>
+                <MenuItem value="UI/UX Designer">UI/UX Designer</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
           <Grid item xs={12} md={4}>
             <input

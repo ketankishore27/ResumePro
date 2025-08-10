@@ -3,13 +3,14 @@ from pydantic import BaseModel, Field, RootModel, conint
 from langchain_core.output_parsers import PydanticOutputParser, JsonOutputParser
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from enum import Enum
 from typing import Dict, List, Union, Literal, Optional
 
 load_dotenv(override=True)
 #llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
-llm = ChatOpenAI(model="gpt-4o", temperature=0.)
+#llm = ChatOpenAI(model="gpt-4o", temperature=0.)
+llm = AzureChatOpenAI(model="gpt-4o-mini", api_version="2025-04-01-preview")
 
 def create_resume_score():
 
@@ -747,3 +748,40 @@ def company_extractor():
     chain = prompt | llm | JsonOutputParser()
 
     return chain
+
+
+def extract_names():
+
+    class ResumeName(BaseModel):
+        name: str = Field("Name of the person mentioned in resume")
+
+    output_parser = PydanticOutputParser(pydantic_object=ResumeName)
+    
+    instruction_format = """
+    You are given the text content of a resume and, if available, the candidate’s email address.  
+    Your task is to identify the name of the candidate.  
+    
+    Instructions:  
+    - Search for the name in typical places such as the resume header, first few lines, or before contact details.  
+    - If the resume does not explicitly state the name, infer it from the email address if possible (e.g., john.doe@email.com → John Doe).  
+    - The name must be in proper case (e.g., "John Doe").  
+    - If no reasonable name can be found or inferred, set the value to "Name Not Found".  
+    
+    ### Resume Text:
+    {resume_text}
+    
+    ### Email:
+    {email_id}
+
+    ### Output Format (JSON):
+    {output_format}
+    
+    """
+
+    prompt = PromptTemplate(template=instruction_format, 
+                            partial_variables={"output_format": output_parser})
+
+    chain = prompt | llm | JsonOutputParser()
+
+    return chain
+

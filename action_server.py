@@ -1,13 +1,15 @@
 from typing import List
+import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from ai_operations.chains import scoring_chain, contact_extractor_chain, \
                                  summary_chain, custom_score_chain, \
                                  other_comments_chain, functional_constituent_chain, \
                                  technical_constituent_chain, education_extractor_chain, \
-                                 project_extractor_chain, company_extractor_chain
+                                 project_extractor_chain, company_extractor_chain,\
+                                 name_extractor_chain
 
-from db_operations.utility_db import insert_data
+from db_operations.utility_db import insert_data, process_individual_resume
 
 app = FastAPI()
 
@@ -24,6 +26,28 @@ app.add_middleware(
 def test_endpoint():
     return {"status": "success", "message": "Server is working!"}
 
+@app.post("/getNames")
+def getNames(data: dict):
+    print("Received request for getNames")
+    resumeText = data.get("resumeText", "")
+    email_id = data.get("email_id", "")
+    
+    max_iter = 5
+    for iteration in range(max_iter):
+        try:
+            names = name_extractor_chain.invoke({"resume_text": resumeText, "email_id": email_id})
+            if isinstance(names, dict):
+                if 'name' in names:
+                    return names
+
+            print(names)
+        except Exception as e:
+            print("Exception in getNames:", e)
+            pass
+
+        print("Retrying. Ended Iteration:", iteration)    
+        
+    return {"name": "Name Not Found"}
 
 @app.post("/scoreResume")
 def scoreResume(data: dict):
@@ -333,6 +357,8 @@ def getCompany(data: dict):
         
     return {'employment_history': []}
 
+
+
 @app.post("/assembleData")
 def assembleData(data: dict):
     try:
@@ -342,5 +368,24 @@ def assembleData(data: dict):
     except Exception as e:
         print("Exception in assembleData:", e)
         return {"response": "Failed to assemble data"}
+
+
+@app.post("/processBulkImport")
+def process_bulk_import(data: dict):
+
+    try:
+        print("Received request for processBulkImport")
+        return_payload= process_individual_resume(data)
+        return return_payload
+    except Exception as e:
+        print("Exception in processBulkImport:", e)
+        return {
+                    "email_id": "",
+                    "contact_number": "",
+                    "name": "",
+                    "summary_overview": "",
+                    "parsed_status": "UnSuccessful"
+                }
+    
 
 

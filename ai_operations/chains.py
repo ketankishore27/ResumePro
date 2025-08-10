@@ -2,7 +2,7 @@ from ai_operations.utility_function import create_resume_score, get_contact_info
                                            get_summary_overview, get_custom_scores, \
                                            get_other_comments, functional_constituent, \
                                            technical_constituent, education_extractor, \
-                                           project_extractor, company_extractor
+                                           project_extractor, company_extractor, extract_names
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -17,4 +17,5 @@ technical_constituent_chain = technical_constituent()
 education_extractor_chain = education_extractor()
 project_extractor_chain = project_extractor()
 company_extractor_chain = company_extractor()
+name_extractor_chain = extract_names()
 
