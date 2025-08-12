@@ -1,0 +1,610 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box, Typography, Button, Grid, Card, CardContent, TextField, Paper,
+  FormControl, Select, MenuItem, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Divider, CircularProgress, Chip, Checkbox, IconButton, Avatar
+} from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import GetAppIcon from '@mui/icons-material/GetApp';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { useRouter } from 'next/router';
+import Navigation from '../src/components/Navigation';
+
+export default function RelevantCandidates() {
+  const router = useRouter();
+  const [jobRole, setJobRole] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [candidates, setCandidates] = useState([]);
+  const [searchPerformed, setSearchPerformed] = useState(false);
+
+  const handleSearch = async () => {
+    if (!jobRole && !jobDescription) {
+      alert('Please select a job role or enter a job description');
+      return;
+    }
+
+    setLoading(true);
+    setSearchPerformed(true);
+    
+    try {
+      // This would be replaced with an actual API call
+      // For now, we'll simulate a response with mock data
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock data for demonstration
+      const mockCandidates = [
+        {
+          id: 1,
+          name: 'Ankita Devagn',
+          email: 'ankita.devagn@gmail.com',
+          phone: '9112345678',
+          location: 'Pune',
+          experience: '3y 1m',
+          salary: '9 Lacs',
+          notice: '3m+ notice',
+          skills: ['Java Architecture', 'Technical Leadership', 'Technical Architecture', 'Project Management', 'J2EE', 'Java', 'Spring', 'XML'],
+          education: 'B.Sc Indian Institute of Technology (IIT), Kanpur 2017',
+          current: 'Oracle Database Administrator at TATA TECHNOLOGIES LTD.',
+          previous: 'Software Tester at TATA STEEL LIMITED',
+          match: 92,
+          avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
+          comments: 4,
+          applyDate: '16 Apr 21',
+          status: 'Shortlisted'
+        },
+        {
+          id: 2,
+          name: 'Rahul Sharma',
+          email: 'rahul.sharma@gmail.com',
+          phone: '9223456789',
+          location: 'Bangalore',
+          experience: '4y 3m',
+          salary: '12 Lacs',
+          notice: '1m notice',
+          skills: ['Python', 'Django', 'React', 'AWS', 'Full Stack', 'JavaScript', 'Node.js'],
+          education: 'M.Tech Computer Science, IIT Delhi 2019',
+          current: 'Full Stack Developer at Infosys',
+          previous: 'Web Developer at TCS',
+          match: 85,
+          avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+          comments: 2,
+          applyDate: '14 Apr 21',
+          status: 'Pending'
+        },
+        {
+          id: 3,
+          name: 'Priya Patel',
+          email: 'priya.patel@gmail.com',
+          phone: '9334567890',
+          location: 'Mumbai',
+          experience: '2y 6m',
+          salary: '8 Lacs',
+          notice: 'Immediate',
+          skills: ['UI/UX', 'Figma', 'Adobe XD', 'Sketch', 'HTML', 'CSS', 'JavaScript'],
+          education: 'B.Des, NID Ahmedabad 2020',
+          current: 'UI Designer at Amazon',
+          previous: 'Graphic Designer at Wipro',
+          match: 78,
+          avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
+          comments: 1,
+          applyDate: '12 Apr 21',
+          status: 'Shortlisted'
+        },
+        {
+          id: 4,
+          name: 'Vikram Singh',
+          email: 'vikram.singh@gmail.com',
+          phone: '9445678901',
+          location: 'Delhi',
+          experience: '5y 2m',
+          salary: '15 Lacs',
+          notice: '2m notice',
+          skills: ['DevOps', 'Docker', 'Kubernetes', 'Jenkins', 'AWS', 'CI/CD', 'Terraform'],
+          education: 'B.Tech, BITS Pilani 2016',
+          current: 'DevOps Engineer at Microsoft',
+          previous: 'System Administrator at IBM',
+          match: 65,
+          avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
+          comments: 3,
+          applyDate: '10 Apr 21',
+          status: 'Rejected'
+        }
+      ];
+      
+      setCandidates(mockCandidates);
+    } catch (error) {
+      console.error('Error fetching candidates:', error);
+      alert('Failed to fetch candidates. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCandidateClick = (candidate) => {
+    // Navigate to insights page with email_id as query parameter
+    window.open(`/insights?email_id=${encodeURIComponent(candidate.email)}`, '_blank');
+  };
+
+  const getMatchColor = (match) => {
+    if (match >= 90) return '#4caf50';
+    if (match >= 80) return '#2196f3';
+    if (match >= 70) return '#ff9800';
+    return '#f44336';
+  };
+
+  return (
+    <>
+      <Navigation currentPage="Relevant Candidates" />
+      
+      <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+        <Typography variant="h5" fontWeight={600} sx={{ mb: 3, color: '#374151' }}>
+          Find Relevant Candidates
+        </Typography>
+        
+        <Grid container spacing={3}>
+          {/* Left Side - Filters */}
+          <Grid item xs={12} md={3}>
+            <Paper elevation={1} sx={{ borderRadius: 2, height: '100%' }}>
+              {/* Filters Header */}
+              <Box sx={{ p: 2, borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center' }}>
+                <Box component="span" sx={{ display: 'inline-flex', mr: 1 }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="4" y1="21" x2="4" y2="14"></line>
+                    <line x1="4" y1="10" x2="4" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12" y2="3"></line>
+                    <line x1="20" y1="21" x2="20" y2="16"></line>
+                    <line x1="20" y1="12" x2="20" y2="3"></line>
+                    <line x1="1" y1="14" x2="7" y2="14"></line>
+                    <line x1="9" y1="8" x2="15" y2="8"></line>
+                    <line x1="17" y1="16" x2="23" y2="16"></line>
+                  </svg>
+                </Box>
+                <Typography variant="h6" sx={{ color: '#6b7280', fontWeight: 500 }}>
+                  Filters
+                </Typography>
+              </Box>
+              
+              {/* Job Role Filter */}
+              <Box sx={{ p: 2, borderBottom: '1px solid #e5e7eb' }}>
+                <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1.5, color: '#374151' }}>
+                  Job Role
+                </Typography>
+                <FormControl fullWidth>
+                  <Select
+                    value={jobRole}
+                    onChange={(e) => setJobRole(e.target.value)}
+                    displayEmpty
+                    variant="outlined"
+                    size="small"
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  >
+                    <MenuItem value="" disabled>
+                      <em>Select a job role</em>
+                    </MenuItem>
+                    <MenuItem value="Entry-Level / Junior Roles">Entry-Level / Junior Roles</MenuItem>
+                    <MenuItem value="IT Support Technician">IT Support Technician</MenuItem>
+                    <MenuItem value="Network Support Engineer">Network Support Engineer</MenuItem>
+                    <MenuItem value="QA Tester">QA Tester</MenuItem>
+                    <MenuItem value="IT Intern">IT Intern</MenuItem>
+                    <MenuItem value="Full Stack Developer">Full Stack Developer</MenuItem>
+                    <MenuItem value="Frontend Developer">Frontend Developer</MenuItem>
+                    <MenuItem value="Backend Developer">Backend Developer</MenuItem>
+                    <MenuItem value="Mobile App Developer (Android / iOS)">Mobile App Developer (Android / iOS)</MenuItem>
+                    <MenuItem value="DevOps Engineer">DevOps Engineer</MenuItem>
+                    <MenuItem value="Cloud Engineer">Cloud Engineer</MenuItem>
+                    <MenuItem value="Site Reliability Engineer (SRE)">Site Reliability Engineer (SRE)</MenuItem>
+                    <MenuItem value="Network Engineer">Network Engineer</MenuItem>
+                    <MenuItem value="Cloud Infrastructure Engineer">Cloud Infrastructure Engineer</MenuItem>
+                    <MenuItem value="IT Infrastructure Manager">IT Infrastructure Manager</MenuItem>
+                    <MenuItem value="Cybersecurity Analyst">Cybersecurity Analyst</MenuItem>
+                    <MenuItem value="Data Analyst">Data Analyst</MenuItem>
+                    <MenuItem value="Business Intelligence (BI) Developer">Business Intelligence (BI) Developer</MenuItem>
+                    <MenuItem value="Data Engineer">Data Engineer</MenuItem>
+                    <MenuItem value="Data Scientist">Data Scientist</MenuItem>
+                    <MenuItem value="Machine Learning Engineer">Machine Learning Engineer</MenuItem>
+                    <MenuItem value="AI Engineer">AI Engineer</MenuItem>
+                    <MenuItem value="Database Administrator (DBA)">Database Administrator (DBA)</MenuItem>
+                    <MenuItem value="Automation Test Engineer">Automation Test Engineer</MenuItem>
+                    <MenuItem value="Performance Test Engineer">Performance Test Engineer</MenuItem>
+                    <MenuItem value="QA Lead / Manager">QA Lead / Manager</MenuItem>
+                    <MenuItem value="Scrum Master">Scrum Master</MenuItem>
+                    <MenuItem value="Product Owner">Product Owner</MenuItem>
+                    <MenuItem value="Product Manager">Product Manager</MenuItem>
+                    <MenuItem value="Program Manager">Program Manager</MenuItem>
+                    <MenuItem value="UI/UX Designer">UI/UX Designer</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              
+              {/* Job Description Filter */}
+              <Box sx={{ p: 2, borderBottom: '1px solid #e5e7eb' }}>
+                <Typography variant="subtitle1" fontWeight={500} sx={{ mb: 1.5, color: '#374151' }}>
+                  Job Description
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  placeholder="Enter job description or requirements..."
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  variant="outlined"
+                  size="small"
+                />
+              </Box>
+              
+              {/* Keywords Filter (similar to screenshot) */}
+              <Box sx={{ p: 2, borderBottom: '1px solid #e5e7eb' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle1" fontWeight={500} sx={{ color: '#374151' }}>
+                    Keywords
+                  </Typography>
+                  <Box component="span" sx={{ color: '#6b7280' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                  </Box>
+                </Box>
+                <TextField
+                  fullWidth
+                  placeholder="Search Keywords in results"
+                  variant="outlined"
+                  size="small"
+                />
+              </Box>
+              
+              {/* Star Rating Filter (similar to screenshot) */}
+              <Box sx={{ p: 2, borderBottom: '1px solid #e5e7eb' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                  <Typography variant="subtitle1" fontWeight={500} sx={{ color: '#374151' }}>
+                    Star Rating
+                  </Typography>
+                  <Box component="span" sx={{ color: '#6b7280' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                  </Box>
+                </Box>
+              </Box>
+              
+              {/* Search Button */}
+              <Box sx={{ p: 2 }}>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  fullWidth
+                  onClick={handleSearch}
+                  disabled={loading}
+                  sx={{ 
+                    fontWeight: 600,
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    py: 1
+                  }}
+                >
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Refine Search'}
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          {/* Right Side - Results */}
+          <Grid item xs={12} md={9}>
+            {searchPerformed && (
+              <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Typography variant="h6" fontWeight={600} sx={{ color: '#374151' }}>
+                    {loading ? 'Searching...' : `Matching Candidates (${candidates.length})`}
+                  </Typography>
+                  
+                  {!loading && candidates.length > 0 && (
+                    <Button 
+                      variant="outlined" 
+                      color="primary"
+                      sx={{ 
+                        fontWeight: 500,
+                        borderRadius: 2,
+                        textTransform: 'none'
+                      }}
+                    >
+                      Export Results
+                    </Button>
+                  )}
+                </Box>
+                
+                {loading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : candidates.length > 0 ? (
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Showing {candidates.length} result(s)
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                          Page 1 of 1
+                        </Typography>
+                        <IconButton size="small" disabled>
+                          <ChevronLeftIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" disabled>
+                          <ChevronRightIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Checkbox size="small" />
+                      <Typography variant="body2" sx={{ ml: 1, fontWeight: 500 }}>Select All</Typography>
+                      <Button 
+                        startIcon={<CheckCircleOutlineIcon />} 
+                        size="small" 
+                        sx={{ ml: 2, textTransform: 'none' }}
+                      >
+                        Shortlist
+                      </Button>
+                      <Button 
+                        startIcon={<CancelOutlinedIcon />} 
+                        size="small" 
+                        sx={{ ml: 1, textTransform: 'none' }}
+                      >
+                        Reject
+                      </Button>
+                      <Button 
+                        startIcon={<EmailOutlinedIcon />} 
+                        size="small" 
+                        sx={{ ml: 1, textTransform: 'none' }}
+                      >
+                        Email
+                      </Button>
+                      <Button 
+                        startIcon={<GetAppIcon />} 
+                        size="small" 
+                        sx={{ ml: 1, textTransform: 'none' }}
+                      >
+                        Download
+                      </Button>
+                      <Button 
+                        startIcon={<DeleteOutlineIcon />} 
+                        size="small" 
+                        sx={{ ml: 1, textTransform: 'none' }}
+                      >
+                        Delete
+                      </Button>
+                      
+                      <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                          Sort by:
+                        </Typography>
+                        <Select
+                          size="small"
+                          value="apply_date"
+                          sx={{ height: 32, minWidth: 120, fontSize: '0.875rem' }}
+                        >
+                          <MenuItem value="apply_date">Apply date</MenuItem>
+                          <MenuItem value="name">Name</MenuItem>
+                          <MenuItem value="match">Match %</MenuItem>
+                        </Select>
+                      </Box>
+                    </Box>
+                    
+                    {candidates.map((candidate) => (
+                      <Paper 
+                        key={candidate.id}
+                        elevation={0} 
+                        sx={{ 
+                          mb: 2, 
+                          border: '1px solid #e0e0e0',
+                          borderLeft: '4px solid #2196f3',
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                          '&:hover': { boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', p: 0 }}>
+                          <Box sx={{ p: 2, display: 'flex', alignItems: 'flex-start', width: '100%' }}>
+                            <Checkbox size="small" sx={{ mt: 0.5, mr: 1 }} />
+                            
+                            <Box sx={{ flex: 1 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <Box>
+                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 500, color: '#424242' }}>
+                                      {candidate.name}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                                      <AccessTimeIcon sx={{ fontSize: 16, color: '#757575', mr: 0.5 }} />
+                                      <Typography variant="body2" color="text.secondary">
+                                        {candidate.experience}
+                                      </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                                      <AttachMoneyIcon sx={{ fontSize: 16, color: '#757575', mr: 0.5 }} />
+                                      <Typography variant="body2" color="text.secondary">
+                                        ₹ {candidate.salary}
+                                      </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                                      <LocationOnOutlinedIcon sx={{ fontSize: 16, color: '#757575', mr: 0.5 }} />
+                                      <Typography variant="body2" color="text.secondary">
+                                        {candidate.location}
+                                      </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                                      <NotificationsNoneOutlinedIcon sx={{ fontSize: 16, color: '#757575', mr: 0.5 }} />
+                                      <Typography variant="body2" color="text.secondary">
+                                        3m+ notice
+                                      </Typography>
+                                    </Box>
+                                  </Box>
+                                  
+                                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                                    <Grid item xs={12} md={4}>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">
+                                          Current
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                          {candidate.current}
+                                        </Typography>
+                                      </Box>
+                                    </Grid>
+                                    <Grid item xs={12} md={4}>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">
+                                          Previous
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                          {candidate.previous}
+                                        </Typography>
+                                      </Box>
+                                    </Grid>
+                                    <Grid item xs={12} md={4}>
+                                      <Box>
+                                        <Typography variant="body2" color="text.secondary">
+                                          Education
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                          {candidate.education || 'B.Sc Indian Institute of Technology (IIT), Kanpur 2017'}
+                                        </Typography>
+                                      </Box>
+                                    </Grid>
+                                  </Grid>
+                                  
+                                  <Box sx={{ mt: 2 }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Key skills
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                      {(candidate.skills || ['Java Architecture', 'Technical Leadership', 'Technical Architecture', 'Project Management', 'J2EE', 'Java', 'Spring', 'XML']).map((skill, index) => (
+                                        <Chip 
+                                          key={index} 
+                                          label={skill} 
+                                          size="small" 
+                                          sx={{ 
+                                            bgcolor: '#f5f5f5', 
+                                            fontSize: '0.75rem',
+                                            height: 24
+                                          }} 
+                                        />
+                                      ))}
+                                    </Box>
+                                  </Box>
+                                </Box>
+                                
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                  <Avatar 
+                                    src={candidate.avatar || 'https://randomuser.me/api/portraits/women/44.jpg'} 
+                                    sx={{ width: 64, height: 64 }}
+                                  />
+                                  
+                                  <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                      {candidate.phone || '9112345678'}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                      {candidate.email || `${candidate.name.toLowerCase().replace(' ', '.')}@gmail.com`}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                      <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
+                                        {candidate.comments || '4'} Comments
+                                      </Typography>
+                                    </Box>
+                                  </Box>
+                                  
+                                  <Box sx={{ mt: 'auto', pt: 1 }}>
+                                    <Button
+                                      variant="contained"
+                                      color="success"
+                                      size="small"
+                                      sx={{ 
+                                        textTransform: 'none', 
+                                        borderRadius: 4,
+                                        bgcolor: '#e8f5e9',
+                                        color: '#2e7d32',
+                                        '&:hover': {
+                                          bgcolor: '#c8e6c9'
+                                        }
+                                      }}
+                                      endIcon={<KeyboardArrowDownIcon />}
+                                    >
+                                      Shortlisted
+                                    </Button>
+                                  </Box>
+                                </Box>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2, pt: 2, borderTop: '1px solid #f0f0f0' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Applied on: 16 Apr 21
+                                  </Typography>
+                                </Box>
+                                <Box>
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => handleCandidateClick(candidate)}
+                                    sx={{ 
+                                      textTransform: 'none',
+                                      borderRadius: 1.5,
+                                      fontWeight: 500,
+                                      mr: 1
+                                    }}
+                                  >
+                                    View Profile
+                                  </Button>
+                                  <Button
+                                    variant="contained"
+                                    size="small"
+                                    color="primary"
+                                    sx={{ 
+                                      textTransform: 'none',
+                                      borderRadius: 1.5,
+                                      fontWeight: 500
+                                    }}
+                                  >
+                                    Contact
+                                  </Button>
+                                </Box>
+                              </Box>
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Paper>
+                    ))}
+                ) : (
+                  <Box sx={{ py: 4, textAlign: 'center' }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No matching candidates found. Try adjusting your search criteria.
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+            )}
+          </Grid>
+        </Grid>
+      </Box>
+    </>
+  );
+}

@@ -9,7 +9,8 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
   const navigationItems = [
     { label: 'Home', path: '/', active: currentPage === 'Home' },
     { label: 'Bulk Import', path: '/bulk-import', active: currentPage === 'Bulk Import' },
-    { label: 'Query Candidate', path: '/insights', active: currentPage === 'Query Candidate' }
+    { label: 'Query Candidate', path: '/insights', active: currentPage === 'Query Candidate' },
+    { label: 'Relevant Candidates', path: '/relevant-candidates', active: currentPage === 'Relevant Candidates' }
   ];
 
   return (
