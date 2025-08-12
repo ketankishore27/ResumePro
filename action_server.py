@@ -391,15 +391,24 @@ def process_bulk_import(data: dict):
 def extract_data_db(data: dict):
     try:
         print("Received request for extractData")
-        print(data, type(data))
+        print("Request data:", data, type(data))
         email_id = data.get("email_id", None)
+        print("Email ID:", email_id)
+        
         return_payload = extract_data(email_id)
+        print("Database query result type:", type(return_payload))
+        print("Database query result length:", len(return_payload))
         
         # Check if the return payload indicates no candidate was found
-        if not return_payload or not return_payload.get("name") or return_payload.get("name").strip() == "":
+        if len(return_payload) == 0:
+            print("No candidate found in database")
             return {"response": "Candidate not found", "error": "Relevant Candidate Not Found", "status": 404}
-            
-        return return_payload
+        
+        # Return the first candidate
+        result = return_payload[0]
+        print("Returning candidate data with keys:", result.keys() if isinstance(result, dict) else "Not a dictionary")
+        return result
+
     except Exception as e:
         print("Exception in extractData:", e)
         return {"response": "Failed to extract data", "error": "An error occurred while processing your request", "status": 500}

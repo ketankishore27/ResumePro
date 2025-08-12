@@ -51,8 +51,19 @@ def insert_data(assembled_field: dict):
     getEducation = assembled_field.get("getEducation", None)
     scoreResume = assembled_field.get("scoreResume", None)
     getTechnicalConstituent = assembled_field.get("getTechnicalConstituent", None)
-    getCompany = assembled_field.get("getCompany", None)
-    getProjects = assembled_field.get("getProjects", None)
+    print(assembled_field.keys())
+    ## Temp Fix
+    if not isinstance(assembled_field.get("getProjects", None), dict):
+        getProjects = {"projects": assembled_field.get("getProjects", None)}
+    else:
+        getProjects = assembled_field.get("getProjects", None)
+        
+    if not isinstance(assembled_field.get("getCompany", None), dict):
+        getCompany = {"employment_history": assembled_field.get("getCompany", None)}
+    else:
+        getCompany = assembled_field.get("getCompany", None)
+    ##
+    
 
     data = pd.DataFrame([[candidate_id, name, job_role, resume_text, email_id, mobile_number, scoreResume, getContacts, getSummaryOverview, getCustomScores, getOtherComments, getFunctionalConstituent, 
                           getTechnicalConstituent, getEducation, getProjects, getCompany, mode]], 
@@ -111,5 +122,6 @@ def extract_data(email_id):
 
     TABLE_NAME = os.getenv("TABLE_NAME", None)
     sql_query = f"select * from {TABLE_NAME} where email_id = '{email_id}'"
-    data = pd.read_sql(sql_query, engine).to_dict("records")[0]
+    data = pd.read_sql(sql_query, engine)\
+             .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
     return data

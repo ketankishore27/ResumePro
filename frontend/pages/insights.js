@@ -26,15 +26,23 @@ export default function ResumeInsights() {
   // Get email_id from URL parameters
   const emailId = router.query.email_id;
   
-  // Debug context values
+  // Also check URL directly for email parameter to handle initial render
+  const hasEmailInUrl = typeof window !== 'undefined' && window.location.search.includes('email_id=');
+  
+  // Debug context values - but show corrected values if email parameter is present
   console.log('ResumeInsights component loaded');
-  console.log('pdfText from context:', pdfText ? `Available (${pdfText.length} chars)` : 'Not available');
-  console.log('jobRole from context:', jobRole || 'Not available');
-  console.log('userName from context:', userName || 'Not available');
+  console.log('Router ready:', router.isReady);
+  console.log('Router emailId:', emailId);
+  console.log('Router query object:', router.query);
+  console.log('Current URL:', typeof window !== 'undefined' ? window.location.href : 'SSR');
+  console.log('URL search params:', typeof window !== 'undefined' ? window.location.search : 'SSR');
+  console.log('URL has email param:', hasEmailInUrl);
+  
+  // State declarations - must come before using them in context logic
   const [resumeScore, setResumeScore] = useState(null);
   const [loadingScore, setLoadingScore] = useState(false);
   const [scoreError, setScoreError] = useState(null);
-  const [newResumeFile, setNewResumeFile] = useState(null);
+  // newResumeFile state removed - upload & re-scan functionality removed
   const [resumeItems, setResumeItems] = useState([]);
   const [contactInfo, setContactInfo] = useState({ mobile_number: '', email_id: '', color: '', comment: '' });
   const [loadingContact, setLoadingContact] = useState(false);
@@ -60,10 +68,27 @@ export default function ResumeInsights() {
   const [loadingEmailQuery, setLoadingEmailQuery] = useState(false);
   const [isDirectAccess, setIsDirectAccess] = useState(false);
   const [isDatabaseQuery, setIsDatabaseQuery] = useState(false);
+  const [isPerformingQuery, setIsPerformingQuery] = useState(false);
+  const [shouldClearContext, setShouldClearContext] = useState(false);
   
   // Dialog state for error messages
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMessage, setDialogMessage] = useState('');
+
+  // SIMPLE LOGIC: If there's an email in the textbox, ignore context completely
+  const hasEmailInTextbox = emailInput && emailInput.trim() !== '';
+  const shouldIgnoreContext = !!emailId || hasEmailInUrl || hasEmailInTextbox;
+  const effectivePdfText = shouldIgnoreContext ? '' : pdfText;
+  const effectiveJobRole = shouldIgnoreContext ? '' : jobRole;
+  const effectiveUserName = shouldIgnoreContext ? '' : userName;
+  
+  console.log('Email in URL:', !!emailId || hasEmailInUrl);
+  console.log('Email in textbox:', hasEmailInTextbox);
+  console.log('Email textbox value:', emailInput);
+  console.log('Should ignore context:', shouldIgnoreContext);
+  console.log('Effective pdfText:', effectivePdfText ? `Available (${effectivePdfText.length} chars)` : 'Not available');
+  console.log('Effective jobRole:', effectiveJobRole || 'Not available');
+  console.log('Effective userName:', effectiveUserName || 'Not available');
 
   // Cache state variables - DISABLED to prevent caching issues
   // const [cache, setCache] = useState({});
@@ -258,6 +283,13 @@ export default function ResumeInsights() {
     setLoadingEmployment(true);
     setScoreError(null);
 
+    // IMPORTANT: Clear all context data BEFORE making the API call
+    // This ensures no previous data persists when querying a specific email
+    console.log('Clearing all context data before database query');
+    setUserName('');
+    setPdfText('');
+    setJobRole('');
+
     try {
       const response = await fetch('http://127.0.0.1:8000/extractData', {
         method: 'POST',
@@ -382,15 +414,31 @@ export default function ResumeInsights() {
       }
 
       // Map get_projects data
+      console.log('DEBUG - get_projects data received:', data.get_projects);
       if (data.get_projects) {
         const projectsData = typeof data.get_projects === 'string' ? JSON.parse(data.get_projects) : data.get_projects;
+        console.log('DEBUG - Parsed projects data:', projectsData);
+        console.log('DEBUG - Projects array exists:', !!projectsData.projects);
+        console.log('DEBUG - Projects is array:', Array.isArray(projectsData.projects));
+        console.log('DEBUG - Projects array length:', Array.isArray(projectsData.projects) ? projectsData.projects.length : 'N/A');
         setProjectsInfo(Array.isArray(projectsData.projects) ? projectsData.projects : []);
+      } else {
+        console.log('DEBUG - get_projects data missing in API response');
+        setProjectsInfo([]);
       }
 
       // Map get_company data
+      console.log('DEBUG - get_company data received:', data.get_company);
       if (data.get_company) {
         const employmentData = typeof data.get_company === 'string' ? JSON.parse(data.get_company) : data.get_company;
+        console.log('DEBUG - Parsed employment data:', employmentData);
+        console.log('DEBUG - Employment history exists:', !!employmentData.employment_history);
+        console.log('DEBUG - Employment is array:', Array.isArray(employmentData.employment_history));
+        console.log('DEBUG - Employment array length:', Array.isArray(employmentData.employment_history) ? employmentData.employment_history.length : 'N/A');
         setEmploymentHistory(Array.isArray(employmentData.employment_history) ? employmentData.employment_history : []);
+      } else {
+        console.log('DEBUG - get_company data missing in API response');
+        setEmploymentHistory([]);
       }
 
       // Set all loading states to false
@@ -404,6 +452,9 @@ export default function ResumeInsights() {
       setLoadingEducation(false);
       setLoadingProjects(false);
       setLoadingEmployment(false);
+      
+      // Reset database query flag
+      setIsDatabaseQuery(false);
 
     } catch (error) {
       console.error('Failed to fetch data from database:', error);
@@ -455,67 +506,44 @@ export default function ResumeInsights() {
     }
   }, []); // Run only on mount
 
+  // Watch for isPerformingQuery changes and clear context immediately
+  useEffect(() => {
+    if (isPerformingQuery) {
+      console.log('Query state changed to true - Immediately clearing context');
+      setUserName('');
+      setPdfText('');
+      setJobRole('');
+    }
+  }, [isPerformingQuery]);
+
   useEffect(() => {
     console.log('useEffect triggered - emailId:', emailId || 'Not available');
-    console.log('useEffect triggered - pdfText:', pdfText ? 'Available' : 'Not available');
-    console.log('useEffect triggered - jobRole:', jobRole ? jobRole : 'Not available');
-    console.log('useEffect triggered - userName:', userName || 'Not available');
+    console.log('useEffect triggered - effective pdfText:', effectivePdfText ? `Available (${effectivePdfText.length} chars)` : 'Not available');
+    console.log('useEffect triggered - effective jobRole:', effectiveJobRole ? effectiveJobRole : 'Not available');
+    console.log('useEffect triggered - effective userName:', effectiveUserName || 'Not available');
+    console.log('useEffect triggered - loadingEmailQuery:', loadingEmailQuery);
     
     // If we have an email_id from URL, fetch data from database
     if (emailId) {
       console.log('Email ID found in URL, fetching data from database');
       setIsDirectAccess(false); // Reset direct access flag when we have data
-      fetchDataFromDatabase(emailId);
+      fetchDataFromDatabase(emailId); // Context clearing now happens inside fetchDataFromDatabase
       return;
     }
     
-    // If accessing directly without emailId or pdfText, clear all data
-    if (!emailId && (!pdfText || pdfText.trim() === '')) {
-      console.log('Direct access detected, clearing all data');
+    // If accessing directly without any data, clear all data
+    if (!emailId && !effectivePdfText) {
+      console.log('Direct access without data detected, clearing all data');
       setIsDirectAccess(true);
       
-      // Force clear context data
-      setUserName('');
-      setPdfText('');
-      setJobRole('');
-      
       // Clear all state variables to null/empty
-      setResumeScore(null);
-      setResumeItems([]);
-      setContactInfo({ mobile_number: '', email_id: '', color: '', comment: '' });
-      setSummaryInfo({ score: 0, color: 'red', label: 'critical', comment: 'No data available', summary: [] });
-      setCustomScores({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
-      setOtherComments({ headings_feedback: '', title_match: '', formatting_feedback: '' });
-      setFunctionalConstituent({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
-      setTechnicalConstituent({ high: [], medium: [], low: [] });
-      setEducationHistory([]);
-      setEmploymentHistory([]);
-      setProjectsInfo([]);
-      
-      // Clear cache and loading states - CACHE DISABLED
-      // setCache({});
-      // setLastInputHash(null);
-      setIsDatabaseQuery(false);
-      setScoreError(null);
-      
-      // Set all loading states to false
-      setLoadingScore(false);
-      setLoadingContact(false);
-      setLoadingSummary(false);
-      setLoadingCustomScores(false);
-      setLoadingOtherComments(false);
-      setLoadingFunctionalConstituent(false);
-      setLoadingTechnicalConstituent(false);
-      setLoadingEducation(false);
-      setLoadingProjects(false);
-      setLoadingEmployment(false);
-      
+      resetAllStates(); // Use the existing resetAllStates function for consistency
       return;
     }
     
     // Otherwise, use the existing logic for new resume analysis
-    if (!pdfText) {
-      console.log('No pdfText available, skipping API calls');
+    if (!effectivePdfText) {
+      console.log('No effective pdfText available, skipping API calls');
       return;
     }
 
@@ -524,232 +552,27 @@ export default function ResumeInsights() {
       console.log('Database query in progress, skipping callAllAPIs');
       return;
     }
+    
+    // Skip API calls if we're in the middle of an email query
+    if (loadingEmailQuery) {
+      console.log('Email query in progress, skipping callAllAPIs');
+      return;
+    }
 
     // CACHING DISABLED - Always make fresh API calls
     console.log('Making fresh API calls (caching disabled)');
     
-    // Call the existing API logic for new resume analysis
-    callAllAPIs();
-  }, [pdfText, emailId]);
+    // callAllAPIs function has been removed
+    console.log('API call functionality has been removed');
+  }, [pdfText, emailId, loadingEmailQuery]);
 
-  // Function to call unified API for new resume analysis
-  const callAllAPIs = async () => {
-    console.log('Calling unified /extractData API for resume analysis');
-    console.log('pdfText:', pdfText ? 'Available' : 'Not available');
-    console.log('jobRole:', jobRole || 'Not available');
-    
-    // Set all loading states to true
-    setLoadingScore(true);
-    setLoadingContact(true);
-    setLoadingSummary(true);
-    setLoadingCustomScores(true);
-    setLoadingOtherComments(true);
-    setLoadingFunctionalConstituent(true);
-    setLoadingTechnicalConstituent(true);
-    setLoadingEducation(true);
-    setLoadingProjects(true);
-    setLoadingEmployment(true);
-    setScoreError(null);
-
-    try {
-      // Create a temporary email for resume analysis
-      const tempEmail = `temp_${Date.now()}@analysis.com`;
-      
-      const response = await fetch('http://127.0.0.1:8000/extractData', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email_id: tempEmail,
-          resume_text: pdfText,
-          job_role: jobRole
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Received unified data response:', data);
-
-      // Map database schema to state variables (same as fetchDataFromDatabase)
-      if (data.name) setUserName(data.name);
-      if (data.job_role) setJobRole(data.job_role);
-      if (data.resume_raw_text) setPdfText(data.resume_raw_text);
-
-      // Map score_resume data
-      if (data.score_resume) {
-        const scoreData = typeof data.score_resume === 'string' ? JSON.parse(data.score_resume) : data.score_resume;
-        setResumeScore(scoreData.score || 0);
-        setResumeItems(scoreData.items || []);
-      }
-
-      // Map get_contacts data
-      if (data.get_contacts) {
-        const contactData = typeof data.get_contacts === 'string' ? JSON.parse(data.get_contacts) : data.get_contacts;
-        setContactInfo({
-          mobile_number: data.mobile_number || contactData.mobile_number || '',
-          email_id: data.email_id || contactData.email_id || '',
-          color: contactData.color || 'red',
-          comment: contactData.comment || 'Contact information not available'
-        });
-      }
-
-      // Map get_summary_overview data
-      if (data.get_summary_overview) {
-        const summaryData = typeof data.get_summary_overview === 'string' ? JSON.parse(data.get_summary_overview) : data.get_summary_overview;
-        setSummaryInfo({
-          score: summaryData.score || 0,
-          color: summaryData.color || 'red',
-          label: summaryData.label || 'critical',
-          comment: summaryData.comment || 'Summary analysis not available',
-          summary: summaryData.summary || []
-        });
-      }
-
-      // Map get_custom_scores data
-      if (data.get_custom_scores) {
-        const customScoresData = typeof data.get_custom_scores === 'string' ? JSON.parse(data.get_custom_scores) : data.get_custom_scores;
-        setCustomScores({
-          searchibility_score: customScoresData.searchibility_score || 0,
-          hard_skills_score: customScoresData.hard_skills_score || 0,
-          soft_skill_score: customScoresData.soft_skill_score || 0,
-          formatting_score: customScoresData.formatting_score || 0
-        });
-      }
-
-      // Map get_other_comments data
-      if (data.get_other_comments) {
-        const otherCommentsData = typeof data.get_other_comments === 'string' ? JSON.parse(data.get_other_comments) : data.get_other_comments;
-        setOtherComments({
-          headings_feedback: otherCommentsData.headings_feedback || 'Section headings analysis not available',
-          title_match: otherCommentsData.title_match || 'Job title match analysis not available',
-          formatting_feedback: otherCommentsData.formatting_feedback || 'Data formatting analysis not available'
-        });
-      }
-
-      // Map get_functional_constituent data
-      if (data.get_functional_constituent) {
-        const functionalData = typeof data.get_functional_constituent === 'string' ? JSON.parse(data.get_functional_constituent) : data.get_functional_constituent;
-        setFunctionalConstituent({
-          constituent: functionalData.constituent || {},
-          industries: functionalData.industries || [],
-          has_industry_experience: functionalData.has_industry_experience || false,
-          has_completed_college: functionalData.has_completed_college || false
-        });
-      }
-
-      // Map get_technical_constituent data
-      if (data.get_technical_constituent) {
-        const technicalData = typeof data.get_technical_constituent === 'string' ? JSON.parse(data.get_technical_constituent) : data.get_technical_constituent;
-        setTechnicalConstituent({
-          high: technicalData.high || [],
-          medium: technicalData.medium || [],
-          low: technicalData.low || []
-        });
-      }
-
-      // Map get_education data
-      if (data.get_education) {
-        const educationData = typeof data.get_education === 'string' ? JSON.parse(data.get_education) : data.get_education;
-        setEducationHistory(Array.isArray(educationData) ? educationData : []);
-      }
-
-      // Map get_projects data
-      if (data.get_projects) {
-        const projectsData = typeof data.get_projects === 'string' ? JSON.parse(data.get_projects) : data.get_projects;
-        setProjectsInfo(Array.isArray(projectsData.projects) ? projectsData.projects : []);
-      }
-
-      // Map get_company data
-      if (data.get_company) {
-        const employmentData = typeof data.get_company === 'string' ? JSON.parse(data.get_company) : data.get_company;
-        setEmploymentHistory(Array.isArray(employmentData.employment_history) ? employmentData.employment_history : []);
-      }
-
-      // Set all loading states to false
-      setLoadingScore(false);
-      setLoadingContact(false);
-      setLoadingSummary(false);
-      setLoadingCustomScores(false);
-      setLoadingOtherComments(false);
-      setLoadingFunctionalConstituent(false);
-      setLoadingTechnicalConstituent(false);
-      setLoadingEducation(false);
-      setLoadingProjects(false);
-      setLoadingEmployment(false);
-
-      console.log('Unified API call completed successfully');
-
-    } catch (error) {
-      console.error('Failed to fetch data from unified API:', error);
-      setScoreError('Failed to analyze resume');
-      
-      // Set all loading states to false
-      setLoadingScore(false);
-      setLoadingContact(false);
-      setLoadingSummary(false);
-      setLoadingCustomScores(false);
-      setLoadingOtherComments(false);
-      setLoadingFunctionalConstituent(false);
-      setLoadingTechnicalConstituent(false);
-      setLoadingEducation(false);
-      setLoadingProjects(false);
-      setLoadingEmployment(false);
-    }
-  };
+  // callAllAPIs function has been removed
 
   // CACHING DISABLED - Removed caching useEffect to prevent errors
 
   // Note: Both resume scoring and contact information are fetched via async independent requests
 
-  // Handle new resume upload and re-scan
-  const handleReupload = async (e) => {
-    const file = e.target.files[0];
-    setNewResumeFile(file);
-    
-    if (file && file.type === 'application/pdf') {
-      setLoadingScore(true);
-      setLoadingContact(true);
-      setLoadingSummary(true);
-      setLoadingCustomScores(true);
-      setLoadingOtherComments(true);
-      setLoadingFunctionalConstituent(true);
-      setLoadingTechnicalConstituent(true);
-      setLoadingEducation(true);
-      setLoadingProjects(true);
-      setLoadingEmployment(true);
-      setLoadingEmployment(true);
-      setScoreError(null);
-      
-      const pdfjsLib = await import('pdfjs-dist/build/pdf');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
-      const fileReader = new FileReader();
-      
-      fileReader.onload = async function () {
-        const typedarray = new Uint8Array(this.result);
-        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-        let text = '';
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          text += content.items.map(item => item.str).join(' ') + '\n';
-        }
-        
-        // Update the context with new PDF text
-        setPdfText(text);
-        
-        // Call the unified API function for re-upload
-        console.log('Calling unified API function for re-upload...');
-        callAllAPIs();
-      };
-      
-      fileReader.readAsArrayBuffer(file);
-    }
-  };
+  // handleReupload function removed - upload & re-scan functionality removed
 
   // Handle email input query
   const handleEmailQuery = async () => {
@@ -759,38 +582,37 @@ export default function ResumeInsights() {
       return;
     }
 
-    // Force clear any previous data before starting a new query
+    console.log('Query button pressed for email:', emailInput.trim());
+  
+    // Clear context immediately
+    console.log('Clearing context data');
+    setUserName('');
+    setPdfText('');
+    setJobRole('');
+  
+    // Clear all states
+    console.log('Clearing all states');
     resetAllStates();
-    
+  
     setLoadingEmailQuery(true);
-    setIsDirectAccess(false); // Reset direct access flag when querying data
-    // Set all loading states to true
-    setLoadingScore(true);
-    setLoadingContact(true);
-    setLoadingSummary(true);
-    setLoadingCustomScores(true);
-    setLoadingOtherComments(true);
-    setLoadingFunctionalConstituent(true);
-    setLoadingTechnicalConstituent(true);
-    setLoadingEducation(true);
-    setLoadingProjects(true);
-    setLoadingEmployment(true);
-    setScoreError(null);
-
+  
+    // Wait 1 second as requested
+    console.log('Waiting 1 second before API request');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  
+    // Make API request
+    console.log('Making API request to /extractData with email:', emailInput.trim());
+  
     try {
       await fetchDataFromDatabase(emailInput.trim());
       setLoadingEmailQuery(false);
-      // Reset database query flag after successful query
-      setIsDatabaseQuery(false);
     } catch (error) {
       console.error('Failed to query database:', error);
       resetAllStates();
       setLoadingEmailQuery(false);
-      // Reset database query flag after failed query
-      setIsDatabaseQuery(false);
       setDialogMessage('Failed to fetch data for the provided email ID. Please check if the email exists in the database.');
       setOpenDialog(true);
-    }
+    }  
   };
 
   // Create dynamic functional data
@@ -894,22 +716,7 @@ export default function ResumeInsights() {
                   : 'error'
               } 
             />
-            <input
-              accept=".pdf,.doc,.docx,.txt"
-              style={{ display: 'none' }}
-              id="resume-reupload"
-              type="file"
-              onChange={handleReupload}
-            />
-            <label htmlFor="resume-reupload">
-              <Chip 
-                label={newResumeFile ? `Re-scan: ${newResumeFile.name}` : "Upload & re-scan"} 
-                color="primary" 
-                sx={{ width: '100%', mb: 2, cursor: 'pointer' }} 
-                component="span"
-                clickable
-              />
-            </label>
+            {/* Upload & re-scan button removed */}
             <Box sx={{ textAlign: 'left', mt: 2 }}>
               <Typography variant="body2" fontWeight={700}>Searchability</Typography>
               <LinearProgress 
