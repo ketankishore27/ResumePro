@@ -14,6 +14,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import Navigation from '../src/components/Navigation';
 
 export default function BulkImport() {
   const [jobRole, setJobRole] = useState('');
@@ -368,39 +369,7 @@ export default function BulkImport() {
 
   return (
     <Box sx={{ background: '#f7faff', minHeight: '100vh' }}>
-      {/* Navbar */}
-      <Box sx={{ px: 3, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 0.5, color: 'inherit', cursor: 'pointer' }}>
-              Resume<span style={{ color: '#2563eb' }}>Pro</span>
-            </Typography>
-          </Link>
-          <Button 
-            variant="outlined" 
-            color="primary" 
-            sx={{ fontWeight: 600, borderRadius: 2, textTransform: 'none' }}
-          >
-            Bulk Import
-          </Button>
-        </Box>
-        <Button 
-          variant="contained" 
-          color="success" 
-          sx={{ fontWeight: 700, borderRadius: 2 }}
-        >
-          Get Feedback
-        </Button>
-      </Box>
-
-      {/* Breadcrumb */}
-      <Box sx={{ px: 3, py: 2, background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-        <Typography variant="body2" color="text.secondary">
-          <Link href="/" style={{ color: '#6b7280', textDecoration: 'none' }}>ResumePro</Link>
-          {' > '}
-          <span style={{ color: '#374151', fontWeight: 500 }}>Bulk Import</span>
-        </Typography>
-      </Box>
+      <Navigation currentPage="Bulk Import" />
 
       {/* Main Content */}
       <Box sx={{ px: 3, py: 4, maxWidth: 1200, mx: 'auto' }}>
@@ -679,7 +648,24 @@ export default function BulkImport() {
                   </TableHead>
                   <TableBody>
                     {processedResults.map((result, index) => (
-                      <TableRow key={index} sx={{ '&:nth-of-type(odd)': { backgroundColor: '#fafafa' } }}>
+                      <TableRow 
+                        key={index} 
+                        onClick={() => {
+                          if (result.email_id && result.email_id !== '-') {
+                            // Open insights page in a new tab with email_id as query parameter
+                            window.open(`/insights?email_id=${encodeURIComponent(result.email_id)}`, '_blank');
+                          }
+                        }}
+                        sx={{ 
+                          '&:nth-of-type(odd)': { backgroundColor: '#fafafa' },
+                          cursor: result.email_id && result.email_id !== '-' ? 'pointer' : 'default',
+                          '&:hover': result.email_id && result.email_id !== '-' ? { 
+                            backgroundColor: '#e3f2fd',
+                            transform: 'scale(1.01)',
+                            transition: 'all 0.2s ease-in-out'
+                          } : {}
+                        }}
+                      >
                         <TableCell sx={{ width: '8%', textAlign: 'center' }}>
                           {result.parsed_status === 'Successful' ? (
                             <CheckCircleIcon sx={{ color: '#10b981', fontSize: 24 }} />

@@ -9,7 +9,7 @@ from ai_operations.chains import scoring_chain, contact_extractor_chain, \
                                  project_extractor_chain, company_extractor_chain,\
                                  name_extractor_chain
 
-from db_operations.utility_db import insert_data, process_individual_resume
+from db_operations.utility_db import insert_data, process_individual_resume, extract_data
 
 app = FastAPI()
 
@@ -387,5 +387,22 @@ def process_bulk_import(data: dict):
                     "parsed_status": "UnSuccessful"
                 }
     
+@app.post("/extractData")
+def extract_data_db(data: dict):
+    try:
+        print("Received request for extractData")
+        print(data, type(data))
+        email_id = data.get("email_id", None)
+        return_payload = extract_data(email_id)
+        
+        # Check if the return payload indicates no candidate was found
+        if not return_payload or not return_payload.get("name") or return_payload.get("name").strip() == "":
+            return {"response": "Candidate not found", "error": "Relevant Candidate Not Found", "status": 404}
+            
+        return return_payload
+    except Exception as e:
+        print("Exception in extractData:", e)
+        return {"response": "Failed to extract data", "error": "An error occurred while processing your request", "status": 500}
+
 
 

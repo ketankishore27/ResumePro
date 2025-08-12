@@ -11,6 +11,7 @@ import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { usePdfText } from '../src/context/PdfTextContext';
+import Navigation from '../src/components/Navigation';
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
@@ -21,6 +22,29 @@ export default function Home() {
   const [userJobRole, setUserJobRole] = useState('');
   const [showInsights, setShowInsights] = useState(false);
   const [pdfText, setPdfTextLocal] = useState('');
+  
+  // Context values
+  const { setPdfText, setJobRole: setContextJobRole, setDescription: setContextDescription, setUserName } = usePdfText();
+  const router = require('next/router').useRouter ? require('next/router').useRouter() : require('next/router').default.useRouter();
+  
+  // Reset all fields when landing on the index page
+  useEffect(() => {
+    // Reset local state
+    setResumeFile(null);
+    setDescription('');
+    setJobDescription('');
+    setUserJobRole('');
+    setShowInsights(false);
+    setPdfTextLocal('');
+    
+    // Reset context values
+    setPdfText('');
+    setContextJobRole('');
+    setContextDescription('');
+    setUserName('');
+    
+    console.log('All fields reset on index page load');
+  }, []);
   
   // Insights state variables
   const [resumeScore, setResumeScore] = useState(null);
@@ -45,8 +69,8 @@ export default function Home() {
   const [projectsInfo, setProjectsInfo] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   
-  const { setPdfText, setJobRole: setContextJobRole, setDescription: setContextDescription, userName, setUserName } = usePdfText();
-  const router = require('next/router').useRouter ? require('next/router').useRouter() : require('next/router').default.useRouter();
+  // Accessing userName from context
+  const { userName } = usePdfText();
   
   // Helper function to check if all data is loaded
   const isAllDataLoaded = () => {
@@ -157,6 +181,19 @@ export default function Home() {
   // Function to call all APIs and handle responses progressively
   const callAllAPIs = async (resumeText, jobRole) => {
     try {
+      // Clear previous data first
+      setResumeScore(null);
+      setResumeItems([]);
+      setContactInfo({ mobile_number: '', email_id: '', color: '', comment: '' });
+      setSummaryInfo({ score: 0, color: 'red', label: 'critical', comment: 'Loading summary analysis...', summary: [] });
+      setCustomScores({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
+      setOtherComments({ headings_feedback: '', title_match: '', formatting_feedback: '' });
+      setFunctionalConstituent({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
+      setTechnicalConstituent({ high: [], medium: [], low: [] });
+      setEducationHistory([]);
+      setEmploymentHistory([]);
+      setProjectsInfo([]);
+      
       // Set all loading states to true
       setLoadingScore(true);
       setLoadingContact(true);
@@ -173,11 +210,9 @@ export default function Home() {
       const apiCalls = [
         { 
           name: 'scoreResume',
-          promise: fetch('http://127.0.0.1:8000/scoreResume', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText, jobRole })
-          }),
+          url: 'http://127.0.0.1:8000/scoreResume',
+          body: JSON.stringify({ resumeText, jobRole }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Score Resume API Response:', data);
@@ -188,11 +223,9 @@ export default function Home() {
         },
         {
           name: 'getContacts',
-          promise: fetch('http://127.0.0.1:8000/getContacts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getContacts',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Contacts API Response:', data);
@@ -202,11 +235,9 @@ export default function Home() {
         },
         {
           name: 'getSummaryOverview',
-          promise: fetch('http://127.0.0.1:8000/getSummaryOverview', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getSummaryOverview',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Summary Overview API Response:', data);
@@ -216,11 +247,9 @@ export default function Home() {
         },
         {
           name: 'getCustomScores',
-          promise: fetch('http://127.0.0.1:8000/getCustomScores', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getCustomScores',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Custom Scores API Response:', data);
@@ -230,11 +259,9 @@ export default function Home() {
         },
         {
           name: 'getOtherComments',
-          promise: fetch('http://127.0.0.1:8000/getOtherComments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getOtherComments',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Other Comments API Response:', data);
@@ -244,11 +271,9 @@ export default function Home() {
         },
         {
           name: 'getFunctionalConstituent',
-          promise: fetch('http://127.0.0.1:8000/getFunctionalConstituent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getFunctionalConstituent',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Functional Constituent API Response:', data);
@@ -258,11 +283,9 @@ export default function Home() {
         },
         {
           name: 'getTechnicalConstituent',
-          promise: fetch('http://127.0.0.1:8000/getTechnicalConstituent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getTechnicalConstituent',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Technical Constituent API Response:', data);
@@ -272,11 +295,9 @@ export default function Home() {
         },
         {
           name: 'getEducation',
-          promise: fetch('http://127.0.0.1:8000/getEducation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getEducation',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Education API Response:', data);
@@ -296,11 +317,9 @@ export default function Home() {
         },
         {
           name: 'getCompany',
-          promise: fetch('http://127.0.0.1:8000/getCompany', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getCompany',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Company API Response:', data);
@@ -320,11 +339,9 @@ export default function Home() {
         },
         {
           name: 'getProjects',
-          promise: fetch('http://127.0.0.1:8000/getProjects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText })
-          }),
+          url: 'http://127.0.0.1:8000/getProjects',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Projects API Response:', data);
@@ -344,12 +361,26 @@ export default function Home() {
         }
       ];
 
-      // Process each API call as it completes
-      apiCalls.forEach(async ({ name, promise, handler }) => {
+      // Add cache busting parameter to all API calls
+      const timestamp = new Date().getTime();
+      apiCalls.forEach(call => {
+        const url = new URL(call.url);
+        url.searchParams.append('_t', timestamp);
+        call.promise = fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: call.body
+        });
+      });
+      
+      // Process each API call properly with Promise.all
+      const processApiCall = async ({ name, promise, handler }) => {
         try {
+          console.log(`Starting ${name} API call`);
           const response = await promise;
           if (response.ok) {
             await handler(response);
+            console.log(`${name} API call completed successfully`);
           } else {
             console.error(`${name} API call failed:`, response.statusText);
             // Set appropriate loading state to false on error
@@ -382,7 +413,10 @@ export default function Home() {
             case 'getProjects': setLoadingProjects(false); break;
           }
         }
-      });
+      };
+      
+      // Execute all API calls in parallel but handle each one properly
+      await Promise.all(apiCalls.map(processApiCall));
 
     } catch (error) {
       console.error('Error calling APIs:', error);
@@ -515,35 +549,7 @@ export default function Home() {
 
   return (
     <Box sx={{ background: '#f7faff', minHeight: '100vh', pb: 8 }}>
-      {/* Navbar-like Header */}
-      <Box sx={{ px: 3, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
-            Resume<span style={{ color: '#2563eb' }}>Pro</span>
-          </Typography>
-          <Button 
-            variant="outlined" 
-            color="primary" 
-            sx={{ fontWeight: 600, borderRadius: 2, textTransform: 'none' }}
-            onClick={() => router.push('/bulk-import')}
-          >
-            Bulk Import
-          </Button>
-        </Box>
-        <Button 
-          variant="contained" 
-          color="success" 
-          sx={{ fontWeight: 700, borderRadius: 2 }}
-          onClick={() => {
-            const requestSection = document.getElementById('resume-requests-section');
-            if (requestSection) {
-              requestSection.scrollIntoView({ behavior: 'smooth' });
-            }
-          }}
-        >
-          Get Feedback
-        </Button>
-      </Box>
+      <Navigation currentPage="Home" />
 
       {/* Hero Section */}
       <Box sx={{ background: '#e7f0ff', borderRadius: 4, mt: 4, mb: 6, mx: 'auto', maxWidth: 1200, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', p: { xs: 3, md: 6 }, gap: { xs: 4, md: 0 } }}>

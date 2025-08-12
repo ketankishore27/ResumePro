@@ -3,6 +3,9 @@ from sqlalchemy.types import JSON, Text
 import pandas as pd
 import time
 import requests
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 engine = create_engine(f"postgresql+psycopg2://postgres:resume_db@localhost:5432/postgres")
 
@@ -10,9 +13,9 @@ engine = create_engine(f"postgresql+psycopg2://postgres:resume_db@localhost:5432
 def insert_data(assembled_field: dict):
     print("Got request to assmble data")
 
-    table_name = "resume_store"
+    table_name = os.getenv("TABLE_NAME", None)
 
-    db_colNames = ['candidate_id', 'name', 'email_id', 'mobile_number', 'job_role', 'resume_raw_text', 'score_resume', 'get_contacts', 'get_summary_overview', 'get_custom_scores', 
+    db_colNames = ['candidate_id', 'name', 'job_role', 'resume_raw_text', 'email_id', 'mobile_number', 'score_resume', 'get_contacts', 'get_summary_overview', 'get_custom_scores', 
                    'get_other_comments', 'get_functional_constituent', 'get_technical_constituent', 'get_education', 'get_projects', 
                    'get_company', 'mode']
     
@@ -51,7 +54,7 @@ def insert_data(assembled_field: dict):
     getCompany = assembled_field.get("getCompany", None)
     getProjects = assembled_field.get("getProjects", None)
 
-    data = pd.DataFrame([[candidate_id, name, email_id, job_role, mobile_number, resume_text, scoreResume, getContacts, getSummaryOverview, getCustomScores, getOtherComments, getFunctionalConstituent, 
+    data = pd.DataFrame([[candidate_id, name, job_role, resume_text, email_id, mobile_number, scoreResume, getContacts, getSummaryOverview, getCustomScores, getOtherComments, getFunctionalConstituent, 
                           getTechnicalConstituent, getEducation, getProjects, getCompany, mode]], 
                        columns = db_colNames)
 
@@ -103,3 +106,10 @@ def process_individual_resume(data: dict):
     return_payload["parsed_status"] = "Successful"
 
     return return_payload
+
+def extract_data(email_id):
+
+    TABLE_NAME = os.getenv("TABLE_NAME", None)
+    sql_query = f"select * from {TABLE_NAME} where email_id = '{email_id}'"
+    data = pd.read_sql(sql_query, engine).to_dict("records")[0]
+    return data

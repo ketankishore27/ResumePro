@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent } from '@mui/material';
+import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { Phone, Email } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -14,12 +14,17 @@ ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
 
 import { usePdfText } from '../src/context/PdfTextContext';
+import Navigation from '../src/components/Navigation';
 
 
 
 export default function ResumeInsights() {
   // Access the extracted PDF text, job role, and user name from context
-  const { pdfText, jobRole, setPdfText, userName } = usePdfText();
+  const { pdfText, jobRole, setPdfText, userName, setUserName, setJobRole } = usePdfText();
+  const router = useRouter();
+  
+  // Get email_id from URL parameters
+  const emailId = router.query.email_id;
   
   // Debug context values
   console.log('ResumeInsights component loaded');
@@ -50,9 +55,19 @@ export default function ResumeInsights() {
   const [projectsInfo, setProjectsInfo] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
 
-  // Cache state variables
-  const [cache, setCache] = useState({});
-  const [lastInputHash, setLastInputHash] = useState(null);
+  // Email input for direct database query
+  const [emailInput, setEmailInput] = useState('');
+  const [loadingEmailQuery, setLoadingEmailQuery] = useState(false);
+  const [isDirectAccess, setIsDirectAccess] = useState(false);
+  const [isDatabaseQuery, setIsDatabaseQuery] = useState(false);
+  
+  // Dialog state for error messages
+  const [openDialog, setOpenDialog] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState('');
+
+  // Cache state variables - DISABLED to prevent caching issues
+  // const [cache, setCache] = useState({});
+  // const [lastInputHash, setLastInputHash] = useState(null);
 
   // Helper function to check if all data is loaded
   const isAllDataLoaded = () => {
@@ -74,6 +89,47 @@ export default function ResumeInsights() {
       hash = hash & hash; // Convert to 32-bit integer
     }
     return hash.toString();
+  };
+
+  // Helper function to reset all states to null/empty
+  const resetAllStates = () => {
+    console.log('Resetting all states to null/empty');
+    
+    // Clear all state variables to null/empty
+    setResumeScore(null);
+    setResumeItems([]);
+    setContactInfo({ mobile_number: '', email_id: '', color: '', comment: '' });
+    setSummaryInfo({ score: 0, color: 'red', label: 'critical', comment: 'No data available', summary: [] });
+    setCustomScores({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
+    setOtherComments({ headings_feedback: '', title_match: '', formatting_feedback: '' });
+    setFunctionalConstituent({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
+    setTechnicalConstituent({ high: [], medium: [], low: [] });
+    setEducationHistory([]);
+    setEmploymentHistory([]);
+    setProjectsInfo([]);
+    
+    // Clear context data
+    setUserName('');
+    setPdfText('');
+    setJobRole('');
+    
+    // Clear other states
+    setIsDatabaseQuery(false);
+    setScoreError(null);
+    setEmailInput('');
+    
+    // Set all loading states to false
+    setLoadingScore(false);
+    setLoadingContact(false);
+    setLoadingSummary(false);
+    setLoadingCustomScores(false);
+    setLoadingOtherComments(false);
+    setLoadingFunctionalConstituent(false);
+    setLoadingTechnicalConstituent(false);
+    setLoadingEducation(false);
+    setLoadingProjects(false);
+    setLoadingEmployment(false);
+    setLoadingEmailQuery(false);
   };
 
   // Helper function to determine progress bar color based on score
@@ -181,51 +237,15 @@ export default function ResumeInsights() {
       },
     },
   };
-  useEffect(() => {
-    console.log('useEffect triggered - pdfText:', pdfText ? 'Available' : 'Not available');
-    console.log('useEffect triggered - jobRole:', jobRole ? jobRole : 'Not available');
-    if (!pdfText) {
-      console.log('No pdfText available, skipping API calls');
-      return;
-    }
 
-    // Check if input data has changed
-    const currentInputHash = createInputHash(pdfText, jobRole);
-    if (currentInputHash === lastInputHash && cache[currentInputHash]) {
-      console.log('Input data unchanged, using cached results');
-      const cachedData = cache[currentInputHash];
-      
-      // Restore cached data
-      setResumeScore(cachedData.resumeScore);
-      setResumeItems(cachedData.resumeItems || []);
-      setContactInfo(cachedData.contactInfo);
-      setSummaryInfo(cachedData.summaryInfo);
-      setCustomScores(cachedData.customScores);
-      setOtherComments(cachedData.otherComments);
-      setFunctionalConstituent(cachedData.functionalConstituent);
-      setTechnicalConstituent(cachedData.technicalConstituent);
-      setEducationHistory(cachedData.educationHistory);
-      setProjectsInfo(cachedData.projectsInfo);
-      setEmploymentHistory(cachedData.employmentHistory || []);
-      
-      // Set loading states to false
-      setLoadingScore(false);
-      setLoadingContact(false);
-      setLoadingSummary(false);
-      setLoadingCustomScores(false);
-      setLoadingOtherComments(false);
-      setLoadingFunctionalConstituent(false);
-      setLoadingTechnicalConstituent(false);
-      setLoadingEducation(false);
-      setLoadingProjects(false);
-      setLoadingEmployment(false);
-      setScoreError(null);
-      
-      return;
-    }
-
-    console.log('Input data changed or no cache available, making API calls');
-    setLastInputHash(currentInputHash);
+  // Function to fetch data from database using email_id
+  const fetchDataFromDatabase = async (emailId) => {
+    console.log('Fetching data from database for email:', emailId);
+    
+    // Set database query flag to prevent callAllAPIs from being triggered
+    setIsDatabaseQuery(true);
+    
+    // Set all loading states to true
     setLoadingScore(true);
     setLoadingContact(true);
     setLoadingSummary(true);
@@ -237,421 +257,451 @@ export default function ResumeInsights() {
     setLoadingProjects(true);
     setLoadingEmployment(true);
     setScoreError(null);
-    console.log(pdfText);
-    console.log(jobRole);
-    
-    const scoreRequest = fetch('http://127.0.0.1:8000/scoreResume', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText,
-        jobRole: jobRole
-      }),
-    })
-      .then(res => {
-        console.log('ScoreResume response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Received score response:', data);
-        setResumeScore(data.score);
-        setResumeItems(data.items || []);
-        setLoadingScore(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch score:', err);
-        console.error('Score API error details:', err.message);
-        setScoreError('Failed to fetch score');
-        setLoadingScore(false);
-      });
-    
-    const contactRequest = fetch('http://127.0.0.1:8000/getContacts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText,
-        jobRole: jobRole
-      }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('Received contact response:', data);
-        setContactInfo({
-          mobile_number: data.mobile_number || '',
-          email_id: data.email_id || '',
-          color: data.color || 'red',
-          comment: data.comment || 'Contact information not available'
-        });
-        setLoadingContact(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch contact info:', err);
-        console.error('Contact API error details:', err.message);
-        setContactInfo({ 
-          mobile_number: '', 
-          email_id: '', 
-          color: 'red', 
-          comment: 'Failed to extract contact information' 
-        });
-        setLoadingContact(false);
-      });
-    
-    const summaryRequest = fetch('http://127.0.0.1:8000/getSummaryOverview', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText,
-        jobRole: jobRole
-      }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('Received summary response:', data);
-        setSummaryInfo({
-          score: data.score || 0,
-          color: data.color || 'red',
-          label: data.label || 'critical',
-          comment: data.comment || 'Summary analysis not available',
-          summary: data.summary || []
-        });
-        setLoadingSummary(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch summary info:', err);
-        console.error('Summary API error details:', err.message);
-        setSummaryInfo({ 
-          score: 0,
-          color: 'red', 
-          label: 'critical',
-          comment: 'Failed to analyze summary section',
-          summary: []
-        });
-        setLoadingSummary(false);
-      });
-    
-    const customScoresRequest = fetch('http://127.0.0.1:8000/getCustomScores', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText,
-        jobRole: jobRole
-      }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('Received custom scores response:', data);
-        setCustomScores({
-          searchibility_score: data.searchibility_score || 0,
-          hard_skills_score: data.hard_skills_score || 0,
-          soft_skill_score: data.soft_skill_score || 0,
-          formatting_score: data.formatting_score || 0
-        });
-        setLoadingCustomScores(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch custom scores:', err);
-        console.error('Custom scores API error details:', err.message);
-        setCustomScores({ 
-          searchibility_score: 0,
-          hard_skills_score: 0,
-          soft_skill_score: 0,
-          formatting_score: 0
-        });
-        setLoadingCustomScores(false);
-      });
-    
-    const otherCommentsRequest = fetch('http://127.0.0.1:8000/getOtherComments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText,
-        jobRole: jobRole
-      }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('Received other comments response:', data);
-        setOtherComments({
-          headings_feedback: data.headings_feedback || 'Section headings analysis not available',
-          title_match: data.title_match || 'Job title match analysis not available',
-          formatting_feedback: data.formatting_feedback || 'Data formatting analysis not available'
-        });
-        setLoadingOtherComments(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch other comments:', err);
-        console.error('Other comments API error details:', err.message);
-        setOtherComments({ 
-          headings_feedback: 'Failed to analyze section headings',
-          title_match: 'Failed to analyze job title match',
-          formatting_feedback: 'Failed to analyze data formatting'
-        });
-        setLoadingOtherComments(false);
-      });
-    
-    const functionalConstituentRequest = fetch('http://127.0.0.1:8000/getFunctionalConstituent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText,
-        jobRole: jobRole
-      }),
-    })
-      .then(res => {
-        console.log('Functional constituent response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Received functional constituent response:', data);
-        setFunctionalConstituent({
-          constituent: data.constituent || {},
-          industries: data.industries || [],
-          has_industry_experience: data.has_industry_experience || false,
-          has_completed_college: data.has_completed_college || false
-        });
-        setLoadingFunctionalConstituent(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch functional constituent:', err);
-        console.error('Functional constituent API error details:', err.message);
-        setFunctionalConstituent({ 
-          constituent: {
-            "IT": "60%",
-            "Banking": "25%",
-            "Consulting": "15%"
-          },
-          industries: ["IT", "Banking", "Consulting"],
-          has_industry_experience: true,
-          has_completed_college: true
-        });
-        setLoadingFunctionalConstituent(false);
-      });
-    
-    const technicalConstituentRequest = fetch('http://127.0.0.1:8000/getTechnicalConstituent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText,
-        jobRole: jobRole
-      }),
-    })
-      .then(res => {
-        console.log('Technical constituent response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Received technical constituent response:', data);
-        setTechnicalConstituent({
-          high: data.high || [],
-          medium: data.medium || [],
-          low: data.low || []
-        });
-        setLoadingTechnicalConstituent(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch technical constituent:', err);
-        console.error('Technical constituent API error details:', err.message);
-        setTechnicalConstituent({ 
-          high: ['Python', 'React', 'Node.js'],
-          medium: ['SQL', 'Docker', 'AWS'],
-          low: ['PHP', 'jQuery', 'Bootstrap']
-        });
-        setLoadingTechnicalConstituent(false);
-      });
-    
-    const educationRequest = fetch('http://127.0.0.1:8000/getEducation', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText
-      }),
-    })
-      .then(res => {
-        console.log('Education response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Received education response:', data);
-        setEducationHistory(Array.isArray(data) ? data : []);
-        setLoadingEducation(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch education history:', err);
-        console.error('Education API error details:', err.message);
-        // Set some test data for debugging
-        setEducationHistory([
-          {
-            degree: 'M.Tech in Data Science and Engineering',
-            institution: 'BITS - Work Integrated',
-            start_year: 2021,
-            end_year: 2023
-          },
-          {
-            degree: 'B.Tech. in Electronics and Communication',
-            institution: 'SRM University, Chennai',
-            start_year: 2013,
-            end_year: 2017
-          }
-        ]);
-        setLoadingEducation(false);
-      });
-    
-    const projectsRequest = fetch('http://127.0.0.1:8000/getProjects', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText,
-        jobRole: jobRole
-      }),
-    })
-      .then(res => {
-        console.log('Projects response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Received projects response:', data);
-        setProjectsInfo(Array.isArray(data.projects) ? data.projects : []);
-        setLoadingProjects(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch projects:', err);
-        console.error('Projects API error details:', err.message);
-        // Set some test data for debugging
-        setProjectsInfo([
-          {
-            title: 'E-commerce Web Application',
-            description: 'Developed a full-stack e-commerce platform with user authentication, shopping cart, and payment integration.',
-            technologies: ['React', 'Node.js', 'MongoDB', 'Express.js', 'Stripe API'],
-            duration: '3 months'
-          },
-          {
-            title: 'Data Analytics Dashboard',
-            description: 'Created an interactive dashboard for business intelligence with real-time data visualization.',
-            technologies: ['Python', 'Flask', 'D3.js', 'PostgreSQL', 'Chart.js'],
-            duration: '2 months'
-          }
-        ]);
-        setLoadingProjects(false);
-      });
-    
-    const employmentRequest = fetch('http://127.0.0.1:8000/getCompany', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        resumeText: pdfText
-      }),
-    })
-      .then(res => {
-        console.log('Employment response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Received employment response:', data);
-        setEmploymentHistory(Array.isArray(data.employment_history) ? data.employment_history : []);
-        setLoadingEmployment(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch employment history:', err);
-        console.error('Employment API error details:', err.message);
-        // Set some test data for debugging
-        setEmploymentHistory([
-          {
-            company: 'Deutsche Telekom AG',
-            position: 'Senior Software Engineer',
-            start_year: 2020,
-            end_year: 'Currently Working',
-            employment_type: 'Permanent'
-          },
-          {
-            company: 'Tech Solutions Inc',
-            position: 'Software Developer',
-            start_year: 2018,
-            end_year: 2020,
-            employment_type: 'Permanent'
-          }
-        ]);
-        setLoadingEmployment(false);
-      });
-    
-    // Log when all requests complete
-    Promise.allSettled([scoreRequest, contactRequest, summaryRequest, customScoresRequest, otherCommentsRequest, functionalConstituentRequest, technicalConstituentRequest, educationRequest, projectsRequest, employmentRequest]).then((results) => {
-      console.log('All async requests completed:', results);
-    });
-  }, [pdfText]);
 
-  // Cache results after all data is loaded
-  useEffect(() => {
-    // Only cache if we have a valid input hash and all loading states are false
-    if (lastInputHash && 
-        !loadingScore && !loadingContact && !loadingSummary && 
-        !loadingCustomScores && !loadingOtherComments && 
-        !loadingFunctionalConstituent && !loadingTechnicalConstituent && 
-        !loadingEducation && !loadingProjects && !loadingEmployment) {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/extractData', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email_id: emailId
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Received data from database:', data);
       
-      const cacheData = {
-        resumeScore,
-        resumeItems,
-        contactInfo,
-        summaryInfo,
-        customScores,
-        otherComments,
-        functionalConstituent,
-        technicalConstituent,
-        educationHistory,
-        projectsInfo,
-        employmentHistory
-      };
+      // Always clear previous data first to prevent stale data display
+      resetAllStates();
       
-      setCache(prevCache => ({
-        ...prevCache,
-        [lastInputHash]: cacheData
-      }));
+      // Check if the response contains an error message
+      if (data.error || data.status === 404 || !response.ok) {
+        console.log('Error or no candidate found in database');
+        setScoreError(data.error || 'No candidate found with this email ID');
+        
+        // Show dialog for candidate not found
+        setDialogMessage('Relevant Candidate Not Found');
+        setOpenDialog(true);
+        return;
+      }
       
-      console.log('Results cached for input hash:', lastInputHash);
+      // Additional check for empty data
+      if (!data || !data.name || data.name.trim() === '' || Object.keys(data).length === 0) {
+        console.log('No candidate data found in database');
+        setScoreError('No candidate found with this email ID');
+        setDialogMessage('Relevant Candidate Not Found');
+        setOpenDialog(true);
+        return;
+      }
+
+      // Map database schema to state variables
+      if (data.name) setUserName(data.name);
+      if (data.job_role) setJobRole(data.job_role);
+      if (data.resume_raw_text) setPdfText(data.resume_raw_text);
+
+      // Map score_resume data
+      if (data.score_resume) {
+        console.log('Raw score_resume from database:', data.score_resume);
+        const scoreData = typeof data.score_resume === 'string' ? JSON.parse(data.score_resume) : data.score_resume;
+        console.log('Parsed scoreData:', scoreData);
+        console.log('Extracted score:', scoreData.score);
+        setResumeScore(scoreData.score || 0);
+        setResumeItems(scoreData.items || []);
+      }
+
+      // Map get_contacts data
+      if (data.get_contacts) {
+        const contactData = typeof data.get_contacts === 'string' ? JSON.parse(data.get_contacts) : data.get_contacts;
+        setContactInfo({
+          mobile_number: data.mobile_number || contactData.mobile_number || '',
+          email_id: data.email_id || contactData.email_id || '',
+          color: contactData.color || 'red',
+          comment: contactData.comment || 'Contact information not available'
+        });
+      }
+
+      // Map get_summary_overview data
+      if (data.get_summary_overview) {
+        const summaryData = typeof data.get_summary_overview === 'string' ? JSON.parse(data.get_summary_overview) : data.get_summary_overview;
+        setSummaryInfo({
+          score: summaryData.score || 0,
+          color: summaryData.color || 'red',
+          label: summaryData.label || 'critical',
+          comment: summaryData.comment || 'Summary analysis not available',
+          summary: summaryData.summary || []
+        });
+      }
+
+      // Map get_custom_scores data
+      if (data.get_custom_scores) {
+        const customScoresData = typeof data.get_custom_scores === 'string' ? JSON.parse(data.get_custom_scores) : data.get_custom_scores;
+        setCustomScores({
+          searchibility_score: customScoresData.searchibility_score || 0,
+          hard_skills_score: customScoresData.hard_skills_score || 0,
+          soft_skill_score: customScoresData.soft_skill_score || 0,
+          formatting_score: customScoresData.formatting_score || 0
+        });
+      }
+
+      // Map get_other_comments data
+      if (data.get_other_comments) {
+        const otherCommentsData = typeof data.get_other_comments === 'string' ? JSON.parse(data.get_other_comments) : data.get_other_comments;
+        setOtherComments({
+          headings_feedback: otherCommentsData.headings_feedback || 'Section headings analysis not available',
+          title_match: otherCommentsData.title_match || 'Job title match analysis not available',
+          formatting_feedback: otherCommentsData.formatting_feedback || 'Data formatting analysis not available'
+        });
+      }
+
+      // Map get_functional_constituent data
+      if (data.get_functional_constituent) {
+        const functionalData = typeof data.get_functional_constituent === 'string' ? JSON.parse(data.get_functional_constituent) : data.get_functional_constituent;
+        setFunctionalConstituent({
+          constituent: functionalData.constituent || {},
+          industries: functionalData.industries || [],
+          has_industry_experience: functionalData.has_industry_experience || false,
+          has_completed_college: functionalData.has_completed_college || false
+        });
+      }
+
+      // Map get_technical_constituent data
+      if (data.get_technical_constituent) {
+        const technicalData = typeof data.get_technical_constituent === 'string' ? JSON.parse(data.get_technical_constituent) : data.get_technical_constituent;
+        setTechnicalConstituent({
+          high: technicalData.high || [],
+          medium: technicalData.medium || [],
+          low: technicalData.low || []
+        });
+      }
+
+      // Map get_education data
+      if (data.get_education) {
+        const educationData = typeof data.get_education === 'string' ? JSON.parse(data.get_education) : data.get_education;
+        setEducationHistory(Array.isArray(educationData) ? educationData : []);
+      }
+
+      // Map get_projects data
+      if (data.get_projects) {
+        const projectsData = typeof data.get_projects === 'string' ? JSON.parse(data.get_projects) : data.get_projects;
+        setProjectsInfo(Array.isArray(projectsData.projects) ? projectsData.projects : []);
+      }
+
+      // Map get_company data
+      if (data.get_company) {
+        const employmentData = typeof data.get_company === 'string' ? JSON.parse(data.get_company) : data.get_company;
+        setEmploymentHistory(Array.isArray(employmentData.employment_history) ? employmentData.employment_history : []);
+      }
+
+      // Set all loading states to false
+      setLoadingScore(false);
+      setLoadingContact(false);
+      setLoadingSummary(false);
+      setLoadingCustomScores(false);
+      setLoadingOtherComments(false);
+      setLoadingFunctionalConstituent(false);
+      setLoadingTechnicalConstituent(false);
+      setLoadingEducation(false);
+      setLoadingProjects(false);
+      setLoadingEmployment(false);
+
+    } catch (error) {
+      console.error('Failed to fetch data from database:', error);
+      setScoreError('Failed to fetch data from database');
+      
+      // Set all loading states to false
+      setLoadingScore(false);
+      setLoadingContact(false);
+      setLoadingSummary(false);
+      setLoadingCustomScores(false);
+      setLoadingOtherComments(false);
+      setLoadingFunctionalConstituent(false);
+      setLoadingTechnicalConstituent(false);
+      setLoadingEducation(false);
+      setLoadingProjects(false);
+      setLoadingEmployment(false);
     }
-  }, [lastInputHash, loadingScore, loadingContact, loadingSummary, loadingCustomScores, 
-      loadingOtherComments, loadingFunctionalConstituent, loadingTechnicalConstituent, 
-      loadingEducation, loadingProjects, loadingEmployment, resumeScore, resumeItems, contactInfo, 
-      summaryInfo, customScores, otherComments, functionalConstituent, 
-      technicalConstituent, educationHistory, projectsInfo, employmentHistory]);
+  };
+
+  // Helper function to safely parse score values
+  const parseScoreValue = (score) => {
+    if (!score) return 0;
+    if (typeof score === 'number') return score;
+    if (typeof score === 'string') {
+      return parseInt(score.replace('%', ''));
+    }
+    return 0;
+  };
+
+  // Force clear context on component mount to prevent persistence
+  useEffect(() => {
+    console.log('Component mounted - Force clearing all context data to prevent caching');
+    
+    // Check if this is direct access (no email parameter)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasEmailParam = urlParams.get('email_id');
+    
+    if (!hasEmailParam) {
+      console.log('DIRECT ACCESS DETECTED - Resetting all states');
+      setIsDirectAccess(true);
+      resetAllStates(); // Reset all states for direct access
+    } else {
+      console.log('EMAIL PARAMETER DETECTED - Will load fresh data from API');
+      setIsDirectAccess(false);
+      // Still clear context to prevent persistence, but allow fresh API data
+      setUserName('');
+      setPdfText('');
+      setJobRole('');
+    }
+  }, []); // Run only on mount
+
+  useEffect(() => {
+    console.log('useEffect triggered - emailId:', emailId || 'Not available');
+    console.log('useEffect triggered - pdfText:', pdfText ? 'Available' : 'Not available');
+    console.log('useEffect triggered - jobRole:', jobRole ? jobRole : 'Not available');
+    console.log('useEffect triggered - userName:', userName || 'Not available');
+    
+    // If we have an email_id from URL, fetch data from database
+    if (emailId) {
+      console.log('Email ID found in URL, fetching data from database');
+      setIsDirectAccess(false); // Reset direct access flag when we have data
+      fetchDataFromDatabase(emailId);
+      return;
+    }
+    
+    // If accessing directly without emailId or pdfText, clear all data
+    if (!emailId && (!pdfText || pdfText.trim() === '')) {
+      console.log('Direct access detected, clearing all data');
+      setIsDirectAccess(true);
+      
+      // Force clear context data
+      setUserName('');
+      setPdfText('');
+      setJobRole('');
+      
+      // Clear all state variables to null/empty
+      setResumeScore(null);
+      setResumeItems([]);
+      setContactInfo({ mobile_number: '', email_id: '', color: '', comment: '' });
+      setSummaryInfo({ score: 0, color: 'red', label: 'critical', comment: 'No data available', summary: [] });
+      setCustomScores({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
+      setOtherComments({ headings_feedback: '', title_match: '', formatting_feedback: '' });
+      setFunctionalConstituent({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
+      setTechnicalConstituent({ high: [], medium: [], low: [] });
+      setEducationHistory([]);
+      setEmploymentHistory([]);
+      setProjectsInfo([]);
+      
+      // Clear cache and loading states - CACHE DISABLED
+      // setCache({});
+      // setLastInputHash(null);
+      setIsDatabaseQuery(false);
+      setScoreError(null);
+      
+      // Set all loading states to false
+      setLoadingScore(false);
+      setLoadingContact(false);
+      setLoadingSummary(false);
+      setLoadingCustomScores(false);
+      setLoadingOtherComments(false);
+      setLoadingFunctionalConstituent(false);
+      setLoadingTechnicalConstituent(false);
+      setLoadingEducation(false);
+      setLoadingProjects(false);
+      setLoadingEmployment(false);
+      
+      return;
+    }
+    
+    // Otherwise, use the existing logic for new resume analysis
+    if (!pdfText) {
+      console.log('No pdfText available, skipping API calls');
+      return;
+    }
+
+    // Skip API calls if this is a database query
+    if (isDatabaseQuery) {
+      console.log('Database query in progress, skipping callAllAPIs');
+      return;
+    }
+
+    // CACHING DISABLED - Always make fresh API calls
+    console.log('Making fresh API calls (caching disabled)');
+    
+    // Call the existing API logic for new resume analysis
+    callAllAPIs();
+  }, [pdfText, emailId]);
+
+  // Function to call unified API for new resume analysis
+  const callAllAPIs = async () => {
+    console.log('Calling unified /extractData API for resume analysis');
+    console.log('pdfText:', pdfText ? 'Available' : 'Not available');
+    console.log('jobRole:', jobRole || 'Not available');
+    
+    // Set all loading states to true
+    setLoadingScore(true);
+    setLoadingContact(true);
+    setLoadingSummary(true);
+    setLoadingCustomScores(true);
+    setLoadingOtherComments(true);
+    setLoadingFunctionalConstituent(true);
+    setLoadingTechnicalConstituent(true);
+    setLoadingEducation(true);
+    setLoadingProjects(true);
+    setLoadingEmployment(true);
+    setScoreError(null);
+
+    try {
+      // Create a temporary email for resume analysis
+      const tempEmail = `temp_${Date.now()}@analysis.com`;
+      
+      const response = await fetch('http://127.0.0.1:8000/extractData', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email_id: tempEmail,
+          resume_text: pdfText,
+          job_role: jobRole
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Received unified data response:', data);
+
+      // Map database schema to state variables (same as fetchDataFromDatabase)
+      if (data.name) setUserName(data.name);
+      if (data.job_role) setJobRole(data.job_role);
+      if (data.resume_raw_text) setPdfText(data.resume_raw_text);
+
+      // Map score_resume data
+      if (data.score_resume) {
+        const scoreData = typeof data.score_resume === 'string' ? JSON.parse(data.score_resume) : data.score_resume;
+        setResumeScore(scoreData.score || 0);
+        setResumeItems(scoreData.items || []);
+      }
+
+      // Map get_contacts data
+      if (data.get_contacts) {
+        const contactData = typeof data.get_contacts === 'string' ? JSON.parse(data.get_contacts) : data.get_contacts;
+        setContactInfo({
+          mobile_number: data.mobile_number || contactData.mobile_number || '',
+          email_id: data.email_id || contactData.email_id || '',
+          color: contactData.color || 'red',
+          comment: contactData.comment || 'Contact information not available'
+        });
+      }
+
+      // Map get_summary_overview data
+      if (data.get_summary_overview) {
+        const summaryData = typeof data.get_summary_overview === 'string' ? JSON.parse(data.get_summary_overview) : data.get_summary_overview;
+        setSummaryInfo({
+          score: summaryData.score || 0,
+          color: summaryData.color || 'red',
+          label: summaryData.label || 'critical',
+          comment: summaryData.comment || 'Summary analysis not available',
+          summary: summaryData.summary || []
+        });
+      }
+
+      // Map get_custom_scores data
+      if (data.get_custom_scores) {
+        const customScoresData = typeof data.get_custom_scores === 'string' ? JSON.parse(data.get_custom_scores) : data.get_custom_scores;
+        setCustomScores({
+          searchibility_score: customScoresData.searchibility_score || 0,
+          hard_skills_score: customScoresData.hard_skills_score || 0,
+          soft_skill_score: customScoresData.soft_skill_score || 0,
+          formatting_score: customScoresData.formatting_score || 0
+        });
+      }
+
+      // Map get_other_comments data
+      if (data.get_other_comments) {
+        const otherCommentsData = typeof data.get_other_comments === 'string' ? JSON.parse(data.get_other_comments) : data.get_other_comments;
+        setOtherComments({
+          headings_feedback: otherCommentsData.headings_feedback || 'Section headings analysis not available',
+          title_match: otherCommentsData.title_match || 'Job title match analysis not available',
+          formatting_feedback: otherCommentsData.formatting_feedback || 'Data formatting analysis not available'
+        });
+      }
+
+      // Map get_functional_constituent data
+      if (data.get_functional_constituent) {
+        const functionalData = typeof data.get_functional_constituent === 'string' ? JSON.parse(data.get_functional_constituent) : data.get_functional_constituent;
+        setFunctionalConstituent({
+          constituent: functionalData.constituent || {},
+          industries: functionalData.industries || [],
+          has_industry_experience: functionalData.has_industry_experience || false,
+          has_completed_college: functionalData.has_completed_college || false
+        });
+      }
+
+      // Map get_technical_constituent data
+      if (data.get_technical_constituent) {
+        const technicalData = typeof data.get_technical_constituent === 'string' ? JSON.parse(data.get_technical_constituent) : data.get_technical_constituent;
+        setTechnicalConstituent({
+          high: technicalData.high || [],
+          medium: technicalData.medium || [],
+          low: technicalData.low || []
+        });
+      }
+
+      // Map get_education data
+      if (data.get_education) {
+        const educationData = typeof data.get_education === 'string' ? JSON.parse(data.get_education) : data.get_education;
+        setEducationHistory(Array.isArray(educationData) ? educationData : []);
+      }
+
+      // Map get_projects data
+      if (data.get_projects) {
+        const projectsData = typeof data.get_projects === 'string' ? JSON.parse(data.get_projects) : data.get_projects;
+        setProjectsInfo(Array.isArray(projectsData.projects) ? projectsData.projects : []);
+      }
+
+      // Map get_company data
+      if (data.get_company) {
+        const employmentData = typeof data.get_company === 'string' ? JSON.parse(data.get_company) : data.get_company;
+        setEmploymentHistory(Array.isArray(employmentData.employment_history) ? employmentData.employment_history : []);
+      }
+
+      // Set all loading states to false
+      setLoadingScore(false);
+      setLoadingContact(false);
+      setLoadingSummary(false);
+      setLoadingCustomScores(false);
+      setLoadingOtherComments(false);
+      setLoadingFunctionalConstituent(false);
+      setLoadingTechnicalConstituent(false);
+      setLoadingEducation(false);
+      setLoadingProjects(false);
+      setLoadingEmployment(false);
+
+      console.log('Unified API call completed successfully');
+
+    } catch (error) {
+      console.error('Failed to fetch data from unified API:', error);
+      setScoreError('Failed to analyze resume');
+      
+      // Set all loading states to false
+      setLoadingScore(false);
+      setLoadingContact(false);
+      setLoadingSummary(false);
+      setLoadingCustomScores(false);
+      setLoadingOtherComments(false);
+      setLoadingFunctionalConstituent(false);
+      setLoadingTechnicalConstituent(false);
+      setLoadingEducation(false);
+      setLoadingProjects(false);
+      setLoadingEmployment(false);
+    }
+  };
+
+  // CACHING DISABLED - Removed caching useEffect to prevent errors
 
   // Note: Both resume scoring and contact information are fetched via async independent requests
 
@@ -692,276 +742,54 @@ export default function ResumeInsights() {
         // Update the context with new PDF text
         setPdfText(text);
         
-        // Send async independent requests for re-upload
-        console.log('Sending async independent requests for re-upload...');
-        
-        // Request 1: Resume Scoring (async)
-        const reuploadScoreRequest = fetch('http://127.0.0.1:8000/scoreResume', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log('Received re-upload score response:', data);
-            setResumeScore(data.score);
-            setResumeItems(data.items || []);
-            setLoadingScore(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch score for re-upload:', err);
-            setScoreError('Failed to fetch score');
-            setLoadingScore(false);
-          });
-        
-        // Request 2: Contact Information (async)
-        const reuploadContactRequest = fetch('http://127.0.0.1:8000/getContacts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log('Received re-upload contact response:', data);
-            setContactInfo({
-              mobile_number: data.mobile_number || '',
-              email_id: data.email_id || '',
-              color: data.color || 'red',
-              comment: data.comment || 'Contact information not available'
-            });
-            setLoadingContact(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch contact info for re-upload:', err);
-            setContactInfo({ 
-              mobile_number: '', 
-              email_id: '', 
-              color: 'red', 
-              comment: 'Failed to extract contact information' 
-            });
-            setLoadingContact(false);
-          });
-        
-        // Request 3: Summary Overview for re-upload (async)
-        const reuploadSummaryRequest = fetch('http://127.0.0.1:8000/getSummaryOverview', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log('Received re-upload summary response:', data);
-            setSummaryInfo({
-              score: data.score || 0,
-              color: data.color || 'red',
-              label: data.label || 'critical',
-              comment: data.comment || 'Summary analysis not available',
-              summary: data.summary || []
-            });
-            setLoadingSummary(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch summary info for re-upload:', err);
-            setSummaryInfo({ 
-              score: 0,
-              color: 'red', 
-              label: 'critical',
-              comment: 'Failed to analyze summary section',
-              summary: []
-            });
-            setLoadingSummary(false);
-          });
-        
-        // Request 4: Custom Scores for re-upload (async)
-        const reuploadCustomScoresRequest = fetch('http://127.0.0.1:8000/getCustomScores', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log('Received re-upload custom scores response:', data);
-            setCustomScores({
-              searchibility_score: data.searchibility_score || 0,
-              hard_skills_score: data.hard_skills_score || 0,
-              soft_skill_score: data.soft_skill_score || 0,
-              formatting_score: data.formatting_score || 0
-            });
-            setLoadingCustomScores(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch custom scores for re-upload:', err);
-            setCustomScores({ 
-              searchibility_score: 0,
-              hard_skills_score: 0,
-              soft_skill_score: 0,
-              formatting_score: 0
-            });
-            setLoadingCustomScores(false);
-          });
-        
-        // Request 5: Other Comments for re-upload (async)
-        const reuploadOtherCommentsRequest = fetch('http://127.0.0.1:8000/getOtherComments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log('Received re-upload other comments response:', data);
-            setOtherComments({
-              headings_feedback: data.headings_feedback || 'Section headings analysis not available',
-              title_match: data.title_match || 'Job title match analysis not available',
-              formatting_feedback: data.formatting_feedback || 'Data formatting analysis not available'
-            });
-            setLoadingOtherComments(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch other comments for re-upload:', err);
-            setOtherComments({ 
-              headings_feedback: 'Failed to analyze section headings',
-              title_match: 'Failed to analyze job title match',
-              formatting_feedback: 'Failed to analyze data formatting'
-            });
-            setLoadingOtherComments(false);
-          });
-        
-        // Request 6: Functional Constituent for re-upload (async)
-        const reuploadFunctionalConstituentRequest = fetch('http://127.0.0.1:8000/getFunctionalConstituent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log('Received re-upload functional constituent response:', data);
-            setFunctionalConstituent({
-              constituent: data.constituent || {},
-              industries: data.industries || [],
-              has_industry_experience: data.has_industry_experience || false,
-              has_completed_college: data.has_completed_college || false
-            });
-            setLoadingFunctionalConstituent(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch functional constituent for re-upload:', err);
-            setFunctionalConstituent({ 
-              constituent: {},
-              industries: [],
-              has_industry_experience: false,
-              has_completed_college: false
-            });
-            setLoadingFunctionalConstituent(false);
-          });
-        
-        // Request 7: Technical Constituent for re-upload (async)
-        const reuploadTechnicalConstituentRequest = fetch('http://127.0.0.1:8000/getTechnicalConstituent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log('Received re-upload technical constituent response:', data);
-            setTechnicalConstituent({
-              high: data.high || [],
-              medium: data.medium || [],
-              low: data.low || []
-            });
-            setLoadingTechnicalConstituent(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch technical constituent for re-upload:', err);
-            setTechnicalConstituent({ 
-              high: [],
-              medium: [],
-              low: []
-            });
-            setLoadingTechnicalConstituent(false);
-          });
-        
-        // Request 8: Education History for re-upload (async)
-        const reuploadEducationRequest = fetch('http://127.0.0.1:8000/getEducation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text }),
-        })
-          .then(res => {
-            console.log('Education re-upload response status:', res.status);
-            if (!res.ok) {
-              throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            return res.json();
-          })
-          .then(data => {
-            console.log('Received re-upload education response:', data);
-            setEducationHistory(Array.isArray(data) ? data : []);
-            setLoadingEducation(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch education history for re-upload:', err);
-            console.error('Education re-upload API error details:', err.message);
-            setEducationHistory([]);
-            setLoadingEducation(false);
-          });
-        
-        // Request 9: Projects for re-upload (async)
-        const reuploadProjectsRequest = fetch('http://127.0.0.1:8000/getProjects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text, jobRole: jobRole }),
-        })
-          .then(res => {
-            console.log('Projects re-upload response status:', res.status);
-            if (!res.ok) {
-              throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            return res.json();
-          })
-          .then(data => {
-            console.log('Received re-upload projects response:', data);
-            setProjectsInfo(Array.isArray(data.projects) ? data.projects : []);
-            setLoadingProjects(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch projects for re-upload:', err);
-            console.error('Projects re-upload API error details:', err.message);
-            setProjectsInfo([]);
-            setLoadingProjects(false);
-          });
-        
-        // Request 10: Employment History for re-upload (async)
-        const reuploadEmploymentRequest = fetch('http://127.0.0.1:8000/getCompany', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText: text }),
-        })
-          .then(res => {
-            console.log('Employment re-upload response status:', res.status);
-            if (!res.ok) {
-              throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            return res.json();
-          })
-          .then(data => {
-            console.log('Received re-upload employment response:', data);
-            setEmploymentHistory(Array.isArray(data.employment_history) ? data.employment_history : []);
-            setLoadingEmployment(false);
-          })
-          .catch(err => {
-            console.error('Failed to fetch employment history for re-upload:', err);
-            console.error('Employment re-upload API error details:', err.message);
-            setEmploymentHistory([]);
-            setLoadingEmployment(false);
-          });
-        
-        // Optional: Log when all re-upload requests complete
-        Promise.allSettled([reuploadScoreRequest, reuploadContactRequest, reuploadSummaryRequest, reuploadCustomScoresRequest, reuploadOtherCommentsRequest, reuploadFunctionalConstituentRequest, reuploadTechnicalConstituentRequest, reuploadEducationRequest, reuploadProjectsRequest, reuploadEmploymentRequest]).then((results) => {
-          console.log('All re-upload async requests completed:', results);
-        });
+        // Call the unified API function for re-upload
+        console.log('Calling unified API function for re-upload...');
+        callAllAPIs();
       };
       
       fileReader.readAsArrayBuffer(file);
+    }
+  };
+
+  // Handle email input query
+  const handleEmailQuery = async () => {
+    if (!emailInput.trim()) {
+      setDialogMessage('Please enter a valid email ID');
+      setOpenDialog(true);
+      return;
+    }
+
+    // Force clear any previous data before starting a new query
+    resetAllStates();
+    
+    setLoadingEmailQuery(true);
+    setIsDirectAccess(false); // Reset direct access flag when querying data
+    // Set all loading states to true
+    setLoadingScore(true);
+    setLoadingContact(true);
+    setLoadingSummary(true);
+    setLoadingCustomScores(true);
+    setLoadingOtherComments(true);
+    setLoadingFunctionalConstituent(true);
+    setLoadingTechnicalConstituent(true);
+    setLoadingEducation(true);
+    setLoadingProjects(true);
+    setLoadingEmployment(true);
+    setScoreError(null);
+
+    try {
+      await fetchDataFromDatabase(emailInput.trim());
+      setLoadingEmailQuery(false);
+      // Reset database query flag after successful query
+      setIsDatabaseQuery(false);
+    } catch (error) {
+      console.error('Failed to query database:', error);
+      resetAllStates();
+      setLoadingEmailQuery(false);
+      // Reset database query flag after failed query
+      setIsDatabaseQuery(false);
+      setDialogMessage('Failed to fetch data for the provided email ID. Please check if the email exists in the database.');
+      setOpenDialog(true);
     }
   };
 
@@ -970,27 +798,75 @@ export default function ResumeInsights() {
   
   return (
     <Box sx={{ background: '#f7faff', minHeight: '100vh' }}>
-      {/* Navigation Bar */}
-      <Box sx={{ px: 3, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-        <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 0.5 }}>
-          Resume<span style={{ color: '#2563eb' }}>Pro</span> - Insights
-        </Typography>
-        <Button 
-          component={Link} 
-          href="/" 
-          variant="outlined" 
-          color="primary" 
-          sx={{ fontWeight: 700, borderRadius: 2 }}
-        >
-          ← Back to Home
-        </Button>
-      </Box>
+      <Navigation currentPage="Query Candidate" onQueryCandidateClick={resetAllStates} />
       
-      <Box sx={{ p: 4 }}>
+      {/* Email Query Section - Hidden when redirected from bulk-import */}
+      {!emailId && (
+        <Box sx={{ p: 4, pb: 2 }}>
+          <Paper sx={{ p: 3, mb: 3, background: '#fff' }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Query Candidate Database
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+              Enter an email ID to retrieve candidate information from the database
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <TextField
+                fullWidth
+                label="Email ID"
+                placeholder="Enter candidate email (e.g., john.doe@example.com)"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                variant="outlined"
+                size="medium"
+                disabled={loadingEmailQuery}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleEmailQuery();
+                  }
+                }}
+                sx={{ maxWidth: 400 }}
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleEmailQuery}
+                disabled={loadingEmailQuery || !emailInput.trim()}
+                sx={{ 
+                  minWidth: 120,
+                  height: 56,
+                  fontWeight: 600,
+                  textTransform: 'none'
+                }}
+              >
+                {loadingEmailQuery ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  'Query Database'
+                )}
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      )}
+      
+      <Box sx={{ p: 4, pt: 0 }}>
       <Grid container spacing={3}>
         {/* Sidebar */}
         <Grid item xs={12} md={3}>
           <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
+            {/* Candidate Name Section - Always show when we have actual data */}
+            {(emailId || (pdfText && pdfText.trim() !== '') || (userName && userName.trim() !== '')) && (
+              <Box sx={{ mb: 3, pb: 2, borderBottom: '1px solid #e5e7eb' }}>
+                <Typography variant="h5" fontWeight={700} sx={{ mb: 1, color: 'primary.main' }}>
+                  {userName || 'Candidate Name'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Profile Analysis
+                </Typography>
+              </Box>
+            )}
+            
             <Typography variant="h4" color="success.main" fontWeight={700}>
               {loadingScore
                 ? 'Loading...'
@@ -1003,21 +879,19 @@ export default function ResumeInsights() {
             </Typography>
             {jobRole && (
               <Typography variant="body2" sx={{ mb: 1, fontStyle: 'italic', color: 'text.secondary' }}>
-                Target Role: {jobRole}
+                Target Role: {jobRole || 'Not specified'}
               </Typography>
             )}
             <LinearProgress 
               variant="determinate" 
-              value={resumeScore ? parseInt(resumeScore.replace('%', '')) : 0} 
+              value={parseScoreValue(resumeScore)} 
               sx={{ height: 10, borderRadius: 5, mb: 3 }} 
               color={
-                resumeScore 
-                  ? parseInt(resumeScore.replace('%', '')) >= 80 
-                    ? 'success' 
-                    : parseInt(resumeScore.replace('%', '')) >= 60 
-                    ? 'warning' 
-                    : 'error'
-                  : 'primary'
+                parseScoreValue(resumeScore) >= 80 
+                  ? 'success' 
+                  : parseScoreValue(resumeScore) >= 60 
+                  ? 'warning' 
+                  : 'error'
               } 
             />
             <input
@@ -1090,7 +964,7 @@ export default function ResumeInsights() {
                         fontStyle: contactInfo.mobile_number ? 'normal' : 'italic'
                       }}
                     >
-                      {contactInfo.mobile_number || 'Not found'}
+                      {jobRole || 'Not found'}
                     </Typography>
                   </Box>
                   
@@ -1897,117 +1771,33 @@ export default function ResumeInsights() {
             )}
           </Paper>
 
-          {/* Save Resume Button */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 3 }}>
-            <Button 
-              variant="contained" 
-              size="large"
-              disabled={!isAllDataLoaded()}
-              sx={{ 
-                px: 4, 
-                py: 1.5,
-                fontSize: '1.1rem',
-                fontWeight: 'bold',
-                borderRadius: 2,
-                boxShadow: isAllDataLoaded() ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
-                opacity: isAllDataLoaded() ? 1 : 0.6,
-                '&:hover': {
-                  boxShadow: isAllDataLoaded() ? '0 6px 16px rgba(0,0,0,0.2)' : 'none'
-                },
-                '&:disabled': {
-                  backgroundColor: 'grey.400',
-                  color: 'grey.600'
-                }
-              }}
-              onClick={async () => {
-                console.log('Save Resume clicked');
-                
-                try {
-                  // Accumulate all results from the web services
-                  const accumulatedData = {
-                    "input_data": {
-                      name: userName || 'Not provided',
-                      resume_text: pdfText || '',
-                      job_role: jobRole || 'Not provided'
-                    },
-                    "mode": "Manual",
-                    "getContacts": {
-                      mobile_number: contactInfo.mobile_number,
-                      email_id: contactInfo.email_id,
-                      color: contactInfo.color,
-                      comment: contactInfo.comment
-                    },
-                    "getCustomScores": {
-                      searchibility_score: customScores.searchibility_score,
-                      hard_skills_score: customScores.hard_skills_score,
-                      soft_skill_score: customScores.soft_skill_score,
-                      formatting_score: customScores.formatting_score
-                    },
-                    "getSummaryOverview": {
-                      score: summaryInfo.score,
-                      color: summaryInfo.color,
-                      label: summaryInfo.label,
-                      comment: summaryInfo.comment,
-                      summary: summaryInfo.summary
-                    },
-                    "getFunctionalConstituent": {
-                      constituent: functionalConstituent.constituent,
-                      industries: functionalConstituent.industries,
-                      has_industry_experience: functionalConstituent.has_industry_experience,
-                      has_completed_college: functionalConstituent.has_completed_college
-                    },
-                    "getOtherComments": {
-                      headings_feedback: otherComments.headings_feedback,
-                      title_match: otherComments.title_match,
-                      formatting_feedback: otherComments.formatting_feedback
-                    },
-                    "getEducation": educationHistory,
-                    "scoreResume": {
-                      score: resumeScore,
-                      items: resumeItems
-                    },
-                    "getTechnicalConstituent": {
-                      high: technicalConstituent.high,
-                      medium: technicalConstituent.medium,
-                      low: technicalConstituent.low
-                    },
-                    "getCompany": employmentHistory,
-                    "getProjects": projectsInfo
-                  };
-                  
-                  console.log('Accumulated data to send:', accumulatedData);
-                  
-                  // Send accumulated data to assembleData endpoint
-                  const response = await fetch('http://127.0.0.1:8000/assembleData', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(accumulatedData)
-                  });
-                  
-                  if (response.ok) {
-                    const result = await response.json();
-                    console.log('Save Resume response:', result);
-                    alert('Resume data saved successfully!');
-                  } else {
-                    console.error('Failed to save resume data:', response.status);
-                    alert('Failed to save resume data. Please try again.');
-                  }
-                  
-                } catch (error) {
-                  console.error('Error saving resume data:', error);
-                  alert('Error saving resume data. Please try again.');
-                }
-              }}
-            >
-              {isAllDataLoaded() ? 'Save Resume' : 'Loading Analysis...'}
-            </Button>
-          </Box>
+
 
         </Grid>
       </Grid>
       </Box>
+      
+      {/* Error Dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {"Notification"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            {dialogMessage}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)} color="primary" autoFocus>
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
