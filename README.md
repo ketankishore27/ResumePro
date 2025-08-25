@@ -9,6 +9,9 @@ An AI-powered resume insights and career tooling suite with a FastAPI backend an
 ![Dashboard Page 1](git%20images/Dashboard%20Page1.png)
 ![Dashboard Page 2](git%20images/Dashboard%20Page2.png)
 ![Dashboard Page 3](git%20images/Dashboard%20Page3.png)
+![Dashboard Page 4](git%20images/Dashboard%20Page4.png)
+![Dashboard Page 5](git%20images/Dashboard%20Page5.png)
+![Dashboard Page 6](git%20images/Dashboard%20Page6.png)
 
 ---
 
@@ -209,11 +212,6 @@ Python dependencies are managed in [pyproject.toml](./pyproject.toml:0:0-0:0):
 - Bulk Import
   - Processes multiple resumes with visual progress (Linear + Circular indicators)
   - Shows current file, percentage, and completion
-
-Additional views:
-![Dashboard Page 4](git%20images/Dashboard%20Page4.png)
-![Dashboard Page 5](git%20images/Dashboard%20Page5.png)
-![Dashboard Page 6](git%20images/Dashboard%20Page6.png)
 
 ---
 
