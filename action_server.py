@@ -2,14 +2,9 @@ from typing import List
 import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from ai_operations.chains import scoring_chain, contact_extractor_chain, \
-                                 summary_chain, custom_score_chain, \
-                                 other_comments_chain, functional_constituent_chain, \
-                                 technical_constituent_chain, education_extractor_chain, \
-                                 project_extractor_chain, company_extractor_chain,\
-                                 name_extractor_chain
+from ai_operations.chains import *
 
-from db_operations.utility_db import insert_data, process_individual_resume, extract_data
+from db_operations.utility_db import *
 
 app = FastAPI()
 
