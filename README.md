@@ -165,7 +165,7 @@ Location: [db_operations/utility_db.py](./db_operations/utility_db.py:0:0-0:0)
   `postgresql+psycopg2://postgres:resume_db@localhost:5432/postgres`
 - Table name comes from env var `TABLE_NAME` (required)
 - Writes JSON columns for endpoint outputs; upserts by `email_id`
-- [extract_data(email_id)](cci:1://file:///Users/A118390615/Library/CloudStorage/OneDrive-DeutscheTelekomAG/Projects/COE_Projects/CareerDevelopmentTool/db_operations/utility_db.py:120:0-126:15) reads from `TABLE_NAME` and returns a record (minus raw text, mode, candidate_id)
+- [extract_data(email_id)](./db_operations/utility_db.py:120:0-126:15) reads from `TABLE_NAME` and returns a record (minus raw text, mode, candidate_id)
 
 ---
 
