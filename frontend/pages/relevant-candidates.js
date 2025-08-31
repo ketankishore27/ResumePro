@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, Grid, Card, CardContent, TextField, Paper,
   FormControl, Select, MenuItem, Divider, CircularProgress, Chip, Checkbox, 
-  IconButton, Avatar, InputLabel, Accordion, AccordionSummary, AccordionDetails,
-  Rating, Pagination
+  IconButton, Avatar, InputLabel, Accordion, AccordionSummary, AccordionDetails, Pagination
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -18,8 +17,6 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { useRouter } from 'next/router';
 import Navigation from '../src/components/Navigation';
 
@@ -33,10 +30,7 @@ export default function RelevantCandidates() {
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [filters, setFilters] = useState({
-    matching: true,
-    notMatching: false,
-    keywords: '',
-    starRating: 0
+    keywords: ''
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [resultsPerPage, setResultsPerPage] = useState(20);
@@ -196,9 +190,8 @@ export default function RelevantCandidates() {
   };
 
   const filteredCandidates = candidates.filter(candidate => {
-    if (filters.matching && candidate.match >= 80) return true;
-    if (filters.notMatching && candidate.match < 80) return true;
-    return false;
+    // Show all candidates by default
+    return true;
   });
 
   const totalResults = filteredCandidates.length;
@@ -210,46 +203,18 @@ export default function RelevantCandidates() {
     <>
       <Navigation currentPage="Relevant Candidates" />
       
-      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8f9fa' }}>
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'transparent' }}>
         {/* Left Sidebar - Filters */}
-        <Box sx={{ width: 280, bgcolor: 'white', borderRight: '1px solid #e0e0e0', p: 2 }}>
+        <Box sx={(theme) => ({ width: 280, bgcolor: theme.palette.background.paper, borderRight: `1px solid ${theme.palette.divider}`, p: 2 })}>
           {/* Filters Header */}
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-            <FilterListIcon sx={{ mr: 1, color: '#666' }} />
-            <Typography variant="h6" sx={{ color: '#333', fontWeight: 500 }}>
+            <FilterListIcon sx={(theme) => ({ mr: 1, color: theme.palette.text.secondary })} />
+            <Typography variant="h6" sx={{ fontWeight: 500 }}>
               Filters
             </Typography>
           </Box>
 
           {/* Matching/Not Matching Filter */}
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Checkbox 
-                size="small" 
-                checked={filters.matching}
-                onChange={(e) => setFilters({...filters, matching: e.target.checked})}
-              />
-              <Typography variant="body2" sx={{ ml: 1 }}>
-                Matching
-              </Typography>
-              <Typography variant="body2" sx={{ ml: 'auto', color: '#666' }}>
-                0
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Checkbox 
-                size="small" 
-                checked={filters.notMatching}
-                onChange={(e) => setFilters({...filters, notMatching: e.target.checked})}
-              />
-              <Typography variant="body2" sx={{ ml: 1 }}>
-                Not Matching
-              </Typography>
-              <Typography variant="body2" sx={{ ml: 'auto', color: '#666' }}>
-                {candidates.length}
-              </Typography>
-            </Box>
-          </Box>
 
           {/* Keywords Section */}
           <Accordion sx={{ boxShadow: 'none', '&:before': { display: 'none' } }}>
@@ -266,28 +231,13 @@ export default function RelevantCandidates() {
                 value={filters.keywords}
                 onChange={(e) => setFilters({...filters, keywords: e.target.value})}
                 InputProps={{
-                  startAdornment: <SearchIcon sx={{ mr: 1, color: '#666', fontSize: 18 }} />
+                  startAdornment: <SearchIcon sx={(theme) => ({ mr: 1, color: theme.palette.text.secondary, fontSize: 18 })} />
                 }}
               />
             </AccordionDetails>
           </Accordion>
 
-          {/* Star Rating Section */}
-          <Accordion sx={{ boxShadow: 'none', '&:before': { display: 'none' }, mt: 2 }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ p: 0, minHeight: 'auto' }}>
-              <Typography variant="body2" fontWeight={500}>
-                Star Rating
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ p: 0, pt: 1 }}>
-              <Rating
-                value={filters.starRating}
-                onChange={(e, newValue) => setFilters({...filters, starRating: newValue})}
-                emptyIcon={<StarBorderIcon fontSize="inherit" />}
-              />
-            </AccordionDetails>
-          </Accordion>
-
+  
           {/* Job Role Filter */}
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
@@ -359,10 +309,10 @@ export default function RelevantCandidates() {
             disabled={loading}
             sx={{ 
               mt: 3,
-              bgcolor: '#1976d2',
               textTransform: 'none',
               fontWeight: 500
             }}
+            color="primary"
           >
             {loading ? <CircularProgress size={20} color="inherit" /> : 'Refine Search'}
           </Button>
@@ -372,11 +322,11 @@ export default function RelevantCandidates() {
         <Box sx={{ flex: 1, p: 3 }}>
           {/* Results Header */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ color: '#666' }}>
+            <Typography variant="h6" color="text.secondary">
               Showing {candidates.length} result(s)
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="body2" sx={{ color: '#666' }}>
+              <Typography variant="body2" color="text.secondary">
                 Show
               </Typography>
               <Select size="small" value={resultsPerPage} onChange={(e) => setResultsPerPage(e.target.value)}>
@@ -384,7 +334,7 @@ export default function RelevantCandidates() {
                 <MenuItem value={50}>50</MenuItem>
                 <MenuItem value={100}>100</MenuItem>
               </Select>
-              <Typography variant="body2" sx={{ color: '#666' }}>
+              <Typography variant="body2" color="text.secondary">
                 Page 1 of 1
               </Typography>
             </Box>
@@ -415,7 +365,7 @@ export default function RelevantCandidates() {
                 Delete
               </Button>
               <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body2" sx={{ color: '#666' }}>
+                <Typography variant="body2" color="text.secondary">
                   Sort by:
                 </Typography>
                 <Select size="small" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
@@ -437,17 +387,18 @@ export default function RelevantCandidates() {
               {candidates.map((candidate) => (
                 <Card 
                   key={candidate.id}
-                  sx={{ 
+                  sx={(theme) => ({ 
                     p: 3,
-                    border: '1px solid #e0e0e0',
-                    borderLeft: '4px solid #2196f3',
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderLeft: `4px solid ${theme.palette.primary.main}`,
                     borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
                     '&:hover': { 
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      boxShadow: theme.palette.mode === 'dark' ? '0 4px 12px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.1)',
                       transform: 'translateY(-1px)',
                       transition: 'all 0.2s ease-in-out'
                     }
-                  }}
+                  })}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                     {/* Checkbox */}
@@ -463,30 +414,30 @@ export default function RelevantCandidates() {
                       {/* Header Row */}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                         <Box>
-                          <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2', mb: 0.5 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, color: 'primary.main' }}>
                             {candidate.name}
                           </Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AccessTimeIcon sx={{ fontSize: 16, color: '#666' }} />
+                              <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                               <Typography variant="body2" color="text.secondary">
                                 {candidate.experience}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AttachMoneyIcon sx={{ fontSize: 16, color: '#666' }} />
+                              <AttachMoneyIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                               <Typography variant="body2" color="text.secondary">
                                 ₹{candidate.salary}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <LocationOnOutlinedIcon sx={{ fontSize: 16, color: '#666' }} />
+                              <LocationOnOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                               <Typography variant="body2" color="text.secondary">
                                 {candidate.location}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <NotificationsNoneOutlinedIcon sx={{ fontSize: 16, color: '#666' }} />
+                              <NotificationsNoneOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                               <Typography variant="body2" color="text.secondary">
                                 {candidate.notice}
                               </Typography>
@@ -513,11 +464,7 @@ export default function RelevantCandidates() {
                             label={candidate.status}
                             size="small"
                             color={candidate.status === 'Shortlisted' ? 'success' : 'default'}
-                            sx={{ 
-                              fontSize: '0.75rem',
-                              bgcolor: candidate.status === 'Shortlisted' ? '#e8f5e9' : '#f5f5f5',
-                              color: candidate.status === 'Shortlisted' ? '#2e7d32' : '#666'
-                            }}
+                            sx={{ fontSize: '0.75rem' }}
                           />
                         </Box>
                       </Box>
@@ -561,19 +508,16 @@ export default function RelevantCandidates() {
                               key={index} 
                               label={skill} 
                               size="small" 
-                              sx={{ 
-                                bgcolor: '#f0f4f8', 
-                                color: '#1976d2',
-                                fontSize: '0.75rem',
-                                height: 24
-                              }} 
+                              variant="outlined"
+                              color="primary"
+                              sx={{ fontSize: '0.75rem', height: 24 }}
                             />
                           ))}
                         </Box>
                       </Box>
 
                       {/* Footer Actions */}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 2, borderTop: '1px solid #f0f0f0' }}>
+                      <Box sx={(theme) => ({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 2, borderTop: `1px solid ${theme.palette.divider}` })}>
                         <Typography variant="body2" color="text.secondary">
                           Applied on: {candidate.applyDate}
                         </Typography>

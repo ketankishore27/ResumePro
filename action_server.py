@@ -6,7 +6,7 @@ from ai_operations.chains import *
 
 from db_operations.utility_db import *
 
-app = FastAPI()
+app = FastAPI() 
 
 # Add CORS middleware
 app.add_middleware(

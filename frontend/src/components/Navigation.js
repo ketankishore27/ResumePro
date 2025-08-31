@@ -58,9 +58,9 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between', 
-        background: '#fff', 
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        borderBottom: '1px solid #e5e7eb'
+        background: 'linear-gradient(135deg, #1a1a1a 0%, #212121 100%)', 
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+        borderBottom: '1px solid #333333'
       }}>
         {/* Left side - Logo and Navigation */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -70,12 +70,12 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
               fontWeight={700} 
               sx={{ 
                 letterSpacing: 0.5, 
-                color: 'inherit', 
+                color: '#ffffff', 
                 cursor: 'pointer',
-                '&:hover': { color: '#2563eb' }
+                '&:hover': { color: '#00e676' }
               }}
             >
-              Resume<span style={{ color: '#2563eb' }}>Pro</span>
+              Resume<span style={{ color: '#00e676' }}>Pro</span>
             </Typography>
           </Link>
           
@@ -102,17 +102,17 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
                       py: 0.5,
                       minWidth: 'auto',
                       ...(item.active ? {
-                        backgroundColor: '#2563eb',
-                        color: 'white',
+                        backgroundColor: '#00e676',
+                        color: '#000000',
                         '&:hover': {
-                          backgroundColor: '#1d4ed8'
+                          backgroundColor: '#00c853'
                         }
                       } : {
                         borderColor: 'transparent',
-                        color: '#6b7280',
+                        color: '#b0b0b0',
                         '&:hover': {
-                          borderColor: '#d1d5db',
-                          backgroundColor: '#f9fafb'
+                          borderColor: '#333333',
+                          backgroundColor: '#2a2a2a'
                         }
                       })
                     }}
@@ -153,15 +153,15 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
                           py: 1,
                           px: 2,
                           ...(subItem.active ? {
-                            backgroundColor: '#2563eb !important',
-                            color: 'white',
+                            backgroundColor: '#00e676 !important',
+                            color: '#000000',
                             '&:hover': {
-                              backgroundColor: '#1d4ed8 !important'
+                              backgroundColor: '#00c853 !important'
                             }
                           } : {
-                            color: '#6b7280',
+                            color: '#b0b0b0',
                             '&:hover': {
-                              backgroundColor: '#f9fafb'
+                              backgroundColor: '#2a2a2a'
                             }
                           })
                         }}
@@ -187,17 +187,17 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
                     py: 0.5,
                     minWidth: 'auto',
                     ...(item.active ? {
-                      backgroundColor: '#2563eb',
-                      color: 'white',
+                      backgroundColor: '#00e676',
+                      color: '#000000',
                       '&:hover': {
-                        backgroundColor: '#1d4ed8'
+                        backgroundColor: '#00c853'
                       }
                     } : {
                       borderColor: 'transparent',
-                      color: '#6b7280',
+                      color: '#b0b0b0',
                       '&:hover': {
-                        borderColor: '#d1d5db',
-                        backgroundColor: '#f9fafb'
+                        borderColor: '#333333',
+                        backgroundColor: '#2a2a2a'
                       }
                     })
                   }}
@@ -228,25 +228,6 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
         </Button>
       </Box>
 
-      {/* Breadcrumb */}
-      <Box sx={{ 
-        px: 3, 
-        py: 1.5, 
-        background: '#f8fafc', 
-        borderBottom: '1px solid #e5e7eb' 
-      }}>
-        <Typography variant="body2" color="text.secondary">
-          <Link href="/" style={{ color: '#6b7280', textDecoration: 'none' }}>
-            ResumePro
-          </Link>
-          {currentPage !== 'Home' && (
-            <>
-              {' > '}
-              <span style={{ color: '#374151', fontWeight: 500 }}>{currentPage}</span>
-            </>
-          )}
-        </Typography>
-      </Box>
     </>
   );
 };

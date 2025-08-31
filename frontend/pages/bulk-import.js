@@ -368,19 +368,19 @@ export default function BulkImport() {
   };
 
   return (
-    <Box sx={{ background: '#f7faff', minHeight: '100vh' }}>
+    <Box sx={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)', minHeight: '100vh' }}>
       <Navigation currentPage="Bulk Import" />
 
       {/* Main Content */}
       <Box sx={{ px: 3, py: 4, maxWidth: 1200, mx: 'auto' }}>
-        <Typography variant="h4" fontWeight={700} sx={{ mb: 4, color: '#374151' }}>
+        <Typography variant="h4" fontWeight={700} sx={{ mb: 4, color: 'text.primary' }}>
           Bulk Import
         </Typography>
 
         <Paper sx={{ p: 4, borderRadius: 2, boxShadow: 1 }}>
           {/* Job Role Input */}
           <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: '#374151' }}>
+            <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
               Job Role
             </Typography>
             
@@ -448,17 +448,17 @@ export default function BulkImport() {
           {/* File Upload Area */}
           <Box
             sx={{
-              border: '2px dashed #d1d5db',
+              border: '2px dashed',
               borderRadius: 2,
               p: 6,
               textAlign: 'center',
-              backgroundColor: dragActive ? '#f3f4f6' : '#f9fafb',
-              borderColor: dragActive ? '#6366f1' : '#d1d5db',
+              backgroundColor: dragActive ? '#2a2a2a' : '#212121',
+              borderColor: dragActive ? 'primary.main' : 'divider',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               '&:hover': {
-                backgroundColor: '#f3f4f6',
-                borderColor: '#9ca3af'
+                backgroundColor: '#2a2a2a',
+                borderColor: 'divider'
               }
             }}
             onDragEnter={handleDrag}
@@ -470,7 +470,7 @@ export default function BulkImport() {
             <CloudUploadIcon sx={{ fontSize: 48, color: '#9ca3af', mb: 2 }} />
             
             <Box>
-              <Typography variant="h6" sx={{ color: '#374151', mb: 1 }}>
+              <Typography variant="h6" sx={{ color: 'text.primary', mb: 1 }}>
                 Drag and drop your files here
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -511,7 +511,7 @@ export default function BulkImport() {
           {selectedFiles.length > 0 && !showResults && (
             <Box sx={{ mt: 4 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" fontWeight={600} sx={{ color: '#374151' }}>
+                <Typography variant="h6" fontWeight={600} sx={{ color: 'text.primary' }}>
                   Selected Files ({selectedFiles.length})
                 </Typography>
                 <Button
@@ -526,10 +526,11 @@ export default function BulkImport() {
               <Box sx={{ 
                 maxHeight: 300, 
                 overflowY: 'auto', 
-                border: '1px solid #e5e7eb', 
+                border: '1px solid', 
+                borderColor: 'divider', 
                 borderRadius: 2, 
                 p: 2,
-                backgroundColor: '#f9fafb'
+                backgroundColor: '#212121'
               }}>
                 <Stack spacing={1}>
                   {selectedFiles.map((file, index) => (
@@ -540,15 +541,16 @@ export default function BulkImport() {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         p: 2,
-                        backgroundColor: '#fff',
+                        backgroundColor: '#1a1a1a',
                         borderRadius: 1,
-                        border: '1px solid #e5e7eb'
+                        border: '1px solid',
+                        borderColor: 'divider'
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
                         <AttachFileIcon sx={{ color: '#6b7280', fontSize: 20 }} />
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="body1" fontWeight={500} sx={{ color: '#374151' }}>
+                          <Typography variant="body1" fontWeight={500} sx={{ color: 'text.primary' }}>
                             {file.name}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
@@ -585,13 +587,14 @@ export default function BulkImport() {
             <Box sx={{ 
               mb: 3, 
               p: 3, 
-              backgroundColor: '#f8fafc', 
-              border: '1px solid #e2e8f0', 
+              backgroundColor: '#212121', 
+              border: '1px solid', 
+              borderColor: 'divider', 
               borderRadius: 2 
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <CircularProgress size={20} sx={{ mr: 2, color: '#6366f1' }} />
-                <Typography variant="h6" fontWeight={600} sx={{ color: '#374151' }}>
+                <Typography variant="h6" fontWeight={600} sx={{ color: 'text.primary' }}>
                   Processing Files...
                 </Typography>
               </Box>
@@ -611,7 +614,7 @@ export default function BulkImport() {
                   sx={{ 
                     height: 8, 
                     borderRadius: 4,
-                    backgroundColor: '#e2e8f0',
+                    backgroundColor: 'divider',
                     '& .MuiLinearProgress-bar': {
                       backgroundColor: '#6366f1',
                       borderRadius: 4
@@ -621,7 +624,7 @@ export default function BulkImport() {
               </Box>
               
               {processingFileName && (
-                <Typography variant="body2" sx={{ color: '#374151', fontStyle: 'italic' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
                   Currently processing: {processingFileName}
                 </Typography>
               )}
@@ -631,19 +634,19 @@ export default function BulkImport() {
           {/* Results Table */}
           {showResults && processedResults.length > 0 && (
             <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: '#374151' }}>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
                 Processing Results ({processedResults.length} files)
               </Typography>
-              <TableContainer component={Paper} sx={{ border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+              <TableContainer component={Paper} sx={{ border: '1px solid', borderColor: 'divider', overflowX: 'auto' }}>
                 <Table sx={{ tableLayout: 'fixed' }}>
-                  <TableHead sx={{ backgroundColor: '#f8fafc' }}>
+                  <TableHead sx={{ backgroundColor: '#2a2a2a' }}>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 600, color: '#374151', width: '8%' }}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#374151', width: '18%' }}>File Name</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#374151', width: '12%' }}>Name</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#374151', width: '18%' }}>Email</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#374151', width: '12%' }}>Contact</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#374151', width: '32%' }}>Summary Overview</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '8%' }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '18%' }}>File Name</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '12%' }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '18%' }}>Email</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '12%' }}>Contact</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '32%' }}>Summary Overview</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -657,10 +660,10 @@ export default function BulkImport() {
                           }
                         }}
                         sx={{ 
-                          '&:nth-of-type(odd)': { backgroundColor: '#fafafa' },
+                          '&:nth-of-type(odd)': { backgroundColor: '#1e1e1e' },
                           cursor: result.email_id && result.email_id !== '-' ? 'pointer' : 'default',
                           '&:hover': result.email_id && result.email_id !== '-' ? { 
-                            backgroundColor: '#e3f2fd',
+                            backgroundColor: '#2a2a2a',
                             transform: 'scale(1.01)',
                             transition: 'all 0.2s ease-in-out'
                           } : {}
@@ -734,7 +737,7 @@ export default function BulkImport() {
                 borderColor: '#ef4444',
                 '&:hover': {
                   borderColor: '#dc2626',
-                  backgroundColor: '#fef2f2'
+                  backgroundColor: '#2a1a1a'
                 },
                 '&:disabled': {
                   color: '#d1d5db',

@@ -1,27 +1,106 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-import { Phone, Email } from '@mui/icons-material';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Skeleton, Tooltip, Snackbar, Alert, Zoom, Fab, Collapse } from '@mui/material';
+import { Phone, Email, Check, ContentCopy, KeyboardArrowUp } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Pie } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { useTheme, alpha } from '@mui/material/styles';
+import { motion } from 'framer-motion';
 
-ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
+ChartJS.register(ArcElement, ChartTooltip, Legend, ChartDataLabels);
 
-
-
-
+// Define motion-wrapped components at module scope to preserve component identity across renders
+const MotionPaper = motion(Paper);
 
 import { usePdfText } from '../src/context/PdfTextContext';
 import Navigation from '../src/components/Navigation';
 
 
 
+// Reveal wrapper using IntersectionObserver + framer-motion spring
+const Reveal = ({ children, variant = 'grow', threshold = 0.15 }) => {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setInView(true);
+        observer.disconnect();
+      }
+    }, { threshold });
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  const variants = useMemo(() => (
+    variant === 'fade'
+      ? {
+          hidden: { opacity: 0, y: 12 },
+          show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 220, damping: 28, mass: 0.6 } },
+        }
+      : {
+          hidden: { opacity: 0, scale: 0.98, y: 8 },
+          show: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, mass: 0.6 } },
+        }
+  ), [variant]);
+
+  return (
+    <motion.div ref={ref} initial="hidden" animate={inView ? 'show' : 'hidden'} variants={variants}>
+      {children}
+    </motion.div>
+  );
+};
+
+// Paper with built-in reveal using framer-motion spring
+const RevealPaper = ({ children, variant = 'grow', threshold = 0.15, ...paperProps }) => {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setInView(true);
+        observer.disconnect();
+      }
+    }, { threshold });
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  const variants = useMemo(() => (
+    variant === 'fade'
+      ? {
+          hidden: { opacity: 0, y: 12 },
+          show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 220, damping: 28, mass: 0.6 } },
+        }
+      : {
+          hidden: { opacity: 0, scale: 0.98, y: 8 },
+          show: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, mass: 0.6 } },
+        }
+  ), [variant]);
+
+  return (
+    <MotionPaper
+      ref={ref}
+      variants={variants}
+      initial="hidden"
+      animate={inView ? 'show' : 'hidden'}
+      {...paperProps}
+    >
+      {children}
+    </MotionPaper>
+  );
+};
 export default function ResumeInsights() {
   // Access the extracted PDF text, job role, and user name from context
   const { pdfText, jobRole, setPdfText, userName, setUserName, setJobRole } = usePdfText();
   const router = useRouter();
+  const theme = useTheme();
   
   // Get email_id from URL parameters
   const emailId = router.query.email_id;
@@ -70,6 +149,14 @@ export default function ResumeInsights() {
   const [isDatabaseQuery, setIsDatabaseQuery] = useState(false);
   const [isPerformingQuery, setIsPerformingQuery] = useState(false);
   const [shouldClearContext, setShouldClearContext] = useState(false);
+  // UI/UX enhancement states
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [querySuccess, setQuerySuccess] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [copied, setCopied] = useState('');
+  const [showFab, setShowFab] = useState(false);
+  // Collapse controls
+  const [expandSummaryComment, setExpandSummaryComment] = useState(false);
   
   // Dialog state for error messages
   const [openDialog, setOpenDialog] = useState(false);
@@ -175,8 +262,8 @@ export default function ResumeInsights() {
           {
             label: 'Functional Exposure',
             data: [100],
-            backgroundColor: ['rgba(158, 158, 158, 0.7)'],
-            borderColor: ['rgba(158, 158, 158, 1)'],
+            backgroundColor: [alpha(theme.palette.text.disabled, 0.7)],
+            borderColor: [theme.palette.text.disabled],
             borderWidth: 1,
           },
         ],
@@ -188,29 +275,29 @@ export default function ResumeInsights() {
     
     // Generate colors for each industry
     const colors = [
-      'rgba(33, 150, 243, 0.7)',   // Blue
-      'rgba(76, 175, 80, 0.7)',    // Green
-      'rgba(255, 193, 7, 0.7)',    // Amber
-      'rgba(156, 39, 176, 0.7)',   // Purple
-      'rgba(255, 87, 34, 0.7)',    // Deep Orange
-      'rgba(0, 188, 212, 0.7)',    // Cyan
-      'rgba(139, 195, 74, 0.7)',   // Light Green
-      'rgba(255, 152, 0, 0.7)',    // Orange
-      'rgba(121, 85, 72, 0.7)',    // Brown
-      'rgba(96, 125, 139, 0.7)',   // Blue Grey
+      alpha(theme.palette.info.main, 0.7),
+      alpha(theme.palette.success.main, 0.7),
+      alpha(theme.palette.warning.main, 0.7),
+      alpha(theme.palette.secondary.main, 0.7),
+      alpha(theme.palette.error.main, 0.7),
+      alpha(theme.palette.info.light, 0.7),
+      alpha(theme.palette.success.light, 0.7),
+      alpha(theme.palette.warning.light, 0.7),
+      alpha(theme.palette.primary.dark, 0.7),
+      alpha(theme.palette.text.secondary, 0.7),
     ];
     
     const borderColors = [
-      'rgba(33, 150, 243, 1)',
-      'rgba(76, 175, 80, 1)',
-      'rgba(255, 193, 7, 1)',
-      'rgba(156, 39, 176, 1)',
-      'rgba(255, 87, 34, 1)',
-      'rgba(0, 188, 212, 1)',
-      'rgba(139, 195, 74, 1)',
-      'rgba(255, 152, 0, 1)',
-      'rgba(121, 85, 72, 1)',
-      'rgba(96, 125, 139, 1)',
+      theme.palette.info.main,
+      theme.palette.success.main,
+      theme.palette.warning.main,
+      theme.palette.secondary.main,
+      theme.palette.error.main,
+      theme.palette.info.light,
+      theme.palette.success.light,
+      theme.palette.warning.light,
+      theme.palette.primary.dark,
+      theme.palette.text.secondary,
     ];
 
     return {
@@ -231,6 +318,7 @@ export default function ResumeInsights() {
   const functionalChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: { duration: 800, easing: 'easeOutCubic' },
     plugins: {
       legend: {
         position: 'bottom',
@@ -239,9 +327,18 @@ export default function ResumeInsights() {
           usePointStyle: true,
         },
       },
+      tooltip: {
+        enabled: false,
+        backgroundColor: alpha(theme.palette.background.paper, 0.9),
+        titleColor: theme.palette.text.primary,
+        bodyColor: theme.palette.text.secondary,
+        borderColor: theme.palette.divider,
+        borderWidth: 1,
+        padding: 10,
+      },
       datalabels: {
         display: true,
-        color: '#666666',
+        color: theme.palette.text.secondary,
         font: {
           weight: 'bold',
           size: 7,
@@ -254,10 +351,10 @@ export default function ResumeInsights() {
         anchor: 'end',
         align: 'start',
         offset: 10,
-        borderColor: '#666666',
+        borderColor: theme.palette.divider,
         borderWidth: 1,
         borderRadius: 4,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: alpha(theme.palette.background.paper, 0.8),
         padding: 4,
       },
     },
@@ -474,6 +571,31 @@ export default function ResumeInsights() {
     }
   };
 
+  // FAB visibility on scroll
+  useEffect(() => {
+    const onScroll = () => {
+      if (typeof window !== 'undefined') {
+        setShowFab(window.scrollY > 400);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+      return () => window.removeEventListener('scroll', onScroll);
+    }
+  }, []);
+
+  const isValidEmail = (email) => /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email);
+
+  const handleCopy = (text) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && text) {
+      navigator.clipboard.writeText(text);
+      setCopied(text);
+      setSnackbar({ open: true, message: 'Copied to clipboard', severity: 'success' });
+      setTimeout(() => setCopied(''), 1200);
+    }
+  };
+
   // Helper function to safely parse score values
   const parseScoreValue = (score) => {
     if (!score) return 0;
@@ -576,9 +698,9 @@ export default function ResumeInsights() {
 
   // Handle email input query
   const handleEmailQuery = async () => {
-    if (!emailInput.trim()) {
-      setDialogMessage('Please enter a valid email ID');
-      setOpenDialog(true);
+    setEmailTouched(true);
+    if (!emailInput.trim() || !isValidEmail(emailInput.trim())) {
+      setSnackbar({ open: true, message: 'Please enter a valid email address', severity: 'error' });
       return;
     }
 
@@ -606,6 +728,9 @@ export default function ResumeInsights() {
     try {
       await fetchDataFromDatabase(emailInput.trim());
       setLoadingEmailQuery(false);
+      setQuerySuccess(true);
+      setSnackbar({ open: true, message: 'Candidate data loaded successfully', severity: 'success' });
+      setTimeout(() => setQuerySuccess(false), 1200);
     } catch (error) {
       console.error('Failed to query database:', error);
       resetAllStates();
@@ -619,13 +744,13 @@ export default function ResumeInsights() {
   const functionalData = createFunctionalData(functionalConstituent.constituent);
   
   return (
-    <Box sx={{ background: '#f7faff', minHeight: '100vh' }}>
+    <Box sx={{ backgroundColor: 'background.default', minHeight: '100vh' }}>
       <Navigation currentPage="Query Candidate" onQueryCandidateClick={resetAllStates} />
       
       {/* Email Query Section - Hidden when redirected from bulk-import */}
       {!emailId && (
         <Box sx={{ p: 4, pb: 2 }}>
-          <Paper sx={{ p: 3, mb: 3, background: '#fff' }}>
+          <RevealPaper sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               Query Candidate Database
             </Typography>
@@ -642,18 +767,21 @@ export default function ResumeInsights() {
                 variant="outlined"
                 size="medium"
                 disabled={loadingEmailQuery}
-                onKeyPress={(e) => {
+                error={emailTouched && !!emailInput && !isValidEmail(emailInput)}
+                helperText={emailTouched && !!emailInput && !isValidEmail(emailInput) ? 'Enter a valid email address' : ' '}
+                onBlur={() => setEmailTouched(true)}
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleEmailQuery();
                   }
                 }}
-                sx={{ maxWidth: 400 }}
+                sx={{ maxWidth: 400, '& .MuiFormHelperText-root': { transition: 'color 200ms ease' } }}
               />
               <Button
                 variant="contained"
                 color="primary"
                 onClick={handleEmailQuery}
-                disabled={loadingEmailQuery || !emailInput.trim()}
+                disabled={loadingEmailQuery || !emailInput.trim() || (emailTouched && !isValidEmail(emailInput))}
                 sx={{ 
                   minWidth: 120,
                   height: 56,
@@ -663,12 +791,16 @@ export default function ResumeInsights() {
               >
                 {loadingEmailQuery ? (
                   <CircularProgress size={20} color="inherit" />
+                ) : querySuccess ? (
+                  <Zoom in={querySuccess}>
+                    <Check fontSize="small" />
+                  </Zoom>
                 ) : (
                   'Query Database'
                 )}
               </Button>
             </Box>
-          </Paper>
+          </RevealPaper>
         </Box>
       )}
       
@@ -679,7 +811,7 @@ export default function ResumeInsights() {
           <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
             {/* Candidate Name Section - Always show when we have actual data */}
             {(emailId || (pdfText && pdfText.trim() !== '') || (userName && userName.trim() !== '')) && (
-              <Box sx={{ mb: 3, pb: 2, borderBottom: '1px solid #e5e7eb' }}>
+              <Box sx={{ mb: 3, pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="h5" fontWeight={700} sx={{ mb: 1, color: 'primary.main' }}>
                   {userName || 'Candidate Name'}
                 </Typography>
@@ -689,13 +821,13 @@ export default function ResumeInsights() {
               </Box>
             )}
             
-            <Typography variant="h4" color="success.main" fontWeight={700}>
-              {loadingScore
-                ? 'Loading...'
-                : scoreError
-                  ? scoreError
-                  : resumeScore || '--'}
-            </Typography>
+            {loadingScore ? (
+              <Skeleton variant="text" width={80} height={48} sx={{ mx: 'auto' }} />
+            ) : (
+              <Typography variant="h4" color="success.main" fontWeight={700}>
+                {scoreError ? scoreError : resumeScore || '--'}
+              </Typography>
+            )}
             <Typography variant="subtitle1" sx={{ mb: 2 }}>
               Resume Score
             </Typography>
@@ -704,95 +836,116 @@ export default function ResumeInsights() {
                 Target Role: {jobRole || 'Not specified'}
               </Typography>
             )}
-            <LinearProgress 
-              variant="determinate" 
-              value={parseScoreValue(resumeScore)} 
-              sx={{ height: 10, borderRadius: 5, mb: 3 }} 
-              color={
-                parseScoreValue(resumeScore) >= 80 
-                  ? 'success' 
-                  : parseScoreValue(resumeScore) >= 60 
-                  ? 'warning' 
-                  : 'error'
-              } 
-            />
+            {loadingScore ? (
+              <Skeleton variant="rectangular" height={10} sx={{ borderRadius: 1, mb: 3 }} />
+            ) : (
+              <LinearProgress 
+                variant="determinate" 
+                value={parseScoreValue(resumeScore)} 
+                sx={{ height: 10, borderRadius: 5, mb: 3 }} 
+                color={
+                  parseScoreValue(resumeScore) >= 80 
+                    ? 'success' 
+                    : parseScoreValue(resumeScore) >= 60 
+                    ? 'warning' 
+                    : 'error'
+                } 
+              />
+            )}
             {/* Upload & re-scan button removed */}
             <Box sx={{ textAlign: 'left', mt: 2 }}>
               <Typography variant="body2" fontWeight={700}>Searchability</Typography>
-              <LinearProgress 
-                variant="determinate" 
-                value={loadingCustomScores ? 0 : customScores.searchibility_score} 
-                sx={{ height: 8, borderRadius: 5, mb: 1 }} 
-                color={getProgressColor(customScores.searchibility_score)} 
-              />
+              {loadingCustomScores ? <Skeleton variant="rectangular" height={8} sx={{ borderRadius: 1, mb: 1 }} /> : (
+                <LinearProgress 
+                  variant="determinate" 
+                  value={customScores.searchibility_score} 
+                  sx={{ height: 8, borderRadius: 5, mb: 1 }} 
+                  color={getProgressColor(customScores.searchibility_score)} 
+                />
+              )}
               <Typography variant="body2" fontWeight={700}>Hard Skills</Typography>
-              <LinearProgress 
-                variant="determinate" 
-                value={loadingCustomScores ? 0 : customScores.hard_skills_score} 
-                sx={{ height: 8, borderRadius: 5, mb: 1 }} 
-                color={getProgressColor(customScores.hard_skills_score)} 
-              />
+              {loadingCustomScores ? <Skeleton variant="rectangular" height={8} sx={{ borderRadius: 1, mb: 1 }} /> : (
+                <LinearProgress 
+                  variant="determinate" 
+                  value={customScores.hard_skills_score} 
+                  sx={{ height: 8, borderRadius: 5, mb: 1 }} 
+                  color={getProgressColor(customScores.hard_skills_score)} 
+                />
+              )}
               <Typography variant="body2" fontWeight={700}>Soft Skills</Typography>
-              <LinearProgress 
-                variant="determinate" 
-                value={loadingCustomScores ? 0 : customScores.soft_skill_score} 
-                sx={{ height: 8, borderRadius: 5, mb: 1 }} 
-                color={getProgressColor(customScores.soft_skill_score)} 
-              />
+              {loadingCustomScores ? <Skeleton variant="rectangular" height={8} sx={{ borderRadius: 1, mb: 1 }} /> : (
+                <LinearProgress 
+                  variant="determinate" 
+                  value={customScores.soft_skill_score} 
+                  sx={{ height: 8, borderRadius: 5, mb: 1 }} 
+                  color={getProgressColor(customScores.soft_skill_score)} 
+                />
+              )}
               <Typography variant="body2" fontWeight={700}>Formatting</Typography>
-              <LinearProgress 
-                variant="determinate" 
-                value={loadingCustomScores ? 0 : customScores.formatting_score} 
-                sx={{ height: 8, borderRadius: 5, mb: 1 }} 
-                color={getProgressColor(customScores.formatting_score)} 
-              />
+              {loadingCustomScores ? <Skeleton variant="rectangular" height={8} sx={{ borderRadius: 1, mb: 1 }} /> : (
+                <LinearProgress 
+                  variant="determinate" 
+                  value={customScores.formatting_score} 
+                  sx={{ height: 8, borderRadius: 5, mb: 1 }} 
+                  color={getProgressColor(customScores.formatting_score)} 
+                />
+              )}
             </Box>
             
             {/* Contact Information Section */}
-            <Box sx={{ mt: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 2, backgroundColor: '#fafafa' }}>
+            <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, backgroundColor: 'surface.main' }}>
               <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2, color: 'text.primary' }}>
                 Contact Information
               </Typography>
               
               {loadingContact ? (
-                <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
-                  Extracting contact information...
-                </Typography>
+                <>
+                  <Skeleton variant="text" width={120} />
+                  <Skeleton variant="text" width={200} />
+                </>
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   {/* Phone Number */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Phone sx={{ fontSize: 18, color: contactInfo.mobile_number ? 'success.main' : 'text.disabled' }} />
                     <Typography variant="body2" sx={{ fontWeight: 500, minWidth: '60px' }}>Phone:</Typography>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: contactInfo.mobile_number ? 'text.primary' : 'text.disabled',
-                        fontStyle: contactInfo.mobile_number ? 'normal' : 'italic'
-                      }}
-                    >
-                      {jobRole || 'Not found'}
-                    </Typography>
+                    <Tooltip title={copied === (contactInfo.mobile_number || 'Not found') ? 'Copied!' : (contactInfo.mobile_number ? 'Click to copy' : '')}>
+                      <span>
+                        <Chip
+                          icon={contactInfo.mobile_number ? <ContentCopy fontSize="small" /> : undefined}
+                          label={contactInfo.mobile_number || 'Not found'}
+                          size="small"
+                          onClick={() => contactInfo.mobile_number && handleCopy(contactInfo.mobile_number)}
+                          clickable={!!contactInfo.mobile_number}
+                          sx={{
+                            fontSize: '0.75rem',
+                            cursor: contactInfo.mobile_number ? 'pointer' : 'default'
+                          }}
+                        />
+                      </span>
+                    </Tooltip>
                   </Box>
                   
                   {/* Email */}
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                     <Email sx={{ fontSize: 18, color: contactInfo.email_id ? 'success.main' : 'text.disabled', mt: 0.2 }} />
                     <Typography variant="body2" sx={{ fontWeight: 500, minWidth: '60px', mt: 0.2 }}>Email:</Typography>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: contactInfo.email_id ? 'text.primary' : 'text.disabled',
-                        fontStyle: contactInfo.email_id ? 'normal' : 'italic',
-                        wordBreak: 'break-all',
-                        overflowWrap: 'break-word',
-                        flex: 1,
-                        lineHeight: 1.4,
-                        textAlign: 'left'
-                      }}
-                    >
-                      {contactInfo.email_id || 'Not found'}
-                    </Typography>
+                    <Tooltip title={copied === (contactInfo.email_id || 'Not found') ? 'Copied!' : (contactInfo.email_id ? 'Click to copy' : '')}>
+                      <span style={{ flex: 1 }}>
+                        <Chip
+                          icon={contactInfo.email_id ? <ContentCopy fontSize="small" /> : undefined}
+                          label={contactInfo.email_id || 'Not found'}
+                          size="small"
+                          onClick={() => contactInfo.email_id && handleCopy(contactInfo.email_id)}
+                          clickable={!!contactInfo.email_id}
+                          sx={{
+                            fontSize: '0.75rem',
+                            maxWidth: '100%',
+                            '& .MuiChip-label': { whiteSpace: 'normal', textOverflow: 'clip' }
+                          }}
+                        />
+                      </span>
+                    </Tooltip>
                   </Box>
                 </Box>
               )}
@@ -800,11 +953,11 @@ export default function ResumeInsights() {
           </Paper>
           
           {/* Functional Exposure Section */}
-          <Paper sx={{ p: 3, mt: 3 }}>
+          <Paper sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2 }}>
             <Typography variant="subtitle1" fontWeight={700} gutterBottom>Functional Exposure</Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
               {loadingFunctionalConstituent ? (
-                <CircularProgress />
+                <CircularProgress size={24} />
               ) : (
                 <Pie 
                   data={functionalData} 
@@ -816,12 +969,24 @@ export default function ResumeInsights() {
           </Paper>
           
           {/* Technical Exposure Section */}
-          <Paper sx={{ p: 3, mt: 3 }}>
+          <Paper sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2 }}>
             <Typography variant="subtitle1" fontWeight={700} gutterBottom>Technical Exposure</Typography>
             {loadingTechnicalConstituent ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                <CircularProgress />
-              </Box>
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                    <Skeleton variant="rectangular" height={60} sx={{ borderRadius: 1 }} />
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  <Skeleton variant="text" width={100} />
+                  <Skeleton variant="rectangular" height={60} sx={{ borderRadius: 1 }} />
+                </Grid>
+                <Grid item xs={12}>
+                  <Skeleton variant="text" width={70} />
+                  <Skeleton variant="rectangular" height={60} sx={{ borderRadius: 1 }} />
+                </Grid>
+              </Grid>
             ) : (
               <Grid container spacing={2} sx={{ mt: 1 }}>
                 {/* High Relevance Row */}
@@ -830,14 +995,14 @@ export default function ResumeInsights() {
                     <Typography variant="subtitle2" fontWeight={600} color="success.main" gutterBottom>
                       High
                     </Typography>
-                    <Box sx={{ minHeight: 60, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1, p: 1, border: '1px solid', borderColor: 'success.main' }}>
+                    <Box sx={(theme) => ({ minHeight: 60, backgroundColor: alpha(theme.palette.success.main, 0.1), borderRadius: 1, p: 1, border: '1px solid', borderColor: theme.palette.success.main })}>
                       {technicalConstituent.high && technicalConstituent.high.length > 0 ? (
                         technicalConstituent.high.map((skill, index) => (
-                          <Chip 
-                            key={index} 
-                            label={skill} 
-                            size="small" 
-                            color="success" 
+                          <Chip
+                            key={index}
+                            label={skill}
+                            size="small"
+                            color="success"
                             variant="outlined"
                             sx={{ m: 0.5, fontSize: '0.75rem' }}
                           />
@@ -857,14 +1022,14 @@ export default function ResumeInsights() {
                     <Typography variant="subtitle2" fontWeight={600} color="warning.main" gutterBottom>
                       Medium
                     </Typography>
-                    <Box sx={{ minHeight: 60, backgroundColor: 'rgba(255, 152, 0, 0.1)', borderRadius: 1, p: 1, border: '1px solid', borderColor: 'warning.main' }}>
+                    <Box sx={(theme) => ({ minHeight: 60, backgroundColor: alpha(theme.palette.warning.main, 0.1), borderRadius: 1, p: 1, border: '1px solid', borderColor: theme.palette.warning.main })}>
                       {technicalConstituent.medium && technicalConstituent.medium.length > 0 ? (
                         technicalConstituent.medium.map((skill, index) => (
-                          <Chip 
-                            key={index} 
-                            label={skill} 
-                            size="small" 
-                            color="warning" 
+                          <Chip
+                            key={index}
+                            label={skill}
+                            size="small"
+                            color="warning"
                             variant="outlined"
                             sx={{ m: 0.5, fontSize: '0.75rem' }}
                           />
@@ -884,14 +1049,14 @@ export default function ResumeInsights() {
                     <Typography variant="subtitle2" fontWeight={600} color="error.main" gutterBottom>
                       Low
                     </Typography>
-                    <Box sx={{ minHeight: 60, backgroundColor: 'rgba(244, 67, 54, 0.1)', borderRadius: 1, p: 1, border: '1px solid', borderColor: 'error.main' }}>
+                    <Box sx={(theme) => ({ minHeight: 60, backgroundColor: alpha(theme.palette.error.main, 0.1), borderRadius: 1, p: 1, border: '1px solid', borderColor: theme.palette.error.main })}>
                       {technicalConstituent.low && technicalConstituent.low.length > 0 ? (
                         technicalConstituent.low.map((skill, index) => (
-                          <Chip 
-                            key={index} 
-                            label={skill} 
-                            size="small" 
-                            color="error" 
+                          <Chip
+                            key={index}
+                            label={skill}
+                            size="small"
+                            color="error"
                             variant="outlined"
                             sx={{ m: 0.5, fontSize: '0.75rem' }}
                           />
@@ -918,8 +1083,11 @@ export default function ResumeInsights() {
             </Typography>
             
             {loadingSummary ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                <CircularProgress size={24} />
+              <Box sx={{ mt: 2 }}>
+                <Skeleton variant="text" width={160} />
+                <Skeleton variant="text" width="80%" />
+                <Skeleton variant="text" width="90%" />
+                <Skeleton variant="text" width="75%" />
               </Box>
             ) : (
               <Box sx={{ mt: 2 }}>
@@ -963,15 +1131,27 @@ export default function ResumeInsights() {
                   </Typography>
                 </Box>
                 
-                <Typography variant="body2" sx={{ 
-                  p: 2, 
-                  backgroundColor: 'grey.50', 
-                  borderRadius: 1,
-                  border: '1px solid',
-                  borderColor: 'grey.200'
-                }}>
-                  {summaryInfo.comment || 'No summary analysis available'}
-                </Typography>
+                <Box>
+                  <Collapse in={expandSummaryComment || !(summaryInfo.comment && summaryInfo.comment.length > 180)} collapsedSize={64}>
+                    <Typography variant="body2" sx={{ 
+                      p: 2, 
+                      backgroundColor: 'surface.light', 
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      color: 'text.primary',
+                      fontWeight: 700,
+                      fontStyle: 'italic'
+                    }}>
+                      {summaryInfo.comment || 'No summary analysis available'}
+                    </Typography>
+                  </Collapse>
+                  {summaryInfo.comment && summaryInfo.comment.length > 180 && (
+                    <Button size="small" onClick={() => setExpandSummaryComment((v) => !v)} sx={{ mt: 1, textTransform: 'none' }}>
+                      {expandSummaryComment ? 'Show less' : 'Show more'}
+                    </Button>
+                  )}
+                </Box>
               </Box>
             )}
           </Paper>
@@ -983,9 +1163,21 @@ export default function ResumeInsights() {
               AI-powered analysis of your project experience and technical implementations.
             </Typography>
             {loadingProjects ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                <CircularProgress />
-              </Box>
+              <Grid container spacing={2}>
+                {[0,1,2,3].map((i) => (
+                  <Grid item xs={12} md={6} key={i}>
+                    <Card>
+                      <CardContent>
+                        <Skeleton variant="text" width="60%" />
+                        <Skeleton variant="text" width={120} />
+                        <Skeleton variant="text" width="90%" />
+                        <Skeleton variant="text" width="85%" />
+                        <Skeleton variant="rectangular" height={24} width="50%" sx={{ mt: 1, borderRadius: 1 }} />
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
             ) : (
               <Box>
                 {projectsInfo && projectsInfo.length > 0 ? (
@@ -1042,13 +1234,19 @@ export default function ResumeInsights() {
                                 </Typography>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                   {project.technologies.map((tech, techIndex) => (
-                                    <Chip 
-                                      key={techIndex}
-                                      label={tech}
-                                      size="small"
-                                      variant="outlined"
-                                      sx={{ fontSize: '0.75rem' }}
-                                    />
+                                    <Tooltip key={techIndex} title={copied === tech ? 'Copied!' : 'Click to copy'}>
+                                      <span>
+                                        <Chip 
+                                          label={tech}
+                                          size="small"
+                                          variant="outlined"
+                                          onClick={() => handleCopy(tech)}
+                                          clickable
+                                          icon={<ContentCopy fontSize="small" />}
+                                          sx={{ fontSize: '0.75rem' }}
+                                        />
+                                      </span>
+                                    </Tooltip>
                                   ))}
                                 </Box>
                               </Box>
@@ -1160,8 +1358,16 @@ export default function ResumeInsights() {
               Career Growth
             </Typography>
             {loadingEmployment ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-                <CircularProgress />
+              <Box sx={{ py: 4 }}>
+                <Skeleton variant="rectangular" height={8} sx={{ borderRadius: 1, mb: 3 }} />
+                <Grid container spacing={2}>
+                  {[0,1,2].map((i) => (
+                    <Grid item xs={4} key={i}>
+                      <Skeleton variant="circular" width={50} height={50} sx={{ mx: 'auto', mb: 1 }} />
+                      <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 2 }} />
+                    </Grid>
+                  ))}
+                </Grid>
               </Box>
             ) : (
               <Box sx={{ mt: 3 }}>
@@ -1175,7 +1381,7 @@ export default function ResumeInsights() {
                         left: '40px',
                         right: '40px',
                         height: '8px',
-                        background: 'linear-gradient(90deg, #ff9800, #9c27b0, #2196f3, #4caf50, #f44336)',
+                        background: `linear-gradient(90deg, ${theme.palette.warning.main}, ${theme.palette.secondary.main}, ${theme.palette.info.main}, ${theme.palette.success.main}, ${theme.palette.error.main})`,
                         borderRadius: '4px',
                         zIndex: 1,
                         transform: 'translateY(-50%)'
@@ -1190,21 +1396,21 @@ export default function ResumeInsights() {
                           // Get position colors based on employment type
                           const getPositionColor = (type) => {
                             switch(type) {
-                              case 'Permanent': return { main: '#4CAF50', light: '#E8F5E8' };
-                              case 'Intern': return { main: '#FF9800', light: '#FFF3E0' };
-                              case 'Part Time': return { main: '#2196F3', light: '#E3F2FD' };
-                              case 'Contractual': return { main: '#9C27B0', light: '#F3E5F5' };
-                              case 'Non Permanent': return { main: '#F44336', light: '#FFEBEE' };
-                              default: return { main: '#1976D2', light: '#E3F2FD' };
+                              case 'Permanent': return { main: theme.palette.success.main, light: alpha(theme.palette.success.main, 0.12) };
+                              case 'Intern': return { main: theme.palette.warning.main, light: alpha(theme.palette.warning.main, 0.12) };
+                              case 'Part Time': return { main: theme.palette.info.main, light: alpha(theme.palette.info.main, 0.12) };
+                              case 'Contractual': return { main: theme.palette.secondary.main, light: alpha(theme.palette.secondary.main, 0.12) };
+                              case 'Non Permanent': return { main: theme.palette.error.main, light: alpha(theme.palette.error.main, 0.12) };
+                              default: return { main: theme.palette.primary.main, light: alpha(theme.palette.primary.main, 0.12) };
                             }
                           };
                           
                           const colors = [
-                            { main: '#FF9800', bg: '#FFF3E0', text: '#E65100' }, // Orange
-                            { main: '#9C27B0', bg: '#F3E5F5', text: '#6A1B9A' }, // Purple
-                            { main: '#2196F3', bg: '#E3F2FD', text: '#1565C0' }, // Blue
-                            { main: '#4CAF50', bg: '#E8F5E8', text: '#2E7D32' }, // Green
-                            { main: '#F44336', bg: '#FFEBEE', text: '#C62828' }  // Red
+                            { main: theme.palette.warning.main, bg: alpha(theme.palette.warning.main, 0.15), text: theme.palette.warning.dark },
+                            { main: theme.palette.secondary.main, bg: alpha(theme.palette.secondary.main, 0.15), text: theme.palette.secondary.dark },
+                            { main: theme.palette.info.main, bg: alpha(theme.palette.info.main, 0.15), text: theme.palette.info.dark },
+                            { main: theme.palette.success.main, bg: alpha(theme.palette.success.main, 0.15), text: theme.palette.success.dark },
+                            { main: theme.palette.error.main, bg: alpha(theme.palette.error.main, 0.15), text: theme.palette.error.dark }
                           ];
                           const color = colors[index % colors.length];
                           const isAbove = index % 2 === 0;
@@ -1233,15 +1439,16 @@ export default function ResumeInsights() {
                                   width: '50px',
                                   height: '50px',
                                   borderRadius: '50%',
-                                  border: `2px solid white`,
+                                  border: '2px solid',
+                                  borderColor: 'common.white',
                                   backgroundColor: color.main,
-                                  boxShadow: `0 0 0 2px ${color.main}, 0 2px 8px rgba(0,0,0,0.15)`,
+                                  boxShadow: `0 0 0 2px ${color.main}, 0 2px 8px ${alpha(theme.palette.common.black, 0.15)}`,
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   fontWeight: 'bold',
                                   fontSize: '12px',
-                                  color: 'white',
+                                  color: 'common.white',
                                   zIndex: 3
                                 }}
                               >
@@ -1254,8 +1461,9 @@ export default function ResumeInsights() {
                                     width: 14,
                                     height: 14,
                                     borderRadius: '50%',
-                                    backgroundColor: '#4CAF50',
-                                    border: '3px solid white'
+                                    backgroundColor: 'success.main',
+                                    border: '3px solid',
+                                    borderColor: 'common.white'
                                   }} />
                                 )}
                               </Box>
@@ -1273,7 +1481,7 @@ export default function ResumeInsights() {
                                   backgroundColor: color.bg,
                                   border: `1px solid ${color.main}`,
                                   borderRadius: 3,
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                  boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.15)}`,
                                   zIndex: 2,
                                   padding: 1.5
                                 }}
@@ -1302,7 +1510,7 @@ export default function ResumeInsights() {
                                     size="small"
                                     sx={{ 
                                       backgroundColor: color.main,
-                                      color: 'white',
+                                      color: 'common.white',
                                       fontSize: '0.65rem',
                                       fontWeight: 'bold'
                                     }}
@@ -1312,8 +1520,8 @@ export default function ResumeInsights() {
                                       label="Current"
                                       size="small"
                                       sx={{
-                                        backgroundColor: '#4caf50',
-                                        color: 'white',
+                                        backgroundColor: 'success.main',
+                                        color: 'common.white',
                                         fontSize: '0.65rem',
                                         fontWeight: 'bold'
                                       }}
@@ -1374,8 +1582,16 @@ export default function ResumeInsights() {
               Education Timeline
             </Typography>
             {loadingEducation ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-                <CircularProgress />
+              <Box sx={{ py: 4 }}>
+                <Skeleton variant="rectangular" height={8} sx={{ borderRadius: 1, mb: 3 }} />
+                <Grid container spacing={2}>
+                  {[0,1,2,3].map((i) => (
+                    <Grid item xs={3} key={i}>
+                      <Skeleton variant="circular" width={50} height={50} sx={{ mx: 'auto', mb: 1 }} />
+                      <Skeleton variant="rectangular" height={70} sx={{ borderRadius: 2 }} />
+                    </Grid>
+                  ))}
+                </Grid>
               </Box>
             ) : (
               <Box sx={{ mt: 3 }}>
@@ -1389,7 +1605,7 @@ export default function ResumeInsights() {
                         left: '40px',
                         right: '40px',
                         height: '8px',
-                        background: 'linear-gradient(90deg, #ff9800, #9c27b0, #2196f3, #4caf50, #f44336)',
+                        background: `linear-gradient(90deg, ${theme.palette.warning.main}, ${theme.palette.secondary.main}, ${theme.palette.info.main}, ${theme.palette.success.main}, ${theme.palette.error.main})`,
                         borderRadius: '4px',
                         zIndex: 1,
                         transform: 'translateY(-50%)'
@@ -1406,11 +1622,11 @@ export default function ResumeInsights() {
                         })
                         .map((education, index) => {
                           const colors = [
-                            { main: '#FF9800', bg: '#FFF3E0', text: '#E65100' }, // Orange
-                            { main: '#9C27B0', bg: '#F3E5F5', text: '#6A1B9A' }, // Purple
-                            { main: '#2196F3', bg: '#E3F2FD', text: '#1565C0' }, // Blue
-                            { main: '#4CAF50', bg: '#E8F5E8', text: '#2E7D32' }, // Green
-                            { main: '#F44336', bg: '#FFEBEE', text: '#C62828' }  // Red
+                            { main: theme.palette.warning.main, bg: alpha(theme.palette.warning.main, 0.12), text: theme.palette.warning.dark }, // Orange
+                            { main: theme.palette.secondary.main, bg: alpha(theme.palette.secondary.main, 0.12), text: theme.palette.secondary.dark }, // Purple
+                            { main: theme.palette.info.main, bg: alpha(theme.palette.info.main, 0.12), text: theme.palette.info.dark }, // Blue
+                            { main: theme.palette.success.main, bg: alpha(theme.palette.success.main, 0.12), text: theme.palette.success.dark }, // Green
+                            { main: theme.palette.error.main, bg: alpha(theme.palette.error.main, 0.12), text: theme.palette.error.dark }  // Red
                           ];
                           const color = colors[index % colors.length];
                           const isAbove = index % 2 === 0;
@@ -1440,15 +1656,16 @@ export default function ResumeInsights() {
                                   width: '50px',
                                   height: '50px',
                                   borderRadius: '50%',
-                                  border: `2px solid white`,
+                                  border: '2px solid',
+                                  borderColor: 'common.white',
                                   backgroundColor: color.main,
-                                  boxShadow: `0 0 0 2px ${color.main}, 0 2px 8px rgba(0,0,0,0.15)`,
+                                  boxShadow: `0 0 0 2px ${color.main}, 0 2px 8px ${alpha(theme.palette.common.black, 0.15)}`,
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   fontWeight: 'bold',
                                   fontSize: '12px',
-                                  color: 'white',
+                                  color: 'common.white',
                                   zIndex: 3
                                 }}
                               >
@@ -1461,8 +1678,9 @@ export default function ResumeInsights() {
                                     width: 14,
                                     height: 14,
                                     borderRadius: '50%',
-                                    backgroundColor: '#4CAF50',
-                                    border: '3px solid white'
+                                    backgroundColor: 'success.main',
+                                    border: '3px solid',
+                                    borderColor: 'common.white'
                                   }} />
                                 )}
                               </Box>
@@ -1480,7 +1698,7 @@ export default function ResumeInsights() {
                                   backgroundColor: color.bg,
                                   border: `1px solid ${color.main}`,
                                   borderRadius: 3,
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                  boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.15)}`,
                                   zIndex: 2,
                                   padding: 1.5
                                 }}
@@ -1509,7 +1727,7 @@ export default function ResumeInsights() {
                                     size="small"
                                     sx={{ 
                                       backgroundColor: color.main,
-                                      color: 'white',
+                                      color: 'common.white',
                                       fontSize: '0.65rem',
                                       fontWeight: 'bold'
                                     }}
@@ -1519,8 +1737,8 @@ export default function ResumeInsights() {
                                       label="Current"
                                       size="small"
                                       sx={{
-                                        backgroundColor: '#4caf50',
-                                        color: 'white',
+                                        backgroundColor: 'success.main',
+                                        color: 'common.white',
                                         fontSize: '0.65rem',
                                         fontWeight: 'bold'
                                       }}
@@ -1583,7 +1801,37 @@ export default function ResumeInsights() {
         </Grid>
       </Grid>
       </Box>
-      
+
+      {/* Back-to-top FAB */}
+      <Zoom in={showFab}>
+        <Fab
+          color="primary"
+          size="medium"
+          onClick={() => typeof window !== 'undefined' && window.scrollTo({ top: 0, behavior: 'smooth' })}
+          sx={{ position: 'fixed', bottom: 24, right: 24, boxShadow: 6 }}
+          aria-label="back to top"
+        >
+          <KeyboardArrowUp />
+        </Fab>
+      </Zoom>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={2000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity || 'success'}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
       {/* Error Dialog */}
       <Dialog
         open={openDialog}

@@ -1,19 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   Box, Typography, Button, Grid, Card, CardContent, TextField, Input, Stack,
   LinearProgress, Paper, Chip, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Divider, CircularProgress, Select, MenuItem, FormControl
+  TableHead, TableRow, Divider, CircularProgress, Select, MenuItem, FormControl, Fade,
+  Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import { Phone, Email } from '@mui/icons-material';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import Image from 'next/image';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { usePdfText } from '../src/context/PdfTextContext';
+import { useToast } from '../src/context/ToastContext';
 import Navigation from '../src/components/Navigation';
+import { motion } from 'framer-motion';
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
+
+// Motion wrappers
+const MotionBox = motion(Box);
+const MotionButton = motion(Button);
 
 export default function Home() {
   const [resumeFile, setResumeFile] = useState(null);
@@ -22,10 +30,16 @@ export default function Home() {
   const [userJobRole, setUserJobRole] = useState('');
   const [showInsights, setShowInsights] = useState(false);
   const [pdfText, setPdfTextLocal] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadHint, setUploadHint] = useState('');
+  const fileInputRef = useRef(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveDialogMessage, setSaveDialogMessage] = useState('');
   
   // Context values
   const { setPdfText, setJobRole: setContextJobRole, setDescription: setContextDescription, setUserName } = usePdfText();
   const router = require('next/router').useRouter ? require('next/router').useRouter() : require('next/router').default.useRouter();
+  const { showToast } = useToast();
   
   // Reset all fields when landing on the index page
   useEffect(() => {
@@ -78,6 +92,35 @@ export default function Home() {
            !loadingCustomScores && !loadingOtherComments && 
            !loadingFunctionalConstituent && !loadingTechnicalConstituent && 
            !loadingEducation && !loadingProjects && !loadingEmployment;
+  };
+
+  // Upload validations and micro-interactions
+  const maxFileSizeMB = 5; // limit file size to 5MB
+  const acceptedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain'
+  ];
+
+  const validateFile = (file) => {
+    if (!file) return false;
+    const typeOk = acceptedTypes.includes(file.type) || /\.(pdf|docx?|txt)$/i.test(file.name || '');
+    const sizeOk = (file.size || 0) <= maxFileSizeMB * 1024 * 1024;
+    if (!typeOk && !sizeOk) {
+      setUploadHint(`Unsupported type and file too large (> ${maxFileSizeMB}MB).`);
+      return false;
+    }
+    if (!typeOk) {
+      setUploadHint('Unsupported file type. Please upload PDF, DOC, DOCX, or TXT.');
+      return false;
+    }
+    if (!sizeOk) {
+      setUploadHint(`File too large. Max size is ${maxFileSizeMB}MB.`);
+      return false;
+    }
+    setUploadHint(`Ready: ${file.name} (${Math.round(file.size / 1024)} KB)`);
+    return true;
   };
 
   // Helper function to determine progress bar color based on score
@@ -174,8 +217,44 @@ export default function Home() {
 
   // PDF text extraction logic (without auto-navigation)
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    setResumeFile(file);
+    const file = e.target.files && e.target.files[0];
+    if (file && validateFile(file)) {
+      setResumeFile(file);
+    } else if (file) {
+      // keep previous valid file if any
+      console.warn('Invalid file dropped/selected');
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file && validateFile(file)) {
+      setResumeFile(file);
+    }
+  };
+
+  // Hover lift style for tiles
+  const liftTileSx = {
+    transition: 'transform 180ms ease, box-shadow 180ms ease',
+    '&:hover': {
+      transform: 'translateY(-3px) scale(1.01)',
+      boxShadow: 6
+    }
   };
 
   // Function to call all APIs and handle responses progressively
@@ -523,6 +602,8 @@ export default function Home() {
     setEmploymentHistory([]);
     setProjectsInfo([]);
     setPdfTextLocal('');
+    setIsDragOver(false);
+    setUploadHint('');
     
     // Reset loading states
     setLoadingScore(false);
@@ -540,27 +621,71 @@ export default function Home() {
     setUserName('');
     setUserJobRole('');
     setResumeFile(null);
+    if (fileInputRef.current) {
+      // Clear the native file input so label resets and same file can be re-selected
+      fileInputRef.current.value = null;
+    }
     
     // Scroll to top of page
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Form validity for CTA animation
+  const isFormValid = !!(resumeFile && userJobRole.trim());
+
   // Remove default handleResumeSubmit, let upload trigger navigation
 
   return (
-    <Box sx={{ background: '#f7faff', minHeight: '100vh', pb: 8 }}>
+    <Box sx={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)', minHeight: '100vh', pb: 8 }}>
       <Navigation currentPage="Home" />
 
       {/* Hero Section */}
-      <Box sx={{ background: '#e7f0ff', borderRadius: 4, mt: 4, mb: 6, mx: 'auto', maxWidth: 1200, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', p: { xs: 3, md: 6 }, gap: { xs: 4, md: 0 } }}>
+      <Box sx={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)', border: '1px solid #333333', borderRadius: 4, mt: 4, mb: 6, mx: 'auto', maxWidth: 1200, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', p: { xs: 3, md: 6 }, gap: { xs: 4, md: 0 } }}>
         <Box sx={{ flex: 1, px: { xs: 0, md: 3 } }}>
           <Typography variant="h3" fontWeight={700} gutterBottom>
-            Professional <span style={{ color: '#2563eb' }}>Resume Services</span>
+            Professional <span style={{ color: '#00e676' }}>Resume Services</span>
           </Typography>
-          <Typography sx={{ color: '#333', fontSize: 18, mb: 2 }}>
+          <Typography sx={{ color: '#b0b0b0', fontSize: 18, mb: 2 }}>
             Upload your resume for instant insights, search stored resumes for job fit, and request personalized feedback — all in one place.
           </Typography>
-        </Box>
+          {/* Save Success Dialog */}
+      <Dialog
+        open={saveDialogOpen}
+        onClose={() => setSaveDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: 'background.paper',
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            minWidth: { xs: 280, sm: 420 }
+          }
+        }}
+      >
+        <DialogTitle>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <CheckCircleOutlineIcon sx={{ color: 'primary.main' }} />
+            <Typography variant="h6" fontWeight={700}>
+              {saveDialogMessage || 'Resume Data Saved'}
+            </Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Your resume data has been saved successfully.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button variant="outlined" onClick={() => setSaveDialogOpen(false)}>
+            Close
+          </Button>
+          <Button variant="contained" onClick={() => setSaveDialogOpen(false)}>
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+    </Box>
         <Box sx={{ flex: 1, textAlign: 'center' }}>
           <Image
             src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=600&q=80"
@@ -585,12 +710,12 @@ export default function Home() {
               fullWidth
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              sx={{ bgcolor: '#fff' }}
+              sx={{ '& .MuiOutlinedInput-root': { backgroundColor: '#212121' } }}
               label="Name"
             />
           </Grid>
           <Grid item xs={12} md={4}>
-            <FormControl fullWidth sx={{ bgcolor: '#fff' }}>
+            <FormControl fullWidth sx={{ '& .MuiOutlinedInput-root': { backgroundColor: '#212121' } }}>
               <Select
                 value={userJobRole}
                 onChange={(e) => setUserJobRole(e.target.value)}
@@ -640,30 +765,84 @@ export default function Home() {
             </FormControl>
           </Grid>
           <Grid item xs={12} md={4}>
-            <input
-              accept=".pdf,.doc,.docx,.txt"
-              style={{ display: 'none' }}
-              id="main-resume-upload"
-              type="file"
-              onChange={handleFileChange}
-            />
-            <label htmlFor="main-resume-upload">
-              <Button 
-                variant="contained" 
-                color="primary" 
-                component="span" 
-                fullWidth
-                sx={{ fontWeight: 700, py: 1.5, borderRadius: 2, height: '56px' }}
-              >
-                {resumeFile ? resumeFile.name : 'Choose PDF or Word File'}
-              </Button>
-            </label>
+            <MotionBox
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              sx={{
+                p: 1,
+                borderRadius: 2,
+                border: '2px dashed',
+                borderColor: isDragOver ? '#00e676' : '#444',
+                backgroundColor: isDragOver ? 'rgba(0, 230, 118, 0.06)' : 'transparent',
+                transition: 'all 180ms ease',
+                boxShadow: isDragOver ? '0 0 0 4px rgba(0, 230, 118, 0.12), 0 8px 24px rgba(0,0,0,0.35)' : 'none'
+              }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.995 }}
+           >
+              <input
+                accept=".pdf,.doc,.docx,.txt"
+                style={{ display: 'none' }}
+                id="main-resume-upload"
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+              />
+              <label htmlFor="main-resume-upload">
+                <MotionButton 
+                  variant="contained" 
+                  color="primary" 
+                  component="span" 
+                  fullWidth
+                  sx={{ 
+                    bgcolor: '#00e676', 
+                    color: '#000000', 
+                    fontWeight: 600, 
+                    py: 1.5, 
+                    borderRadius: 2, 
+                    border: 'none', 
+                    transition: 'box-shadow 160ms ease, background-color 0.2s ease',
+                    boxShadow: isDragOver ? '0 8px 24px rgba(0, 230, 118, 0.35)' : 'none',
+                    '&:hover': { 
+                      bgcolor: '#00c853', 
+                      color: '#000000'
+                    } 
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {resumeFile ? resumeFile.name : 'Choose or Drop Resume (PDF/DOC/DOCX/TXT)'}
+                </MotionButton>
+              </label>
+
+              <Fade in={Boolean(uploadHint)} timeout={200}>
+                <Typography variant="caption" sx={{ display: 'block', mt: 1 }} color={uploadHint.startsWith('Ready') ? 'success.main' : 'warning.main'} aria-live="polite">
+                  {uploadHint || ' '}
+                </Typography>
+              </Fade>
+            </MotionBox>
           </Grid>
         </Grid>
         
-        {/* GET INSIGHTS Button - Centered */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 2 }}>
-          <Button 
+        {/* Actions - Clear + Get Insights (Centered as a group) */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mt: 3, mb: 2 }}>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={handleClearAnalysis}
+            sx={{
+              fontWeight: 700,
+              py: 1.5,
+              px: 3,
+              borderRadius: 2,
+              height: '56px',
+              minWidth: '140px',
+            }}
+          >
+            Clear
+          </Button>
+          <MotionButton 
             variant="contained" 
             color="success" 
             disabled={!resumeFile || !userJobRole.trim()}
@@ -674,11 +853,23 @@ export default function Home() {
               px: 4,
               borderRadius: 2, 
               height: '56px',
-              minWidth: '200px'
+              minWidth: '200px',
+              color: '#000000',
+              transition: 'box-shadow 180ms ease, background-color 0.2s ease',
+              boxShadow: isFormValid ? '0 8px 24px rgba(76, 175, 80, 0.35)' : 'none',
+              '&:hover': {
+                color: '#000000',
+              },
+              '&.Mui-disabled': {
+                color: '#666666'
+              }
             }}
+            animate={{ scale: isFormValid ? 1.02 : 1 }}
+            whileHover={isFormValid ? { scale: 1.04 } : {}}
+            whileTap={{ scale: 0.98 }}
           >
             GET INSIGHTS
-          </Button>
+          </MotionButton>
         </Box>
       </Box>
 
@@ -688,7 +879,7 @@ export default function Home() {
           <Grid container spacing={3}>
             {/* Left Sidebar */}
             <Grid item xs={12} md={3}>
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   Resume Score
                 </Typography>
@@ -705,12 +896,12 @@ export default function Home() {
               </Paper>
 
               {/* Detailed Scores with Contact Information */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 {/* Detailed Scores Section */}
                 <Box sx={{ mb: 3 }}>
                   <Grid container spacing={2}>
                     <Grid item xs={12}>
-                      <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: '#333' }}>
+                      <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: '#ffffff' }}>
                         Searchability
                       </Typography>
                       {loadingCustomScores ? (
@@ -718,13 +909,13 @@ export default function Home() {
                       ) : (
                         <Box sx={{ 
                           height: 12, 
-                          backgroundColor: '#f0f0f0', 
+                          backgroundColor: '#333333', 
                           borderRadius: 6, 
                           overflow: 'hidden',
                           mb: 0.5
                         }}>
-                          <Box sx={{
-                            height: '100%',
+                          <Box sx={{ 
+                            height: '100%', 
                             width: `${customScores.searchibility_score || 0}%`,
                             backgroundColor: getScoreColor(customScores.searchibility_score || 0),
                             borderRadius: 6,
@@ -734,7 +925,7 @@ export default function Home() {
                       )}
                     </Grid>
                     <Grid item xs={12}>
-                      <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: '#333' }}>
+                      <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: '#ffffff' }}>
                         Hard Skills
                       </Typography>
                       {loadingCustomScores ? (
@@ -742,7 +933,7 @@ export default function Home() {
                       ) : (
                         <Box sx={{ 
                           height: 12, 
-                          backgroundColor: '#f0f0f0', 
+                          backgroundColor: '#333333', 
                           borderRadius: 6, 
                           overflow: 'hidden',
                           mb: 0.5
@@ -758,7 +949,7 @@ export default function Home() {
                       )}
                     </Grid>
                     <Grid item xs={12}>
-                      <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: '#333' }}>
+                      <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: '#ffffff' }}>
                         Soft Skills
                       </Typography>
                       {loadingCustomScores ? (
@@ -766,7 +957,7 @@ export default function Home() {
                       ) : (
                         <Box sx={{ 
                           height: 12, 
-                          backgroundColor: '#f0f0f0', 
+                          backgroundColor: '#333333', 
                           borderRadius: 6, 
                           overflow: 'hidden',
                           mb: 0.5
@@ -782,7 +973,7 @@ export default function Home() {
                       )}
                     </Grid>
                     <Grid item xs={12}>
-                      <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: '#333' }}>
+                      <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: '#ffffff' }}>
                         Formatting
                       </Typography>
                       {loadingCustomScores ? (
@@ -790,7 +981,7 @@ export default function Home() {
                       ) : (
                         <Box sx={{ 
                           height: 12, 
-                          backgroundColor: '#f0f0f0', 
+                          backgroundColor: '#333333', 
                           borderRadius: 6, 
                           overflow: 'hidden',
                           mb: 0.5
@@ -810,10 +1001,10 @@ export default function Home() {
 
                 {/* Contact Information Section */}
                 <Box sx={{ 
-                  backgroundColor: '#f8f9fa', 
+                  backgroundColor: '#212121', 
                   borderRadius: 2, 
                   p: 2.5,
-                  border: '1px solid #e9ecef'
+                  border: '1px solid #333333'
                 }}>
                   <Typography variant="h6" fontWeight={600} gutterBottom sx={{ textAlign: 'center', mb: 2 }}>
                     Contact Information
@@ -827,7 +1018,7 @@ export default function Home() {
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                         <Phone sx={{ mr: 2, fontSize: 20, color: '#666' }} />
                         <Box>
-                          <Typography variant="body2" fontWeight={600} sx={{ color: '#333' }}>
+                          <Typography variant="body2" fontWeight={600} sx={{ color: '#ffffff' }}>
                             Phone:
                           </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ fontStyle: contactInfo.mobile_number ? 'normal' : 'italic' }}>
@@ -838,7 +1029,7 @@ export default function Home() {
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Email sx={{ mr: 2, fontSize: 20, color: '#666' }} />
                         <Box>
-                          <Typography variant="body2" fontWeight={600} sx={{ color: '#333' }}>
+                          <Typography variant="body2" fontWeight={600} sx={{ color: '#ffffff' }}>
                             Email:
                           </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ fontStyle: contactInfo.email_id ? 'normal' : 'italic' }}>
@@ -852,7 +1043,7 @@ export default function Home() {
               </Paper>
 
               {/* Functional Exposure */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   Functional Exposure
                 </Typography>
@@ -877,7 +1068,7 @@ export default function Home() {
               </Paper>
 
               {/* Technical Exposure */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, ...liftTileSx }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   Technical Exposure
                 </Typography>
@@ -891,7 +1082,7 @@ export default function Home() {
                       </Typography>
                       <Box sx={{ 
                         p: 3, 
-                        backgroundColor: '#f1f8e9', 
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)', 
                         borderRadius: 2, 
                         minHeight: 100,
                         border: '2px solid #4CAF50',
@@ -927,7 +1118,7 @@ export default function Home() {
                       </Typography>
                       <Box sx={{ 
                         p: 3, 
-                        backgroundColor: '#fff8e1', 
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)', 
                         borderRadius: 2, 
                         minHeight: 100,
                         border: '2px solid #FF9800',
@@ -963,7 +1154,7 @@ export default function Home() {
                       </Typography>
                       <Box sx={{ 
                         p: 3, 
-                        backgroundColor: '#ffebee', 
+                        backgroundColor: 'rgba(244, 67, 54, 0.1)', 
                         borderRadius: 2, 
                         minHeight: 100,
                         border: '2px solid #F44336'
@@ -1000,7 +1191,7 @@ export default function Home() {
             {/* Main Content */}
             <Grid item xs={12} md={9}>
               {/* Summary Analysis */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   Summary
                 </Typography>
@@ -1019,14 +1210,14 @@ export default function Home() {
                     {/* Summary Content Section */}
                     {summaryInfo.summary && Array.isArray(summaryInfo.summary) && summaryInfo.summary.length > 0 && (
                       <Box sx={{ mb: 3 }}>
-                        <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ color: '#333' }}>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ color: '#ffffff' }}>
                           Resume Summary
                         </Typography>
                         <Box sx={{ 
-                          backgroundColor: '#f8f9fa',
+                          backgroundColor: '#212121',
                           p: 3,
                           borderRadius: 2,
-                          border: '1px solid #e9ecef',
+                          border: '1px solid #333333',
                           mb: 2
                         }}>
                           {summaryInfo.summary.map((summaryPoint, index) => (
@@ -1036,7 +1227,7 @@ export default function Home() {
                               sx={{ 
                                 mb: index < summaryInfo.summary.length - 1 ? 1.5 : 0,
                                 lineHeight: 1.6,
-                                color: '#333'
+                                color: '#ffffff'
                               }}
                             >
                               • {summaryPoint}
@@ -1062,10 +1253,10 @@ export default function Home() {
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.primary" sx={{ 
-                      backgroundColor: '#f5f5f5',
+                      backgroundColor: '#2a2a2a',
                       p: 2,
                       borderRadius: 1,
-                      border: '1px solid #e0e0e0'
+                      border: '1px solid #333333'
                     }}>
                       {summaryInfo.comment || 'Analyzing summary...'}
                     </Typography>
@@ -1074,7 +1265,7 @@ export default function Home() {
               </Paper>
 
               {/* Projects */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   Projects
                 </Typography>
@@ -1092,16 +1283,16 @@ export default function Home() {
                             height: '100%',
                             display: 'flex',
                             flexDirection: 'column',
-                            backgroundColor: '#fff',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                            backgroundColor: '#1a1a1a',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
                             '&:hover': {
-                              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                              boxShadow: '0 12px 40px rgba(0, 230, 118, 0.15)',
                               transform: 'translateY(-2px)',
                               transition: 'all 0.3s ease'
                             }
                           }}>
                             {/* Project Title */}
-                            <Typography variant="h6" fontWeight={600} sx={{ mb: 1.5, color: '#333' }}>
+                            <Typography variant="h6" fontWeight={600} sx={{ mb: 1.5, color: '#ffffff' }}>
                               {project.title || project.project_name || 'Untitled Project'}
                             </Typography>
                             
@@ -1129,7 +1320,7 @@ export default function Home() {
                                           height: 24,
                                           borderColor: '#2563eb',
                                           color: '#2563eb',
-                                          backgroundColor: '#f0f4ff'
+                                          backgroundColor: 'rgba(33, 150, 243, 0.1)'
                                         }}
                                       />
                                     ))
@@ -1194,7 +1385,7 @@ export default function Home() {
               </Paper>
 
               {/* Resume Fixes */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                   <Typography variant="h6" fontWeight={600}>
                     Resume Fixes
@@ -1222,7 +1413,7 @@ export default function Home() {
                   <TableContainer>
                     <Table>
                       <TableHead>
-                        <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableRow sx={{ backgroundColor: '#2a2a2a' }}>
                           <TableCell sx={{ fontWeight: 600, width: '20%' }}>Check</TableCell>
                           <TableCell sx={{ fontWeight: 600, width: '15%' }}>Status</TableCell>
                           <TableCell sx={{ fontWeight: 600, width: '65%' }}>Details</TableCell>
@@ -1352,7 +1543,7 @@ export default function Home() {
               </Paper>
 
               {/* Professional Timeline */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   Career Growth
                 </Typography>
@@ -1554,7 +1745,7 @@ export default function Home() {
               </Paper>
 
               {/* Education History */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3 }}>
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
                   Education Timeline
                 </Typography>
@@ -1867,15 +2058,16 @@ export default function Home() {
                   if (response.ok) {
                     const result = await response.json();
                     console.log('Save Resume response:', result);
-                    alert('Resume data saved successfully!');
+                    setSaveDialogMessage('Resume Data Saved');
+                    setSaveDialogOpen(true);
                   } else {
                     console.error('Failed to save resume data:', response.status);
-                    alert('Failed to save resume data. Please try again.');
+                    showToast('Failed to save resume data. Please try again.', 'error', null);
                   }
                   
                 } catch (error) {
                   console.error('Error saving resume data:', error);
-                  alert('Error saving resume data. Please try again.');
+                  showToast('Error saving resume data. Please try again.', 'error', null);
                 }
               }}
             >
