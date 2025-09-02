@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Skeleton, Tooltip, Snackbar, Alert, Zoom, Fab, Collapse } from '@mui/material';
-import { Phone, Email, Check, ContentCopy, KeyboardArrowUp } from '@mui/icons-material';
+import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Skeleton, Tooltip, Snackbar, Alert, Zoom, Fab, Collapse, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Phone, Email, Check, ContentCopy, KeyboardArrowUp, WorkOutline, CheckCircle, Code } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Pie } from 'react-chartjs-2';
@@ -129,7 +129,11 @@ export default function ResumeInsights() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [customScores, setCustomScores] = useState({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
   const [loadingCustomScores, setLoadingCustomScores] = useState(false);
-  const [otherComments, setOtherComments] = useState({ headings_feedback: '', title_match: '', formatting_feedback: '' });
+  const [otherComments, setOtherComments] = useState({ 
+    headings_feedback: { score: 0, comment: '' }, 
+    title_match: { score: 0, comment: '' }, 
+    formatting_feedback: { score: 0, comment: '' } 
+  });
   const [loadingOtherComments, setLoadingOtherComments] = useState(false);
   const [functionalConstituent, setFunctionalConstituent] = useState({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
   const [loadingFunctionalConstituent, setLoadingFunctionalConstituent] = useState(false);
@@ -141,6 +145,18 @@ export default function ResumeInsights() {
   const [loadingEmployment, setLoadingEmployment] = useState(false);
   const [projectsInfo, setProjectsInfo] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
+  const [totalExperience, setTotalExperience] = useState(null);
+  const [relevantExperience, setRelevantExperience] = useState(null);
+  const [experienceError, setExperienceError] = useState(null);
+
+  // Recruiters Overview state
+  const [loadingRecruitersOverview, setLoadingRecruitersOverview] = useState(false);
+  const [recruitersOverview, setRecruitersOverview] = useState({
+    bullets: [],
+    relevant_experience: '',
+    technical_proficiency: []
+  });
+  const [recruitersOverviewError, setRecruitersOverviewError] = useState(null);
 
   // Email input for direct database query
   const [emailInput, setEmailInput] = useState('');
@@ -210,6 +226,9 @@ export default function ResumeInsights() {
     // Clear all state variables to null/empty
     setResumeScore(null);
     setResumeItems([]);
+    setTotalExperience(null);
+    setRelevantExperience(null);
+    setExperienceError(null);
     setContactInfo({ mobile_number: '', email_id: '', color: '', comment: '' });
     setSummaryInfo({ score: 0, color: 'red', label: 'critical', comment: 'No data available', summary: [] });
     setCustomScores({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
@@ -219,16 +238,22 @@ export default function ResumeInsights() {
     setEducationHistory([]);
     setEmploymentHistory([]);
     setProjectsInfo([]);
+    setRecruitersOverview({
+      bullets: [],
+      relevant_experience: '',
+      technical_proficiency: []
+    });
     
-    // Clear context data
-    setUserName('');
-    setPdfText('');
-    setJobRole('');
+    // Clear context data - IMPORTANT: This must happen for direct access
+    if (setUserName) setUserName('');
+    if (setPdfText) setPdfText('');
+    if (setJobRole) setJobRole('');
     
     // Clear other states
     setIsDatabaseQuery(false);
     setScoreError(null);
     setEmailInput('');
+    setRecruitersOverviewError(null);
     
     // Set all loading states to false
     setLoadingScore(false);
@@ -242,6 +267,7 @@ export default function ResumeInsights() {
     setLoadingProjects(false);
     setLoadingEmployment(false);
     setLoadingEmailQuery(false);
+    setLoadingRecruitersOverview(false);
   };
 
   // Helper function to determine progress bar color based on score
@@ -250,6 +276,22 @@ export default function ResumeInsights() {
     if (score >= 60) return 'primary';
     if (score >= 40) return 'warning';
     return 'error';
+  };
+
+  // Helper function to get color based on score
+  const getColorFromScore = (score) => {
+    if (score >= 80) return 'success';
+    if (score >= 60) return 'primary';
+    if (score >= 40) return 'warning';
+    return 'error';
+  };
+
+  // Helper function to get label based on score
+  const getLabelFromScore = (score) => {
+    if (score >= 80) return 'Good';
+    if (score >= 60) return 'Satisfactory';
+    if (score >= 40) return 'Needs Work';
+    return 'Critical';
   };
 
   // Helper function to transform functional constituent data to pie chart format
@@ -378,6 +420,7 @@ export default function ResumeInsights() {
     setLoadingEducation(true);
     setLoadingProjects(true);
     setLoadingEmployment(true);
+    setLoadingRecruitersOverview(true);
     setScoreError(null);
 
     // IMPORTANT: Clear all context data BEFORE making the API call
@@ -476,11 +519,24 @@ export default function ResumeInsights() {
       // Map get_other_comments data
       if (data.get_other_comments) {
         const otherCommentsData = typeof data.get_other_comments === 'string' ? JSON.parse(data.get_other_comments) : data.get_other_comments;
+        
+        // Handle AspectFeedback objects with score and comment fields
         setOtherComments({
-          headings_feedback: otherCommentsData.headings_feedback || 'Section headings analysis not available',
-          title_match: otherCommentsData.title_match || 'Job title match analysis not available',
-          formatting_feedback: otherCommentsData.formatting_feedback || 'Data formatting analysis not available'
+          headings_feedback: {
+            score: otherCommentsData.headings_feedback?.score || 0,
+            comment: otherCommentsData.headings_feedback?.comment || 'Section headings analysis not available'
+          },
+          title_match: {
+            score: otherCommentsData.title_match?.score || 0,
+            comment: otherCommentsData.title_match?.comment || 'Job title match analysis not available'
+          },
+          formatting_feedback: {
+            score: otherCommentsData.formatting_feedback?.score || 0,
+            comment: otherCommentsData.formatting_feedback?.comment || 'Data formatting analysis not available'
+          }
         });
+        
+        console.log('Processed AspectFeedback objects:', otherCommentsData);
       }
 
       // Map get_functional_constituent data
@@ -537,6 +593,58 @@ export default function ResumeInsights() {
         console.log('DEBUG - get_company data missing in API response');
         setEmploymentHistory([]);
       }
+      
+      // Map getYoe data (Years of Experience)
+      console.log('DEBUG - getYoe data received:', data.getYoe);
+      console.log('DEBUG - getRyoe data received:', data.getRyoe);
+      console.log('DEBUG - get_yoe data received:', data.get_yoe);
+      console.log('DEBUG - get_ryoe data received:', data.get_ryoe);
+      
+      // Try all possible field names for total experience
+      if (data.getYoe) {
+        const yoeData = typeof data.getYoe === 'string' ? JSON.parse(data.getYoe) : data.getYoe;
+        console.log('DEBUG - Parsed YOE data:', yoeData);
+        setTotalExperience(yoeData.yoe || null);
+        setRelevantExperience(yoeData.ryoe || null);
+      } else if (data.get_yoe !== undefined) {
+        console.log('DEBUG - Using get_yoe directly:', data.get_yoe);
+        setTotalExperience(data.get_yoe);
+        setRelevantExperience(data.get_ryoe || null);
+      } else {
+        console.log('DEBUG - YOE data missing in API response');
+        setTotalExperience(null);
+        setRelevantExperience(null);
+      }
+      
+      // Map getRecruitersOverview data
+      console.log('DEBUG - getRecruitersOverview data received:', data.getRecruitersOverview);
+      console.log('DEBUG - get_recruiters_overview data received:', data.get_recruiters_overview);
+      
+      // Try all possible field names for recruiters overview
+      if (data.getRecruitersOverview) {
+        const recruitersData = typeof data.getRecruitersOverview === 'string' ? JSON.parse(data.getRecruitersOverview) : data.getRecruitersOverview;
+        console.log('DEBUG - Parsed Recruiters Overview data:', recruitersData);
+        setRecruitersOverview({
+          bullets: Array.isArray(recruitersData.bullets) ? recruitersData.bullets : [],
+          relevant_experience: recruitersData.relevant_experience || '',
+          technical_proficiency: Array.isArray(recruitersData.technical_proficiency) ? recruitersData.technical_proficiency : []
+        });
+      } else if (data.get_recruiters_overview) {
+        const recruitersData = typeof data.get_recruiters_overview === 'string' ? JSON.parse(data.get_recruiters_overview) : data.get_recruiters_overview;
+        console.log('DEBUG - Parsed get_recruiters_overview data:', recruitersData);
+        setRecruitersOverview({
+          bullets: Array.isArray(recruitersData.bullets) ? recruitersData.bullets : [],
+          relevant_experience: recruitersData.relevant_experience || '',
+          technical_proficiency: Array.isArray(recruitersData.technical_proficiency) ? recruitersData.technical_proficiency : []
+        });
+      } else {
+        console.log('DEBUG - Recruiters Overview data missing in API response');
+        setRecruitersOverview({
+          bullets: [],
+          relevant_experience: '',
+          technical_proficiency: []
+        });
+      }
 
       // Set all loading states to false
       setLoadingScore(false);
@@ -549,6 +657,7 @@ export default function ResumeInsights() {
       setLoadingEducation(false);
       setLoadingProjects(false);
       setLoadingEmployment(false);
+      setLoadingRecruitersOverview(false);
       
       // Reset database query flag
       setIsDatabaseQuery(false);
@@ -568,21 +677,22 @@ export default function ResumeInsights() {
       setLoadingEducation(false);
       setLoadingProjects(false);
       setLoadingEmployment(false);
+      setLoadingRecruitersOverview(false);
+    }
+};
+
+// FAB visibility on scroll
+useEffect(() => {
+  const onScroll = () => {
+    if (typeof window !== 'undefined') {
+      setShowFab(window.scrollY > 400);
     }
   };
-
-  // FAB visibility on scroll
-  useEffect(() => {
-    const onScroll = () => {
-      if (typeof window !== 'undefined') {
-        setShowFab(window.scrollY > 400);
-      }
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('scroll', onScroll, { passive: true });
-      onScroll();
-      return () => window.removeEventListener('scroll', onScroll);
-    }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }
   }, []);
 
   const isValidEmail = (email) => /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email);
@@ -614,6 +724,12 @@ export default function ResumeInsights() {
     const urlParams = new URLSearchParams(window.location.search);
     const hasEmailParam = urlParams.get('email_id');
     
+    // IMPORTANT: Always reset context values on component mount
+    // This prevents userName from persisting when accessing the page directly
+    if (setUserName) setUserName('');
+    if (setPdfText) setPdfText('');
+    if (setJobRole) setJobRole('');
+    
     if (!hasEmailParam) {
       console.log('DIRECT ACCESS DETECTED - Resetting all states');
       setIsDirectAccess(true);
@@ -621,10 +737,6 @@ export default function ResumeInsights() {
     } else {
       console.log('EMAIL PARAMETER DETECTED - Will load fresh data from API');
       setIsDirectAccess(false);
-      // Still clear context to prevent persistence, but allow fresh API data
-      setUserName('');
-      setPdfText('');
-      setJobRole('');
     }
   }, []); // Run only on mount
 
@@ -660,6 +772,9 @@ export default function ResumeInsights() {
       
       // Clear all state variables to null/empty
       resetAllStates(); // Use the existing resetAllStates function for consistency
+      
+      // Double-check that userName is cleared
+      if (setUserName) setUserName('');
       return;
     }
     
@@ -853,6 +968,50 @@ export default function ResumeInsights() {
               />
             )}
             {/* Upload & re-scan button removed */}
+            {/* Experience Cards */}
+            <Box sx={{ mt: 3, mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, backgroundColor: 'surface.main' }}>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2, color: 'text.primary' }}>
+                Experience Overview
+              </Typography>
+              
+              {loadingEmployment ? (
+                <>
+                  <Skeleton variant="text" width={120} />
+                  <Skeleton variant="text" width={200} />
+                </>
+              ) : experienceError ? (
+                <Typography variant="body2" color="error">
+                  {experienceError}
+                </Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {/* Total Experience */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WorkOutline sx={{ fontSize: 18, color: totalExperience ? 'primary.main' : 'text.disabled' }} />
+                    <Typography variant="body2" sx={{ fontWeight: 500, minWidth: '120px' }}>Total Experience:</Typography>
+                    <Chip
+                      label={totalExperience ? `${totalExperience} years` : 'Not available'}
+                      size="small"
+                      color={totalExperience ? 'primary' : 'default'}
+                      sx={{ fontSize: '0.75rem' }}
+                    />
+                  </Box>
+                  
+                  {/* Relevant Experience */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WorkOutline sx={{ fontSize: 18, color: relevantExperience ? 'success.main' : 'text.disabled' }} />
+                    <Typography variant="body2" sx={{ fontWeight: 500, minWidth: '120px' }}>Relevant Experience:</Typography>
+                    <Chip
+                      label={relevantExperience ? `${relevantExperience} years` : 'Not available'}
+                      size="small"
+                      color={relevantExperience ? 'success' : 'default'}
+                      sx={{ fontSize: '0.75rem' }}
+                    />
+                  </Box>
+                </Box>
+              )}
+            </Box>
+            
             <Box sx={{ textAlign: 'left', mt: 2 }}>
               <Typography variant="body2" fontWeight={700}>Searchability</Typography>
               {loadingCustomScores ? <Skeleton variant="rectangular" height={8} sx={{ borderRadius: 1, mb: 1 }} /> : (
@@ -970,7 +1129,7 @@ export default function ResumeInsights() {
           
           {/* Technical Exposure Section */}
           <Paper sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2 }}>
-            <Typography variant="subtitle1" fontWeight={700} gutterBottom>Technical Exposure</Typography>
+            <Typography variant="h6" fontWeight={700} gutterBottom>Technical Exposure</Typography>
             {loadingTechnicalConstituent ? (
               <Grid container spacing={2} sx={{ mt: 1 }}>
                 <Grid item xs={12}>
@@ -1070,6 +1229,97 @@ export default function ResumeInsights() {
                   </Box>
                 </Grid>
               </Grid>
+            )}
+          </Paper>
+
+          {/* Recruiters Overview Section */}
+          <Paper sx={{ p: 3, mt: 3, mb: 3 }}>
+            <Typography variant="h6" fontWeight={700}>Recruiters Overview</Typography>
+            <Typography variant="body2" sx={{ my: 2 }}>
+              AI-powered analysis of your resume from a recruiter's perspective.
+            </Typography>
+            
+            {loadingRecruitersOverview ? (
+              <Box sx={{ mt: 2 }}>
+                <Skeleton variant="text" width={160} />
+                <Skeleton variant="text" width="80%" />
+                <Skeleton variant="text" width="90%" />
+                <Skeleton variant="text" width="75%" />
+              </Box>
+            ) : recruitersOverviewError ? (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {recruitersOverviewError}
+              </Alert>
+            ) : (
+              <Box sx={{ mt: 2 }}>
+                {/* Relevant Experience Summary */}
+                {recruitersOverview.relevant_experience && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                      Relevant Experience:
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      p: 2, 
+                      backgroundColor: 'surface.light', 
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      fontWeight: 500
+                    }}>
+                      {recruitersOverview.relevant_experience}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {/* Bullet Points */}
+                {recruitersOverview.bullets && recruitersOverview.bullets.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                      Key Highlights:
+                    </Typography>
+                    <List dense disablePadding>
+                      {recruitersOverview.bullets.map((bullet, index) => (
+                        <ListItem key={index} sx={{ py: 0.5 }}>
+                          <ListItemIcon sx={{ minWidth: 28 }}>
+                            <Code fontSize="small" color="primary" />
+                          </ListItemIcon>
+                          <ListItemText primary={bullet} primaryTypographyProps={{ variant: 'body2' }} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
+                
+                {/* Technical Proficiency */}
+                {recruitersOverview.technical_proficiency && recruitersOverview.technical_proficiency.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                      Technical Proficiency:
+                    </Typography>
+                    <List dense disablePadding>
+                      {recruitersOverview.technical_proficiency.map((item, index) => (
+                        <ListItem key={index} sx={{ py: 0.5 }}>
+                          <ListItemIcon sx={{ minWidth: 28 }}>
+                            <Code fontSize="small" color="primary" />
+                          </ListItemIcon>
+                          <ListItemText primary={item} primaryTypographyProps={{ variant: 'body2' }} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
+                
+                {(!recruitersOverview || 
+                  (!recruitersOverview.bullets?.length && 
+                   !recruitersOverview.relevant_experience && 
+                   !recruitersOverview.technical_proficiency?.length)) && (
+                  <Box sx={{ textAlign: 'center', py: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No recruiter overview data available
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -1328,23 +1578,80 @@ export default function ResumeInsights() {
                   {/* Static sections */}
                   <TableRow>
                     <TableCell>Section Headings</TableCell>
-                    <TableCell><Chip label="Good" color="success" size="small" /></TableCell>
                     <TableCell>
-                      {loadingOtherComments ? 'Analyzing section headings...' : otherComments.headings_feedback}
+                      {loadingOtherComments ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <Chip 
+                          label={getLabelFromScore(otherComments.headings_feedback.score)}
+                          color={getColorFromScore(otherComments.headings_feedback.score)}
+                          size="small" 
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {loadingOtherComments ? 'Analyzing section headings...' : (
+                        <>
+                          <Typography variant="body2" component="span">
+                            Score: {otherComments.headings_feedback.score}/100
+                          </Typography>
+                          <Typography variant="body2" component="p" sx={{ mt: 1 }}>
+                            {otherComments.headings_feedback.comment}
+                          </Typography>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Job Title Match</TableCell>
-                    <TableCell><Chip label="Good" color="success" size="small" /></TableCell>
                     <TableCell>
-                      {loadingOtherComments ? 'Analyzing job title match...' : otherComments.title_match}
+                      {loadingOtherComments ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <Chip 
+                          label={getLabelFromScore(otherComments.title_match.score)}
+                          color={getColorFromScore(otherComments.title_match.score)}
+                          size="small" 
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {loadingOtherComments ? 'Analyzing job title match...' : (
+                        <>
+                          <Typography variant="body2" component="span">
+                            Score: {otherComments.title_match.score}/100
+                          </Typography>
+                          <Typography variant="body2" component="p" sx={{ mt: 1 }}>
+                            {otherComments.title_match.comment}
+                          </Typography>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Data Formatting</TableCell>
-                    <TableCell><Chip label="Good" color="success" size="small" /></TableCell>
                     <TableCell>
-                      {loadingOtherComments ? 'Analyzing data formatting...' : otherComments.formatting_feedback}
+                      {loadingOtherComments ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <Chip 
+                          label={getLabelFromScore(otherComments.formatting_feedback.score)}
+                          color={getColorFromScore(otherComments.formatting_feedback.score)}
+                          size="small" 
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {loadingOtherComments ? 'Analyzing data formatting...' : (
+                        <>
+                          <Typography variant="body2" component="span">
+                            Score: {otherComments.formatting_feedback.score}/100
+                          </Typography>
+                          <Typography variant="body2" component="p" sx={{ mt: 1 }}>
+                            {otherComments.formatting_feedback.comment}
+                          </Typography>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -1795,8 +2102,6 @@ export default function ResumeInsights() {
               </Box>
             )}
           </Paper>
-
-
 
         </Grid>
       </Grid>

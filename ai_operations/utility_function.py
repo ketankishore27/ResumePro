@@ -6,9 +6,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from enum import Enum
 from typing import Dict, List, Union, Literal, Optional
+from datetime import datetime
 
 load_dotenv(override=True)
-#llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
+llm_google = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
 #llm = ChatOpenAI(model="gpt-4o", temperature=0.)
 llm = AzureChatOpenAI(model="gpt-4o-mini", api_version="2025-04-01-preview")
 
@@ -300,14 +301,16 @@ def get_custom_scores():
 
 def get_other_comments():
 
-    class other_feedbacks(BaseModel):
-        
-        headings_feedback: str = Field("Feedback text for the Section Headings")
-        title_match: str = Field("Feedback text for the Job Title Match")
-        formatting_feedback: str = Field("Feedback text for the Data Formatting")
-        
+    class AspectFeedback(BaseModel):
+        score: conint(ge=0, le=100) = Field(..., description="Score between 0 and 100")
+        comment: str = Field(..., description="1–2 line feedback")
 
-    output_parser = PydanticOutputParser(pydantic_object=other_feedbacks).get_format_instructions()
+    class ResumeReview(BaseModel):
+        headings_feedback: AspectFeedback
+        title_match: AspectFeedback
+        formatting_feedback: AspectFeedback
+    
+    output_parser = PydanticOutputParser(pydantic_object=ResumeReview).get_format_instructions()
         
     instruction_format = """
     You are a professional resume reviewer.
@@ -341,10 +344,12 @@ def get_other_comments():
     
     ### Output Instructions:
     
-    - For each aspect, provide a **short, crisp feedback (1–2 lines)**
-    - Focus the feedback on **relevance to the job role**, clarity, and professionalism
-    - Do **not** include scores or overall evaluation
-    
+    - For each aspect, provide:
+      - A **short, crisp feedback (1–2 lines)**  
+      - A **score from 0 to 100** (where 0 = very poor, 100 = excellent)  
+      - Focus feedback on **relevance to the job role**, clarity, and professionalism  
+      - Do **not** include an overall evaluation  
+
     ---
     
     ### Output Format (JSON):
@@ -785,3 +790,186 @@ def extract_names():
 
     return chain
 
+
+def extract_yoe():
+
+    class ExperienceSummary(BaseModel):
+        yoe: float = Field(..., description="Total years of corporate experience, rounded to 1 decimal place")
+        ryoe: float = Field(..., description="Relevant years of experience with respect to the job role, rounded to 1 decimal place")
+
+    summary_output = PydanticOutputParser(pydantic_object = ExperienceSummary).get_format_instructions()
+    
+    instruction_format = """
+    You are an expert resume parser. Analyze the resume and return:
+    - "yoe": total corporate years of experience (all relevant professional employment after first job start).
+    - "ryoe": relevant years of experience aligned to the target job role.
+    
+    ⚠️ IMPORTANT OUTPUT RULE:
+    - Think step-by-step INTERNALLY but DO NOT output your reasoning.
+    - Output ONLY a single Python dictionary with exactly these two keys: "yoe" and "ryoe".
+    - Both values must be numbers rounded to 1 decimal place.
+    - If nothing is found, use 0.0.
+    - Ensure ryoe ≤ yoe.
+    
+    Current date for “Present”: {current_date}.
+    
+    Target job role:
+    {job_role}
+    
+    Resume text:
+    {resume_text}
+    
+    ———— INTERNAL INSTRUCTIONS (DO NOT OUTPUT) ————
+    1) Extract Employment Spans
+       - Identify all professional roles (full-time, part-time, contract, freelance/consulting) in organizations.
+       - Exclude: internships/apprentices/academic RA unless EXPLICITLY full-time post-graduation employment; coursework; projects; volunteer.
+       - Parse dates from messy formats (e.g., "Oct’17", "Apr'21", "October 2017", "2017–2020", "Present").
+       - Normalize each span to [start_date, end_date):
+           • If only month+year → use day=01.
+           • If only year → use July 01 of that year.
+           • If end is "Present/Current" → use {current_date}.
+           • If only a start date is given (no end) → treat end as {current_date}.
+       - Discard spans clearly tied to education periods unless explicitly professional and post-start of first employment.
+    
+    2) Compute YOE (overall years)
+       - Take the UNION of all normalized employment spans (month precision is sufficient).
+       - Count unique months across the union; convert to years = months / 12.
+       - Round to 1 decimal place to produce "yoe".
+    
+    3) Determine Relevance to {job_role} (for RYOE)
+       - Build a relevance profile for {job_role}:
+           • Include common titles, synonyms, and near-synonyms.
+           • Core responsibilities and skills (tools, methods, frameworks, domains) typically expected for {job_role}.
+           • Use domain knowledge to map variants (e.g., "ML", "predictive modeling" for Data Scientist).
+       - For each employment span, classify as RELEVANT if ANY of these hold:
+           • Title matches/contains job-role or close synonym.
+           • Responsibilities/bullets list ≥2 strong signals (skills, methods, tools, deliverables) aligned with the role.
+           • Projects described directly align with the role’s core functions.
+       - If relevance is ambiguous, default to NOT relevant unless there are ≥2 strong signals.
+       - Treat the entire span as relevant or not (no fractional splits) unless the resume provides separate, date-bound sub-projects.
+       - Build the UNION of all RELEVANT spans (again month-level).
+       - Count unique months across the relevant union; convert to years and round to 1 decimal → "ryoe".
+       - Enforce ryoe ≤ yoe.
+    
+    4) Edge Cases
+       - Overlaps: never double-count overlapping time (union logic).
+       - Gaps: do nothing special (they’re naturally excluded by union).
+       - If NO valid employment spans: yoe=0.0, ryoe=0.0.
+       - If relevant signals nowhere: ryoe=0.0.
+    
+    ———— OUTPUT FORMAT (MUST FOLLOW EXACTLY) ————
+    {output_format}
+    
+    """
+
+    prompt = PromptTemplate.from_template(template=instruction_format, 
+                                          partial_variables={
+                                              "current_date": str(datetime.now().date()),
+                                              "output_format": summary_output
+                                          })
+
+    chain = prompt | llm | JsonOutputParser()
+
+    return chain
+
+
+def extract_recruiters_overview():
+
+    class RecruiterOverview(BaseModel):
+        bullets: List[str] = Field(description="List of recruiter-friendly bullet points summarizing the candidate's skills, experience, and traits.")
+        relevant_experience: str = Field(description="A line summarizing the candidate’s relevant years of experience.")
+        technical_proficiency: List[str] = Field(description="Detailed technical proficiencies, grouped by technology or domain area.")
+
+    overview_format = PydanticOutputParser(pydantic_object=RecruiterOverview).get_format_instructions()
+    
+    instruction_format = """
+    You are an expert recruiter-assistant and resume summarizer.  
+    Input placeholders (replace with actual values before sending):
+    - Target job role: "{job_role}"
+    - Resume text: {resume_text}
+    - Current date (for "Present"): {current_date}
+    
+    GOAL:
+    Produce a concise, recruiter-style overview of the candidate that follows the example format exactly (top profile bullets, blank line, "Relevant Experience - X+ years.", then technology/competency sections with nested bullets). The overview must be evidence-first (only assert what the resume supports) and formatted exactly as described below.
+    
+    IMPORTANT OUTPUT RULES (MUST FOLLOW EXACTLY):
+    - Output ONLY the overview text (no reasoning, no timelines, no JSON, no code fences, no extra commentary).
+    - Use the bullet character "•" for top-level profile bullets.
+    - Use the hyphen "-" for nested bullets inside technology/competency sections.
+    - Provide exactly 6–10 top profile bullets (each starting with "•"), then one blank line, then the single line: `Relevant Experience - X+ years.`, then competency sections (headers + "-" bullets).
+    - Each top-level bullet should be 8–20 words where possible, concise and evidence-based.
+    - Do NOT include raw dates, timeline calculations, or internal processing steps in the output.
+    - If NO professional experience is found, output exactly:
+      • No professional experience found.
+      
+      Relevant Experience - 0+ years.
+      (and then stop — no further sections)
+    
+    INTERNAL EXTRACTION & CALCULATION STEPS (THINK THESE STEPS, DO NOT OUTPUT THEM):
+    1) Extract Employment Spans
+       - Identify all professional roles: full-time, part-time, contract, freelance/consulting count as experience.
+       - Exclude: internships, academic projects, coursework unless explicitly stated as post-graduation full-time employment.
+       - Parse messy date formats (e.g., "Oct’17", "Apr'21", "2017–2020", "Present").
+       - Normalize dates:
+         • month+year → use the 1st of that month (e.g., Oct 2017 → 2017-10-01).
+         • year-only → use July 01 of that year (e.g., 2017 → 2017-07-01).
+         • "Present" or missing end → use {current_date}.
+         • If only a start exists, end = {current_date}.
+       - Discard employment spans clearly during education unless explicitly professional post-graduation.
+    
+    2) Compute Overall and Relevant Experience
+       - UNION all normalized employment spans to get unique months → overall months → overall_years = months / 12.
+       - Build relevance signals for {job_role}:
+         • Title exact/close matches (including synonyms) → strong signal.
+         • Role bullets containing ≥2 strong signals (tools, methods, domains, deliverables) → strong signal.
+         • Strong signals are explicit mentions such as domain names, technologies, frameworks, methods, or common role verbs (e.g., "predictive modeling", "Spark", "NLP", "LLM", "ETL", "FastAPI", "BigQuery").
+         • If ambiguous, default to NOT relevant unless ≥2 strong signals exist.
+       - UNION spans flagged RELEVANT → relevant_months → ryoe = relevant_months / 12.
+       - For header `Relevant Experience - X+ years.` compute X = floor(ryoe) if ryoe ≥ 1; otherwise X = 0.
+    
+    3) Evidence-first phrasing rules
+       - Only include skills/platforms/years/certifications explicitly present in the resume.
+       - If resume uses weak language (e.g., "familiarity", "exposure to"), reflect that word choice.
+       - If resume states strong usage (e.g., "developed", "deployed", "led"), use stronger phrasing ("experience in", "proven experience with").
+       - When in doubt, be conservative: prefer "familiarity with" over "strong experience in".
+    
+    4) Section & content generation (what to include and how)
+       - Top profile bullets (6–10):
+         • First bullet: evidence-based overall pitch (e.g., "X+ years working experience in <domain/role>"), prefer referencing the role and domain if resume supports it.
+         • Include teamwork/communication/soft skills only if resume contains evidence.
+         • Include one bullet about core technical strengths (languages, ML, cloud) if present.
+         • Include one bullet on systems/architecture/scale or big-data experience if present.
+         • Include one bullet on DevOps/CI-CD/deployment if present.
+         • Include one bullet on problem-solving/business impact or client-facing experience if present.
+       - After blank line, print: `Relevant Experience - X+ years.` using the X calculated above.
+       - Primary competency groups (choose 3–6 based on resume content and <job_role>). Examples:
+         • "Proficiency in working with <Primary_Tech_or_Stack>:" — include 3–6 "-" bullets describing architecture/usage/operations/optimization/deployment/integrations (use resume evidence).
+         • "Familiarity with the <Ecosystem/Platform>:" — include 1–3 "-" bullets listing tools and usage notes.
+         • "Cloud & Data Services / DevOps:" — include "-" bullets on cloud services used, CI/CD, Docker, orchestration, managed services.
+         • "Languages, Frameworks & Databases:" — list specific languages, frameworks, DBs with short context (e.g., "experience building APIs using FastAPI/Flask").
+         • "Domain & Business Context:" — evidence of industry domains (Telecom, Finance, Insurance, Manufacturing) and scale/impact.
+         • "Soft skills & communication:" — 1–3 "-" bullets about team fit, client engagement, leadership if supported.
+         • "Education & Certifications:" — 1–2 "-" bullets if relevant degrees/certs are present.
+       - For each "-" bullet, keep 10–18 words and make it actionable (what they did/used, and for what outcome if present).
+       - Avoid listing every minor tool; prioritize role-relevant, resume-supported tools.
+    
+    5) Tone, wording, and final constraints
+       - Use recruiter-friendly concise phrasing (present-tense or past-tense as appropriate).
+       - Do NOT include numeric timelines, raw date ranges, or internal calculations in the text.
+       - Do NOT output internal reasoning or any extra text beyond the overview.
+       - If contradictions or unclear spans exist, omit the uncertain claim rather than guess.
+    
+    OUTPUT FORMAT (exact template to follow — adapt content from resume):
+    Relevant Experience - X+ years.
+    {output_format}
+    """
+
+    prompt = PromptTemplate.from_template(template = instruction_format,
+                                          partial_variables = {
+                                              "current_date": str(datetime.now().date()),
+                                              "output_format": overview_format
+                                          })
+
+    chain = prompt | llm | JsonOutputParser()
+
+    return chain

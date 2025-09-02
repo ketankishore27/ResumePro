@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine, text
-from sqlalchemy.types import JSON, Text
+from sqlalchemy.types import JSON, Text, Integer, Float
 import pandas as pd
 import time
 import requests
@@ -15,11 +15,14 @@ def insert_data(assembled_field: dict):
 
     table_name = os.getenv("TABLE_NAME", None)
 
-    db_colNames = ['candidate_id', 'name', 'job_role', 'resume_raw_text', 'email_id', 'mobile_number', 'score_resume', 'get_contacts', 'get_summary_overview', 'get_custom_scores', 
+    db_colNames = ['candidate_id', 'name', 'job_role', 'resume_raw_text', 'email_id', 'mobile_number', 'get_yoe', 
+                   'get_ryoe', 'score_resume', 'get_contacts', 'get_summary_overview', 'get_custom_scores', 
                    'get_other_comments', 'get_functional_constituent', 'get_technical_constituent', 'get_education', 'get_projects', 
-                   'get_company', 'mode']
+                   'get_company', 'get_recruiters_overview', 'mode']
     
-    json_cols = ['get_contacts', 'get_custom_scores', 'get_summary_overview', 'get_functional_constituent', 'get_other_comments', 'get_education', 'score_resume', 'get_technical_constituent', 'get_company', 'get_projects']
+    json_cols = ['get_contacts', 'get_custom_scores', 'get_summary_overview', 'get_functional_constituent', 
+                 'get_other_comments', 'get_education', 'score_resume', 'get_technical_constituent', 
+                 'get_company', 'get_projects', 'get_recruiters_overview']
     
     col_mapping = {i: JSON for i in json_cols}
     col_mapping.update({
@@ -29,7 +32,9 @@ def insert_data(assembled_field: dict):
         'mobile_number': Text,
         'job_role': Text,
         'resume_raw_text': Text,
-        'mode': Text
+        'mode': Text,
+        'get_yoe': Float,
+        'get_ryoe': Float
     })
     
     candidate_id = f"Candidate-{str(time.time()).split('.')[0]}"
@@ -38,6 +43,8 @@ def insert_data(assembled_field: dict):
     mobile_number = assembled_field.get("getContacts", None).get("mobile_number", None)
     job_role = assembled_field.get("input_data", None).get("job_role", None)
     resume_text = assembled_field.get("input_data", None).get("resume_text", None)
+    yoe = assembled_field.get("getYoe", None)
+    ryoe = assembled_field.get("getRyoe", None)
     mode = assembled_field.get("mode", None)
     
     if any(ent is None for ent in [name, job_role, resume_text]):
@@ -51,7 +58,10 @@ def insert_data(assembled_field: dict):
     getEducation = assembled_field.get("getEducation", None)
     scoreResume = assembled_field.get("scoreResume", None)
     getTechnicalConstituent = assembled_field.get("getTechnicalConstituent", None)
-    print(assembled_field.keys())
+    yoe = assembled_field.get("getYoe", None)
+    ryoe = assembled_field.get("getRyoe", None)
+    getRecruitersOverview = assembled_field.get("getRecruitersOverview", None)
+
     ## Temp Fix
     if not isinstance(assembled_field.get("getProjects", None), dict):
         getProjects = {"projects": assembled_field.get("getProjects", None)}
@@ -65,8 +75,8 @@ def insert_data(assembled_field: dict):
     ##
     
 
-    data = pd.DataFrame([[candidate_id, name, job_role, resume_text, email_id, mobile_number, scoreResume, getContacts, getSummaryOverview, getCustomScores, getOtherComments, getFunctionalConstituent, 
-                          getTechnicalConstituent, getEducation, getProjects, getCompany, mode]], 
+    data = pd.DataFrame([[candidate_id, name, job_role, resume_text, email_id, mobile_number, yoe, ryoe, scoreResume, getContacts, getSummaryOverview, getCustomScores, getOtherComments, getFunctionalConstituent, 
+                          getTechnicalConstituent, getEducation, getProjects, getCompany, getRecruitersOverview, mode]], 
                        columns = db_colNames)
 
     with engine.begin() as conn:
@@ -108,10 +118,14 @@ def process_individual_resume(data: dict):
     get_comapny = {"getCompany": requests.post("http://127.0.0.1:8000/getCompany", json = data, headers=headers).json()}
     get_project = {"getProjects": requests.post("http://127.0.0.1:8000/getProjects", json = data, headers=headers).json()}
     get_data = {"job_role": data.get('jobRole', None), "resume_text": data.get('resumeText', None)}
+    exp_params =requests.post("http://127.0.0.1:8000/getYoe", json = data, headers=headers).json()
+    get_yoe = {'getYoe': exp_params.get("getYoe", None)}
+    get_ryoe = {'getRyoe': exp_params.get("getRyoe", None)}
+    get_recruiters_overview = {"getRecruitersOverview": requests.post("http://127.0.0.1:8000/getRecruitersOverview", json = data, headers=headers).json()}
     input_data = {"input_data": {**get_name, **get_data}}
     get_mode = {"mode": "batch"}
     final_payload = {**input_data, **get_contact_information, **get_custom_scores, **get_summary_overview, **get_functional_constituent, **get_other_comments, 
-                     **get_education, **get_score_resume, **get_technical_constituent, **get_comapny, **get_project, **get_mode}
+                     **get_education, **get_score_resume, **get_technical_constituent, **get_comapny, **get_project, **get_yoe, **get_ryoe, **get_recruiters_overview, **get_mode}
 
     status = requests.post("http://127.0.0.1:8000/assembleData", json = final_payload, headers=headers)
     return_payload["parsed_status"] = "Successful"

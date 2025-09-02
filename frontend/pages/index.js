@@ -4,9 +4,10 @@ import {
   Box, Typography, Button, Grid, Card, CardContent, TextField, Input, Stack,
   LinearProgress, Paper, Chip, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Divider, CircularProgress, Select, MenuItem, FormControl, Fade,
-  Dialog, DialogTitle, DialogContent, DialogActions
+  Dialog, DialogTitle, DialogContent, DialogActions, Skeleton, List, ListItem,
+  ListItemIcon, ListItemText
 } from '@mui/material';
-import { Phone, Email } from '@mui/icons-material';
+import { Phone, Email, WorkOutline, CheckCircle, Code } from '@mui/icons-material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import Image from 'next/image';
 import { Pie } from 'react-chartjs-2';
@@ -70,7 +71,11 @@ export default function Home() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [customScores, setCustomScores] = useState({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
   const [loadingCustomScores, setLoadingCustomScores] = useState(false);
-  const [otherComments, setOtherComments] = useState({ headings_feedback: '', title_match: '', formatting_feedback: '' });
+  const [otherComments, setOtherComments] = useState({ 
+    headings_feedback: { score: 0, comment: '' }, 
+    title_match: { score: 0, comment: '' }, 
+    formatting_feedback: { score: 0, comment: '' } 
+  });
   const [loadingOtherComments, setLoadingOtherComments] = useState(false);
   const [functionalConstituent, setFunctionalConstituent] = useState({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
   const [loadingFunctionalConstituent, setLoadingFunctionalConstituent] = useState(false);
@@ -82,6 +87,19 @@ export default function Home() {
   const [loadingEmployment, setLoadingEmployment] = useState(false);
   const [projectsInfo, setProjectsInfo] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
+  const [totalExperience, setTotalExperience] = useState(null);
+  const [relevantExperience, setRelevantExperience] = useState(null);
+  const [loadingExperience, setLoadingExperience] = useState(false);
+  const [experienceError, setExperienceError] = useState(null);
+  
+  // Recruiters Overview state variables
+  const [recruitersOverview, setRecruitersOverview] = useState({
+    bullets: [],
+    relevant_experience: '',
+    technical_proficiency: []
+  });
+  const [loadingRecruitersOverview, setLoadingRecruitersOverview] = useState(false);
+  const [recruitersOverviewError, setRecruitersOverviewError] = useState(null);
   
   // Accessing userName from context
   const { userName } = usePdfText();
@@ -91,7 +109,8 @@ export default function Home() {
     return !loadingScore && !loadingContact && !loadingSummary && 
            !loadingCustomScores && !loadingOtherComments && 
            !loadingFunctionalConstituent && !loadingTechnicalConstituent && 
-           !loadingEducation && !loadingProjects && !loadingEmployment;
+           !loadingEducation && !loadingProjects && !loadingEmployment &&
+           !loadingExperience && !loadingRecruitersOverview;
   };
 
   // Upload validations and micro-interactions
@@ -266,12 +285,27 @@ export default function Home() {
       setContactInfo({ mobile_number: '', email_id: '', color: '', comment: '' });
       setSummaryInfo({ score: 0, color: 'red', label: 'critical', comment: 'Loading summary analysis...', summary: [] });
       setCustomScores({ searchibility_score: 0, hard_skills_score: 0, soft_skill_score: 0, formatting_score: 0 });
-      setOtherComments({ headings_feedback: '', title_match: '', formatting_feedback: '' });
+      setOtherComments({ 
+        headings_feedback: { score: 0, comment: '' }, 
+        title_match: { score: 0, comment: '' }, 
+        formatting_feedback: { score: 0, comment: '' } 
+      });
       setFunctionalConstituent({ constituent: {}, industries: [], has_industry_experience: false, has_completed_college: false });
       setTechnicalConstituent({ high: [], medium: [], low: [] });
       setEducationHistory([]);
       setEmploymentHistory([]);
       setProjectsInfo([]);
+      setTotalExperience(null);
+      setRelevantExperience(null);
+      setExperienceError(null);
+      
+      // Reset Recruiters Overview state
+      setRecruitersOverview({
+        bullets: [],
+        relevant_experience: '',
+        technical_proficiency: []
+      });
+      setRecruitersOverviewError(null);
       
       // Set all loading states to true
       setLoadingScore(true);
@@ -284,6 +318,8 @@ export default function Home() {
       setLoadingEducation(true);
       setLoadingEmployment(true);
       setLoadingProjects(true);
+      setLoadingExperience(true);
+      setLoadingRecruitersOverview(true);
 
       // Define API calls with individual handlers
       const apiCalls = [
@@ -315,7 +351,7 @@ export default function Home() {
         {
           name: 'getSummaryOverview',
           url: 'http://127.0.0.1:8000/getSummaryOverview',
-          body: JSON.stringify({ resumeText }),
+          body: JSON.stringify({ resumeText, jobRole }),
           promise: null,
           handler: async (response) => {
             const data = await response.json();
@@ -327,7 +363,7 @@ export default function Home() {
         {
           name: 'getCustomScores',
           url: 'http://127.0.0.1:8000/getCustomScores',
-          body: JSON.stringify({ resumeText }),
+          body: JSON.stringify({ resumeText, jobRole }),
           promise: null,
           handler: async (response) => {
             const data = await response.json();
@@ -339,11 +375,12 @@ export default function Home() {
         {
           name: 'getOtherComments',
           url: 'http://127.0.0.1:8000/getOtherComments',
-          body: JSON.stringify({ resumeText }),
+          body: JSON.stringify({ resumeText, jobRole }),
           promise: null,
           handler: async (response) => {
             const data = await response.json();
             console.log('Other Comments API Response:', data);
+            // Handle the new response structure with AspectFeedback objects
             setOtherComments(data);
             setLoadingOtherComments(false);
           }
@@ -351,7 +388,7 @@ export default function Home() {
         {
           name: 'getFunctionalConstituent',
           url: 'http://127.0.0.1:8000/getFunctionalConstituent',
-          body: JSON.stringify({ resumeText }),
+          body: JSON.stringify({ resumeText, jobRole }),
           promise: null,
           handler: async (response) => {
             const data = await response.json();
@@ -363,7 +400,7 @@ export default function Home() {
         {
           name: 'getTechnicalConstituent',
           url: 'http://127.0.0.1:8000/getTechnicalConstituent',
-          body: JSON.stringify({ resumeText }),
+          body: JSON.stringify({ resumeText, jobRole }),
           promise: null,
           handler: async (response) => {
             const data = await response.json();
@@ -419,7 +456,7 @@ export default function Home() {
         {
           name: 'getProjects',
           url: 'http://127.0.0.1:8000/getProjects',
-          body: JSON.stringify({ resumeText }),
+          body: JSON.stringify({ resumeText, jobRole }),
           promise: null,
           handler: async (response) => {
             const data = await response.json();
@@ -436,6 +473,76 @@ export default function Home() {
               setProjectsInfo([]);
             }
             setLoadingProjects(false);
+          }
+        },
+        {
+          name: 'getYoe',
+          url: 'http://127.0.0.1:8000/getYoe',
+          body: JSON.stringify({ resumeText, jobRole }),
+          promise: null,
+          handler: async (response) => {
+            try {
+              const data = await response.json();
+              console.log('Experience API Response:', data);
+              
+              // Ensure data exists and has the expected properties
+              if (data && typeof data === 'object') {
+                // Handle various data formats (string, number, null, undefined)
+                let totalYears = null;
+                let relevantYears = null;
+                
+                // Process total years of experience
+                if (data.yoe !== undefined && data.yoe !== null) {
+                  totalYears = Number(data.yoe);
+                  if (isNaN(totalYears)) totalYears = null;
+                }
+                
+                // Process relevant years of experience
+                if (data.ryoe !== undefined && data.ryoe !== null) {
+                  relevantYears = Number(data.ryoe);
+                  if (isNaN(relevantYears)) relevantYears = null;
+                }
+                
+                console.log('Processed totalYears:', totalYears);
+                console.log('Processed relevantYears:', relevantYears);
+                
+                // Update state with processed values
+                setTotalExperience(totalYears);
+                setRelevantExperience(relevantYears);
+              } else {
+                console.error('Invalid data format from getYoe API:', data);
+                setExperienceError('Failed to parse experience data');
+              }
+            } catch (error) {
+              console.error('Error processing getYoe response:', error);
+              setExperienceError('Error processing experience data');
+            } finally {
+              setLoadingExperience(false);
+            }
+          }
+        },
+        {
+          name: 'getRecruitersOverview',
+          url: 'http://127.0.0.1:8000/getRecruitersOverview',
+          body: JSON.stringify({ resumeText, jobRole }),
+          promise: null,
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Recruiters Overview API Response:', data);
+            if (data && typeof data === 'object') {
+              setRecruitersOverview({
+                bullets: Array.isArray(data.bullets) ? data.bullets : [],
+                relevant_experience: data.relevant_experience || '',
+                technical_proficiency: Array.isArray(data.technical_proficiency) ? data.technical_proficiency : []
+              });
+            } else {
+              setRecruitersOverview({
+                bullets: [],
+                relevant_experience: '',
+                technical_proficiency: []
+              });
+            }
+            setLoadingRecruitersOverview(false);
           }
         }
       ];
@@ -474,6 +581,8 @@ export default function Home() {
               case 'getEducation': setLoadingEducation(false); break;
               case 'getCompany': setLoadingEmployment(false); break;
               case 'getProjects': setLoadingProjects(false); break;
+              case 'getYoe': setLoadingExperience(false); setExperienceError('Failed to load experience data'); break;
+              case 'getRecruitersOverview': setLoadingRecruitersOverview(false); setRecruitersOverviewError('Failed to load recruiters overview data'); break;
             }
           }
         } catch (error) {
@@ -490,6 +599,8 @@ export default function Home() {
             case 'getEducation': setLoadingEducation(false); break;
             case 'getCompany': setLoadingEmployment(false); break;
             case 'getProjects': setLoadingProjects(false); break;
+            case 'getYoe': setLoadingExperience(false); setExperienceError('Failed to load experience data'); break;
+            case 'getRecruitersOverview': setLoadingRecruitersOverview(false); setRecruitersOverviewError('Failed to load recruiters overview data'); break;
           }
         }
       };
@@ -595,7 +706,11 @@ export default function Home() {
     setContactInfo({});
     setSummaryInfo({});
     setCustomScores({});
-    setOtherComments({});
+    setOtherComments({
+      headings_feedback: { score: 0, comment: '' },
+      title_match: { score: 0, comment: '' },
+      formatting_feedback: { score: 0, comment: '' }
+    });
     setFunctionalConstituent({});
     setTechnicalConstituent({});
     setEducationHistory([]);
@@ -895,6 +1010,68 @@ export default function Home() {
                 </Typography>
               </Paper>
 
+              {/* Experience Cards */}
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* Total Experience Card */}
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                      Total Experience
+                    </Typography>
+                    {loadingExperience ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Skeleton variant="rounded" width={40} height={40} />
+                        <Skeleton variant="text" width={100} />
+                      </Box>
+                    ) : experienceError ? (
+                      <Typography variant="body2" color="error">
+                        {experienceError}
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <WorkOutline color={totalExperience !== null && totalExperience !== undefined ? "primary" : "disabled"} sx={{ fontSize: 32 }} />
+                        <Typography 
+                          variant="h6" 
+                          fontWeight={600} 
+                          color={totalExperience !== null && totalExperience !== undefined ? "primary.main" : "text.secondary"}
+                        >
+                          {totalExperience !== null && totalExperience !== undefined ? `${Number(totalExperience).toFixed(1)} years` : "Not available"}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* Relevant Experience Card */}
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                      Relevant Experience
+                    </Typography>
+                    {loadingExperience ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Skeleton variant="rounded" width={40} height={40} />
+                        <Skeleton variant="text" width={100} />
+                      </Box>
+                    ) : experienceError ? (
+                      <Typography variant="body2" color="error">
+                        {experienceError}
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <WorkOutline color={relevantExperience !== null && relevantExperience !== undefined ? "success" : "disabled"} sx={{ fontSize: 32 }} />
+                        <Typography 
+                          variant="h6" 
+                          fontWeight={600} 
+                          color={relevantExperience !== null && relevantExperience !== undefined ? "success.main" : "text.secondary"}
+                        >
+                          {relevantExperience !== null && relevantExperience !== undefined ? `${Number(relevantExperience).toFixed(1)} years` : "Not available"}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              </Paper>
+
+
               {/* Detailed Scores with Contact Information */}
               <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 {/* Detailed Scores Section */}
@@ -1184,6 +1361,88 @@ export default function Home() {
                       </Box>
                     </Grid>
                   </Grid>
+                )}
+              </Paper>
+
+              {/* Recruiters Overview Section */}
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Recruiters Overview
+                </Typography>
+                
+                {loadingRecruitersOverview ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Skeleton variant="text" width="80%" height={30} />
+                    <Box sx={{ pl: 2 }}>
+                      <Skeleton variant="text" width="90%" />
+                      <Skeleton variant="text" width="75%" />
+                      <Skeleton variant="text" width="85%" />
+                    </Box>
+                    <Skeleton variant="text" width="60%" height={30} />
+                    <Box sx={{ pl: 2 }}>
+                      <Skeleton variant="text" width="70%" />
+                      <Skeleton variant="text" width="80%" />
+                    </Box>
+                  </Box>
+                ) : recruitersOverviewError ? (
+                  <Typography variant="body2" color="error">
+                    {recruitersOverviewError}
+                  </Typography>
+                ) : recruitersOverview.bullets.length === 0 && 
+                   !recruitersOverview.relevant_experience && 
+                   recruitersOverview.technical_proficiency.length === 0 ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No recruiter overview data available
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {/* Relevant Experience Summary */}
+                    {recruitersOverview.relevant_experience && (
+                      <Typography variant="body1">
+                        {recruitersOverview.relevant_experience}
+                      </Typography>
+                    )}
+                    
+                    {/* Recruiter-friendly Bullet Points */}
+                    {recruitersOverview.bullets && recruitersOverview.bullets.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                          Key Highlights
+                        </Typography>
+                        <List dense>
+                          {recruitersOverview.bullets.map((bullet, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Code color="primary" fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText primary={bullet} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    )}
+                    
+                    {/* Technical Proficiencies */}
+                    {recruitersOverview.technical_proficiency && recruitersOverview.technical_proficiency.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                          Technical Proficiencies
+                        </Typography>
+                        <List dense>
+                          {recruitersOverview.technical_proficiency.map((tech, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Code color="primary" fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText primary={tech} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    )}
+                  </Box>
                 )}
               </Paper>
             </Grid>
@@ -1478,19 +1737,32 @@ export default function Home() {
                         <TableRow>
                           <TableCell sx={{ fontWeight: 500 }}>Section Headings</TableCell>
                           <TableCell>
-                            <Chip 
-                              label="Good"
-                              size="small"
-                              sx={{ 
-                                backgroundColor: '#4caf50',
-                                color: 'white',
-                                fontWeight: 600
-                              }}
-                            />
+                            {otherComments.headings_feedback ? (
+                              <Chip 
+                                label={`${otherComments.headings_feedback.score}/100`}
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: otherComments.headings_feedback.score >= 80 ? '#4caf50' : 
+                                                 otherComments.headings_feedback.score >= 60 ? '#ff9800' : '#f44336',
+                                  color: 'white',
+                                  fontWeight: 600
+                                }}
+                              />
+                            ) : (
+                              <Chip 
+                                label="Good"
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: '#4caf50',
+                                  color: 'white',
+                                  fontWeight: 600
+                                }}
+                              />
+                            )}
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {otherComments.headings_feedback || 'Section headings are properly structured and ATS-friendly.'}
+                              {otherComments.headings_feedback ? otherComments.headings_feedback.comment : 'Section headings are properly structured and ATS-friendly.'}
                             </Typography>
                           </TableCell>
                         </TableRow>
@@ -1499,19 +1771,32 @@ export default function Home() {
                         <TableRow>
                           <TableCell sx={{ fontWeight: 500 }}>Job Title Match</TableCell>
                           <TableCell>
-                            <Chip 
-                              label="Good"
-                              size="small"
-                              sx={{ 
-                                backgroundColor: '#4caf50',
-                                color: 'white',
-                                fontWeight: 600
-                              }}
-                            />
+                            {otherComments.title_match ? (
+                              <Chip 
+                                label={`${otherComments.title_match.score}/100`}
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: otherComments.title_match.score >= 80 ? '#4caf50' : 
+                                                 otherComments.title_match.score >= 60 ? '#ff9800' : '#f44336',
+                                  color: 'white',
+                                  fontWeight: 600
+                                }}
+                              />
+                            ) : (
+                              <Chip 
+                                label="Good"
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: '#4caf50',
+                                  color: 'white',
+                                  fontWeight: 600
+                                }}
+                              />
+                            )}
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {otherComments.title_match || 'Job titles and experience align well with target roles.'}
+                              {otherComments.title_match ? otherComments.title_match.comment : 'Job titles and experience align well with target roles.'}
                             </Typography>
                           </TableCell>
                         </TableRow>
@@ -1520,19 +1805,32 @@ export default function Home() {
                         <TableRow>
                           <TableCell sx={{ fontWeight: 500 }}>Data Formatting</TableCell>
                           <TableCell>
-                            <Chip 
-                              label="Good"
-                              size="small"
-                              sx={{ 
-                                backgroundColor: '#4caf50',
-                                color: 'white',
-                                fontWeight: 600
-                              }}
-                            />
+                            {otherComments.formatting_feedback ? (
+                              <Chip 
+                                label={`${otherComments.formatting_feedback.score}/100`}
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: otherComments.formatting_feedback.score >= 80 ? '#4caf50' : 
+                                                 otherComments.formatting_feedback.score >= 60 ? '#ff9800' : '#f44336',
+                                  color: 'white',
+                                  fontWeight: 600
+                                }}
+                              />
+                            ) : (
+                              <Chip 
+                                label="Good"
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: '#4caf50',
+                                  color: 'white',
+                                  fontWeight: 600
+                                }}
+                              />
+                            )}
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {otherComments.formatting_feedback || 'Resume formatting is clean and ATS-compatible.'}
+                              {otherComments.formatting_feedback ? otherComments.formatting_feedback.comment : 'Resume formatting is clean and ATS-compatible.'}
                             </Typography>
                           </TableCell>
                         </TableRow>
@@ -2030,9 +2328,18 @@ export default function Home() {
                       has_completed_college: functionalConstituent.has_completed_college
                     },
                     "getOtherComments": {
-                      headings_feedback: otherComments.headings_feedback,
-                      title_match: otherComments.title_match,
-                      formatting_feedback: otherComments.formatting_feedback
+                      headings_feedback: {
+                        score: otherComments.headings_feedback?.score || 0,
+                        comment: otherComments.headings_feedback?.comment || ''
+                      },
+                      title_match: {
+                        score: otherComments.title_match?.score || 0,
+                        comment: otherComments.title_match?.comment || ''
+                      },
+                      formatting_feedback: {
+                        score: otherComments.formatting_feedback?.score || 0,
+                        comment: otherComments.formatting_feedback?.comment || ''
+                      }
                     },
                     "getEducation": educationHistory,
                     "scoreResume": {
@@ -2042,7 +2349,10 @@ export default function Home() {
                     "getCompany": employmentHistory,
                     "getProjects": projectsInfo,
                     "getTechnicalConstituent": technicalConstituent,
-                    "getFunctionalConstituent": functionalConstituent
+                    "getFunctionalConstituent": functionalConstituent,
+                    "getYoe": totalExperience,
+                    "getRyoe": relevantExperience,
+                    "getRecruitersOverview": recruitersOverview
                   };
                   
                   console.log('Accumulated data for save:', accumulatedData);
@@ -2058,8 +2368,14 @@ export default function Home() {
                   if (response.ok) {
                     const result = await response.json();
                     console.log('Save Resume response:', result);
-                    setSaveDialogMessage('Resume Data Saved');
-                    setSaveDialogOpen(true);
+                    
+                    if (result.response === "Failed") {
+                      console.error('Backend reported failure saving resume data');
+                      showToast('Failed to save resume data. Database error occurred.', 'error', null);
+                    } else {
+                      setSaveDialogMessage('Resume Data Saved');
+                      setSaveDialogOpen(true);
+                    }
                   } else {
                     console.error('Failed to save resume data:', response.status);
                     showToast('Failed to save resume data. Please try again.', 'error', null);

@@ -352,7 +352,55 @@ def getCompany(data: dict):
         
     return {'employment_history': []}
 
+@app.post("/getYoe")
+def getYoe(data: dict):
+    print("Received request for getYoe")
+    resumeText = data.get("resumeText")
+    jobRole = data.get("jobRole", "")
+    
+    max_iter = 5
+    for iteration in range(max_iter):
+        try:
+            yoe_info = yoe_extractor_chain.invoke({"resume_text": resumeText, "job_role": jobRole})
+            keys_to_check = ['yoe', 'ryoe']
+            if isinstance(yoe_info, dict):
+                if all(key in yoe_info for key in keys_to_check):
+                    return yoe_info
 
+            print(yoe_info)
+        except Exception as e:
+            print("Exception in yoeExtractor:", e)
+            pass
+
+        print("Retrying. Ended Iteration:", iteration)    
+        
+    return {'yoe': 0, 'ryoe': 0}
+
+@app.post("/getRecruitersOverview")
+def getRecruitersOverview(data: dict):
+    print("Received request for getRecruitersOverview")
+    resumeText = data.get("resumeText")
+    jobRole = data.get("jobRole", "")
+    
+    max_iter = 5
+    for iteration in range(max_iter):
+        try:
+            recruiters_overview_info = recruiters_overview_chain.invoke({"resume_text": resumeText, "job_role": jobRole})
+            keys_to_check = ['bullets', 'relevant_experience', 'technical_proficiency']
+            if isinstance(recruiters_overview_info, dict):
+                if all(key in recruiters_overview_info for key in keys_to_check):
+                    if isinstance(recruiters_overview_info['bullets'], list) and \
+                       isinstance(recruiters_overview_info['technical_proficiency'], list):
+                        return recruiters_overview_info
+
+            print(recruiters_overview_info)
+        except Exception as e:
+            print("Exception in recruitersOverviewExtractor:", e)
+            pass
+
+        print("Retrying. Ended Iteration:", iteration)    
+        
+    return {'bullets': [], 'relevant_experience': '', 'technical_proficiency': []}
 
 @app.post("/assembleData")
 def assembleData(data: dict):
@@ -362,7 +410,7 @@ def assembleData(data: dict):
         return status
     except Exception as e:
         print("Exception in assembleData:", e)
-        return {"response": "Failed to assemble data"}
+        return {"response": "Failed"}
 
 
 @app.post("/processBulkImport")
