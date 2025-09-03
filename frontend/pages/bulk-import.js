@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Link from 'next/link';
+import mammoth from 'mammoth';
 import {
   Box, Typography, Button, Paper, TextField, 
   FormControl, FormLabel, Divider, Stack, Chip, IconButton,
@@ -103,8 +104,58 @@ export default function BulkImport() {
     }
   };
 
+  const extractWordText = async (file) => {
+    try {
+      console.log(`Starting Word document text extraction for: ${file.name}`);
+      
+      const fileReader = new FileReader();
+      
+      return new Promise((resolve, reject) => {
+        fileReader.onload = async function () {
+          try {
+            const arrayBuffer = this.result;
+            
+            // Use mammoth to extract text from Word document
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            const text = result.value;
+            
+            console.log(`Text extracted from ${file.name}:`, {
+              fileName: file.name,
+              textLength: text.length,
+              preview: text.substring(0, 200) + '...'
+            });
+            
+            // For Word docs, we don't have page count, so we estimate based on text length
+            // Assuming ~500 words per page and ~6 characters per word
+            const estimatedPageCount = Math.max(1, Math.ceil(text.length / (500 * 6)));
+            
+            resolve({
+              fileName: file.name,
+              fileSize: file.size,
+              text: text.trim(),
+              pageCount: estimatedPageCount
+            });
+          } catch (error) {
+            console.error(`Error extracting text from ${file.name}:`, error);
+            reject(error);
+          }
+        };
+        
+        fileReader.onerror = () => {
+          console.error(`Error reading file: ${file.name}`);
+          reject(new Error(`Failed to read file: ${file.name}`));
+        };
+        
+        fileReader.readAsArrayBuffer(file);
+      });
+    } catch (error) {
+      console.error(`Error in extractWordText for ${file.name}:`, error);
+      throw error;
+    }
+  };
+
   const handleFileSelect = async (files) => {
-    const allowedTypes = ['.pdf'];
+    const allowedTypes = ['.pdf', '.doc', '.docx'];
     const validFiles = [];
     const invalidFiles = [];
     
@@ -138,10 +189,17 @@ export default function BulkImport() {
       
       try {
         const textExtractions = await Promise.all(
-          validFiles.map(file => extractPDFText(file))
+          validFiles.map(file => {
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+            if (fileExtension === '.pdf') {
+              return extractPDFText(file);
+            } else if (fileExtension === '.doc' || fileExtension === '.docx') {
+              return extractWordText(file);
+            }
+          })
         );
         
-        console.log('All PDF text extractions completed:', textExtractions);
+        console.log('All file text extractions completed:', textExtractions);
         console.log('Extracted texts summary:', textExtractions.map(item => ({
           fileName: item.fileName,
           textLength: item.text.length,
@@ -156,7 +214,7 @@ export default function BulkImport() {
         console.log('Total files processed:', allTexts.length);
         
       } catch (error) {
-        console.error('Error during batch PDF text extraction:', error);
+        console.error('Error during batch file text extraction:', error);
         alert('Error extracting text from some files. Please check the console for details.');
       } finally {
         setProcessingFiles(false);
@@ -164,7 +222,7 @@ export default function BulkImport() {
     }
     
     if (invalidFiles.length > 0) {
-      alert(`Invalid files: ${invalidFiles.join(', ')}\nPlease select valid PDF files under 10MB`);
+      alert(`Invalid files: ${invalidFiles.join(', ')}\nPlease select valid PDF or Word files under 10MB`);
     }
   };
 
@@ -435,7 +493,7 @@ export default function BulkImport() {
 
             <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
               <Typography variant="body2" color="text.secondary">
-                Allowed Format: <strong>.PDF</strong>
+                Allowed Formats: <strong>.PDF, .DOC, .DOCX</strong>
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 This job role will be used for analyzing all uploaded resumes
@@ -488,11 +546,11 @@ export default function BulkImport() {
                 Choose Files
               </Button>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Select multiple PDF files (up to 10MB each)
+                Select multiple PDF or Word files (up to 10MB each)
               </Typography>
               {processingFiles && (
                 <Typography variant="body2" sx={{ mt: 1, color: '#f59e0b', fontWeight: 500 }}>
-                  Extracting text from PDF files...
+                  Extracting text from files...
                 </Typography>
               )}
             </Box>
@@ -500,7 +558,7 @@ export default function BulkImport() {
             <input
               id="file-input"
               type="file"
-              accept=".pdf"
+              accept=".pdf,.doc,.docx"
               multiple
               onChange={handleFileInput}
               style={{ display: 'none' }}

@@ -118,9 +118,9 @@ def process_individual_resume(data: dict):
     get_comapny = {"getCompany": requests.post("http://127.0.0.1:8000/getCompany", json = data, headers=headers).json()}
     get_project = {"getProjects": requests.post("http://127.0.0.1:8000/getProjects", json = data, headers=headers).json()}
     get_data = {"job_role": data.get('jobRole', None), "resume_text": data.get('resumeText', None)}
-    exp_params =requests.post("http://127.0.0.1:8000/getYoe", json = data, headers=headers).json()
-    get_yoe = {'getYoe': exp_params.get("getYoe", None)}
-    get_ryoe = {'getRyoe': exp_params.get("getRyoe", None)}
+    exp_params = requests.post("http://127.0.0.1:8000/getYoe", json = data, headers=headers).json()
+    get_yoe = {'getYoe': exp_params.get("yoe", None)}
+    get_ryoe = {'getRyoe': exp_params.get("ryoe", None)}
     get_recruiters_overview = {"getRecruitersOverview": requests.post("http://127.0.0.1:8000/getRecruitersOverview", json = data, headers=headers).json()}
     input_data = {"input_data": {**get_name, **get_data}}
     get_mode = {"mode": "batch"}

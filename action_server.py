@@ -42,7 +42,7 @@ def getNames(data: dict):
 
         print("Retrying. Ended Iteration:", iteration)    
         
-    return {"name": "Name Not Found"}
+    return {"name": "Failed"}
 
 @app.post("/scoreResume")
 def scoreResume(data: dict):

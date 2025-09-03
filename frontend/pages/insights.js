@@ -594,22 +594,24 @@ export default function ResumeInsights() {
         setEmploymentHistory([]);
       }
       
-      // Map getYoe data (Years of Experience)
+      // Map Years of Experience data (Total and Relevant)
       console.log('DEBUG - getYoe data received:', data.getYoe);
       console.log('DEBUG - getRyoe data received:', data.getRyoe);
       console.log('DEBUG - get_yoe data received:', data.get_yoe);
       console.log('DEBUG - get_ryoe data received:', data.get_ryoe);
       
-      // Try all possible field names for total experience
-      if (data.getYoe) {
+      // Try all possible field names for experience data
+      if (data.get_yoe !== undefined) {
+        // Direct field access (preferred method)
+        console.log('DEBUG - Using get_yoe directly:', data.get_yoe);
+        setTotalExperience(data.get_yoe);
+        setRelevantExperience(data.get_ryoe || null);
+      } else if (data.getYoe) {
+        // Legacy field name format
         const yoeData = typeof data.getYoe === 'string' ? JSON.parse(data.getYoe) : data.getYoe;
         console.log('DEBUG - Parsed YOE data:', yoeData);
         setTotalExperience(yoeData.yoe || null);
         setRelevantExperience(yoeData.ryoe || null);
-      } else if (data.get_yoe !== undefined) {
-        console.log('DEBUG - Using get_yoe directly:', data.get_yoe);
-        setTotalExperience(data.get_yoe);
-        setRelevantExperience(data.get_ryoe || null);
       } else {
         console.log('DEBUG - YOE data missing in API response');
         setTotalExperience(null);
