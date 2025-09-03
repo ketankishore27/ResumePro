@@ -18,11 +18,11 @@ def insert_data(assembled_field: dict):
     db_colNames = ['candidate_id', 'name', 'job_role', 'resume_raw_text', 'email_id', 'mobile_number', 'get_yoe', 
                    'get_ryoe', 'score_resume', 'get_contacts', 'get_summary_overview', 'get_custom_scores', 
                    'get_other_comments', 'get_functional_constituent', 'get_technical_constituent', 'get_education', 'get_projects', 
-                   'get_company', 'get_recruiters_overview', 'mode']
+                   'get_company', 'get_location', 'get_recruiters_overview', 'mode']
     
     json_cols = ['get_contacts', 'get_custom_scores', 'get_summary_overview', 'get_functional_constituent', 
                  'get_other_comments', 'get_education', 'score_resume', 'get_technical_constituent', 
-                 'get_company', 'get_projects', 'get_recruiters_overview']
+                 'get_company', 'get_projects', 'get_location', 'get_recruiters_overview']
     
     col_mapping = {i: JSON for i in json_cols}
     col_mapping.update({
@@ -60,6 +60,7 @@ def insert_data(assembled_field: dict):
     getTechnicalConstituent = assembled_field.get("getTechnicalConstituent", None)
     yoe = assembled_field.get("getYoe", None)
     ryoe = assembled_field.get("getRyoe", None)
+    getlocation = assembled_field.get("getLocation", None)
     getRecruitersOverview = assembled_field.get("getRecruitersOverview", None)
 
     ## Temp Fix
@@ -76,7 +77,7 @@ def insert_data(assembled_field: dict):
     
 
     data = pd.DataFrame([[candidate_id, name, job_role, resume_text, email_id, mobile_number, yoe, ryoe, scoreResume, getContacts, getSummaryOverview, getCustomScores, getOtherComments, getFunctionalConstituent, 
-                          getTechnicalConstituent, getEducation, getProjects, getCompany, getRecruitersOverview, mode]], 
+                          getTechnicalConstituent, getEducation, getProjects, getCompany, getlocation, getRecruitersOverview, mode]], 
                        columns = db_colNames)
 
     with engine.begin() as conn:
@@ -121,11 +122,12 @@ def process_individual_resume(data: dict):
     exp_params = requests.post("http://127.0.0.1:8000/getYoe", json = data, headers=headers).json()
     get_yoe = {'getYoe': exp_params.get("yoe", None)}
     get_ryoe = {'getRyoe': exp_params.get("ryoe", None)}
+    get_location = {"getLocation": requests.post("http://127.0.0.1:8000/getLocation", json = data, headers=headers).json()}
     get_recruiters_overview = {"getRecruitersOverview": requests.post("http://127.0.0.1:8000/getRecruitersOverview", json = data, headers=headers).json()}
     input_data = {"input_data": {**get_name, **get_data}}
     get_mode = {"mode": "batch"}
     final_payload = {**input_data, **get_contact_information, **get_custom_scores, **get_summary_overview, **get_functional_constituent, **get_other_comments, 
-                     **get_education, **get_score_resume, **get_technical_constituent, **get_comapny, **get_project, **get_yoe, **get_ryoe, **get_recruiters_overview, **get_mode}
+                     **get_education, **get_score_resume, **get_technical_constituent, **get_comapny, **get_project, **get_yoe, **get_ryoe, **get_recruiters_overview, **get_location, **get_mode}
 
     status = requests.post("http://127.0.0.1:8000/assembleData", json = final_payload, headers=headers)
     return_payload["parsed_status"] = "Successful"
@@ -139,3 +141,28 @@ def extract_data(email_id):
     data = pd.read_sql(sql_query, engine)\
              .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
     return data
+
+
+def resume_extraction(wordList = [], jobRole = None, jobDescription = None):
+
+    print("WordList: ", wordList)
+    print("JobRole: ", jobRole)
+    print("jobDescription: ", jobDescription)
+
+    base_sql = "select * from resume_store where "
+
+    if len(wordList) > 0:
+        for word in wordList:
+            base_sql += f"resume_raw_text LIKE '%{word}%' and "
+            
+    if jobRole is not None:
+        base_sql += f"job_role = '{jobRole}' and "
+
+    base_sql = base_sql.strip(" and ") + ";"
+
+    data = pd.read_sql(base_sql, engine)\
+             .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
+    if jobDescription is not None:
+        pass
+
+    

@@ -124,6 +124,11 @@ export default function Home() {
   const [loadingRecruitersOverview, setLoadingRecruitersOverview] = useState(false);
   const [recruitersOverviewError, setRecruitersOverviewError] = useState(null);
   
+  // Location state variables
+  const [locationInfo, setLocationInfo] = useState({ location: '', confidence_score: 0 });
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [locationError, setLocationError] = useState(null);
+  
   // Accessing userName from context
   const { userName } = usePdfText();
   
@@ -133,7 +138,7 @@ export default function Home() {
            !loadingCustomScores && !loadingOtherComments && 
            !loadingFunctionalConstituent && !loadingTechnicalConstituent && 
            !loadingEducation && !loadingProjects && !loadingEmployment &&
-           !loadingExperience && !loadingRecruitersOverview;
+           !loadingExperience && !loadingRecruitersOverview && !loadingLocation;
   };
 
   // Upload validations and micro-interactions
@@ -332,6 +337,10 @@ export default function Home() {
       });
       setRecruitersOverviewError(null);
       
+      // Reset Location state
+      setLocationInfo({ location: '', confidence_score: 0 });
+      setLocationError(null);
+      
       // Set all loading states to true
       setLoadingScore(true);
       setLoadingContact(true);
@@ -345,6 +354,7 @@ export default function Home() {
       setLoadingProjects(true);
       setLoadingExperience(true);
       setLoadingRecruitersOverview(true);
+      setLoadingLocation(true);
 
       // Call fetchResumeName directly with the resume text
       fetchResumeName(resumeText);
@@ -572,6 +582,25 @@ export default function Home() {
             }
             setLoadingRecruitersOverview(false);
           }
+        },
+        {
+          name: 'getLocation',
+          url: 'http://127.0.0.1:8000/getLocation',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Location API Response:', data);
+            if (data && typeof data === 'object') {
+              setLocationInfo({
+                location: data.location || '',
+                confidence_score: data.confidence_score || 0
+              });
+            } else {
+              setLocationInfo({ location: '', confidence_score: 0 });
+            }
+            setLoadingLocation(false);
+          }
         }
       ];
 
@@ -611,6 +640,7 @@ export default function Home() {
               case 'getProjects': setLoadingProjects(false); break;
               case 'getYoe': setLoadingExperience(false); setExperienceError('Failed to load experience data'); break;
               case 'getRecruitersOverview': setLoadingRecruitersOverview(false); setRecruitersOverviewError('Failed to load recruiters overview data'); break;
+              case 'getLocation': setLoadingLocation(false); setLocationError('Failed to load location data'); break;
             }
           }
         } catch (error) {
@@ -629,6 +659,7 @@ export default function Home() {
             case 'getProjects': setLoadingProjects(false); break;
             case 'getYoe': setLoadingExperience(false); setExperienceError('Failed to load experience data'); break;
             case 'getRecruitersOverview': setLoadingRecruitersOverview(false); setRecruitersOverviewError('Failed to load recruiters overview data'); break;
+            case 'getLocation': setLoadingLocation(false); setLocationError('Failed to load location data'); break;
           }
         }
       };
@@ -649,6 +680,7 @@ export default function Home() {
       setLoadingEducation(false);
       setLoadingEmployment(false);
       setLoadingProjects(false);
+      setLoadingLocation(false);
     }
   };
 
@@ -1421,6 +1453,56 @@ export default function Home() {
                     </Box>
                   )}
                 </Box>
+              </Paper>
+
+              {/* Location */}
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Location
+                </Typography>
+                {loadingLocation ? (
+                  <CircularProgress size={24} />
+                ) : locationError ? (
+                  <Typography variant="body2" color="error">
+                    {locationError}
+                  </Typography>
+                ) : !locationInfo.location ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No location data available
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Typography variant="body1">
+                      {locationInfo.location}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Confidence Score:
+                      </Typography>
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        bgcolor: 
+                          locationInfo.confidence_score >= 80 ? 'success.light' :
+                          locationInfo.confidence_score >= 60 ? 'primary.light' :
+                          locationInfo.confidence_score >= 40 ? 'warning.light' : 'error.light',
+                        color: 
+                          locationInfo.confidence_score >= 80 ? 'success.contrastText' :
+                          locationInfo.confidence_score >= 60 ? 'primary.contrastText' :
+                          locationInfo.confidence_score >= 40 ? 'warning.contrastText' : 'error.contrastText',
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        fontSize: '0.875rem',
+                        fontWeight: 500
+                      }}>
+                        {locationInfo.confidence_score}%
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
               </Paper>
 
               {/* Functional Exposure */}
@@ -2556,7 +2638,11 @@ export default function Home() {
                     "getFunctionalConstituent": functionalConstituent,
                     "getYoe": totalExperience,
                     "getRyoe": relevantExperience,
-                    "getRecruitersOverview": recruitersOverview
+                    "getRecruitersOverview": recruitersOverview,
+                    "getLocation": {
+                      location: locationInfo.location,
+                      confidence_score: locationInfo.confidence_score
+                    }
                   };
                   
                   console.log('Accumulated data for save:', accumulatedData);

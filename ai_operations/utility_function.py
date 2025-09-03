@@ -973,3 +973,64 @@ def extract_recruiters_overview():
     chain = prompt | llm | JsonOutputParser()
 
     return chain
+
+
+def extract_location():
+
+    class CandidateLocation(BaseModel):
+        location: str = Field(..., description="Predicted location of the candidate (city/state/country)")
+        confidence_score: float = Field(..., ge=0, le=100, description="Confidence score of the predicted location between 0 and 100")
+
+    location_format = PydanticOutputParser(pydantic_object = CandidateLocation).get_format_instructions()
+
+    instruction_format = """
+    You are an expert in analyzing resumes and extracting candidate information.
+
+    Your task is to deduce the **candidate’s location** from the provided resume text and assign a **confidence score (0–100)** for your prediction.
+    
+    ---
+    
+    ### Step-by-Step Reasoning Process:
+    
+    1. **Identify the Most Recent Job**  
+       - Look for the candidate’s latest job experience.  
+       - If a company and location are mentioned, take this as the primary hint.  
+    
+    2. **Check Personal/Contact Information**  
+       - Scan the top section of the resume for addresses, cities, states, or countries.  
+       - If this matches or complements the most recent job location, increase confidence.  
+    
+    3. **Analyze Education Section**  
+       - If no recent job is available, check the location of the candidate’s most recent education institution.  
+    
+    4. **Cross-Reference Other Clues**  
+       - Phone number country codes, email domains, LinkedIn profiles, or project client regions may hint at location.  
+    
+    5. **Resolve Ambiguities**  
+       - If multiple locations are found, choose the one most closely tied to the **most recent professional or educational activity**.  
+    
+    6. **Assign Confidence Score**  
+       - **80–100 (High confidence):** Location explicitly stated in recent job.  
+       - **50–79 (Medium confidence):** Location inferred from education or older jobs.  
+       - **0–49 (Low confidence):** Ambiguous or no strong evidence; best guess.  
+    
+    ---
+    
+    ### Input:
+    **Resume Text:**  
+    {resume_text}
+    
+    ---
+
+    **Output format:**
+    {output_format}
+    """
+
+    prompt = PromptTemplate.from_template(template = instruction_format,
+                                          partial_variables={
+                                              "output_format": location_format
+                                          })
+    
+    chain = prompt | llm | JsonOutputParser()
+
+    return chain

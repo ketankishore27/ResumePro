@@ -456,5 +456,43 @@ def extract_data_db(data: dict):
         print("Exception in extractData:", e)
         return {"response": "Failed to extract data", "error": "An error occurred while processing your request", "status": 500}
 
+@app.post("/getLocation")
+def get_location(data: dict):
+    print("Received request for getLocation")
+    resumeText = data.get("resumeText")
+    
+    max_iter = 5
+    for iteration in range(max_iter):
+        try:
+            location_info = location_extractor_chain.invoke({"resume_text": resumeText})
+            keys_to_check = ['location', 'confidence_score']
+            if isinstance(location_info, dict):
+                if all(key in location_info for key in keys_to_check):
+                    return location_info
 
+            print(location_info)
+        except Exception as e:
+            print("Exception in locationExtractor:", e)
+            pass
+
+        print("Retrying. Ended Iteration:", iteration)    
+        
+    return {'location': '', 'confidence_score': 0}
+
+
+
+@app.post("/filterCandidate")
+def filter_candidate(data: dict):
+    try:
+        print("Received request for filterCandidate")
+        print("Request data:", data, type(data))
+        wordList = data.get("wordList", None)
+        jobRole = data.get("jobRole", None)
+        jobDescription = data.get("jobDescription", None)
+        
+        return resume_extraction(wordList, jobRole, jobDescription)
+
+    except Exception as e:
+        print("Exception in filterCandidate:", e)
+        return {"response": "Failed to filter candidate", "error": "An error occurred while processing your request", "status": 500}
 

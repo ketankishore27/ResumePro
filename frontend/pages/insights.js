@@ -149,6 +149,14 @@ export default function ResumeInsights() {
   const [relevantExperience, setRelevantExperience] = useState(null);
   const [experienceError, setExperienceError] = useState(null);
 
+  // Location state
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [locationInfo, setLocationInfo] = useState({
+    location: '',
+    confidence_score: 0
+  });
+  const [locationError, setLocationError] = useState(null);
+
   // Recruiters Overview state
   const [loadingRecruitersOverview, setLoadingRecruitersOverview] = useState(false);
   const [recruitersOverview, setRecruitersOverview] = useState({
@@ -242,6 +250,10 @@ export default function ResumeInsights() {
       bullets: [],
       relevant_experience: '',
       technical_proficiency: []
+    });
+    setLocationInfo({
+      location: '',
+      confidence_score: 0
     });
     
     // Clear context data - IMPORTANT: This must happen for direct access
@@ -421,7 +433,9 @@ export default function ResumeInsights() {
     setLoadingProjects(true);
     setLoadingEmployment(true);
     setLoadingRecruitersOverview(true);
+    setLoadingLocation(true);
     setScoreError(null);
+    setLocationError(null);
 
     // IMPORTANT: Clear all context data BEFORE making the API call
     // This ensures no previous data persists when querying a specific email
@@ -594,6 +608,23 @@ export default function ResumeInsights() {
         setEmploymentHistory([]);
       }
       
+      // Map get_location data
+      console.log('DEBUG - get_location data received:', data.get_location);
+      if (data.get_location) {
+        const locationData = typeof data.get_location === 'string' ? JSON.parse(data.get_location) : data.get_location;
+        console.log('DEBUG - Parsed location data:', locationData);
+        setLocationInfo({
+          location: locationData.location || '',
+          confidence_score: locationData.confidence_score || 0
+        });
+      } else {
+        console.log('DEBUG - get_location data missing in API response');
+        setLocationInfo({
+          location: '',
+          confidence_score: 0
+        });
+      }
+      
       // Map Years of Experience data (Total and Relevant)
       console.log('DEBUG - getYoe data received:', data.getYoe);
       console.log('DEBUG - getRyoe data received:', data.getRyoe);
@@ -660,6 +691,7 @@ export default function ResumeInsights() {
       setLoadingProjects(false);
       setLoadingEmployment(false);
       setLoadingRecruitersOverview(false);
+      setLoadingLocation(false);
       
       // Reset database query flag
       setIsDatabaseQuery(false);
@@ -680,6 +712,7 @@ export default function ResumeInsights() {
       setLoadingProjects(false);
       setLoadingEmployment(false);
       setLoadingRecruitersOverview(false);
+      setLoadingLocation(false);
     }
 };
 
@@ -1107,6 +1140,46 @@ useEffect(() => {
                         />
                       </span>
                     </Tooltip>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          </Paper>
+          
+          {/* Location Section */}
+          <Paper sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2, bgcolor: '#1e1e1e', color: 'white' }}>
+            <Typography variant="h5" fontWeight={700} gutterBottom>Location</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              {loadingLocation ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 100 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : locationError ? (
+                <Typography color="error">{locationError}</Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                  <Typography variant="h6" fontWeight={500} sx={{ mb: 2 }}>
+                    {locationInfo.location || 'Location not detected'}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="body1" sx={{ mr: 2, color: '#aaaaaa' }}>
+                      Confidence Score:
+                    </Typography>
+                    <Box 
+                      sx={{ 
+                        display: 'inline-flex',
+                        bgcolor: locationInfo.confidence_score >= 80 ? '#8AE9A1' : 
+                                locationInfo.confidence_score >= 60 ? '#63B3ED' : 
+                                locationInfo.confidence_score >= 40 ? '#F6AD55' : '#F56565',
+                        color: '#000000',
+                        borderRadius: '20px',
+                        px: 2,
+                        py: 0.5,
+                        fontWeight: 600
+                      }}
+                    >
+                      {locationInfo.confidence_score}%
+                    </Box>
                   </Box>
                 </Box>
               )}

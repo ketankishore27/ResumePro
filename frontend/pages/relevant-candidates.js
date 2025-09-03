@@ -30,8 +30,9 @@ export default function RelevantCandidates() {
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [filters, setFilters] = useState({
-    keywords: ''
+    keywords: []
   });
+  const [keywordInput, setKeywordInput] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [resultsPerPage, setResultsPerPage] = useState(20);
   const [sortBy, setSortBy] = useState('Apply date');
@@ -45,13 +46,36 @@ export default function RelevantCandidates() {
     setLoading(true);
     setSearchPerformed(true);
     
+    let candidateData = [];
+    
     try {
-      // This would be replaced with an actual API call
-      // For now, we'll simulate a response with mock data
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Make API call to filterCandidate endpoint
+      const response = await fetch('http://127.0.0.1:8000/filterCandidate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          wordList: filters.keywords,
+          jobRole: jobRole,
+          jobDescription: jobDescription
+        })
+      });
       
-      // Mock data for demonstration
-      const mockCandidates = [
+      const data = await response.json();
+      
+      // If we got valid data back, use it
+      if (data && Array.isArray(data) && data.length > 0) {
+        candidateData = data;
+      }
+    } catch (error) {
+      console.error('Error searching candidates:', error);
+    }
+    
+    // If no data from API, use mock data
+    if (candidateData.length === 0) {
+      console.log('No data returned from API, using mock data');
+      candidateData = [
         {
           id: 1,
           name: 'Ankita Devagn',
@@ -154,12 +178,10 @@ export default function RelevantCandidates() {
         }
       ];
       
-      setCandidates(mockCandidates);
-    } catch (error) {
-      console.error('Error searching candidates:', error);
-    } finally {
-      setLoading(false);
     }
+    
+    setCandidates(candidateData);
+    setLoading(false);
   };
 
   const handleCandidateClick = (candidate) => {
@@ -189,15 +211,13 @@ export default function RelevantCandidates() {
     }
   };
 
-  const filteredCandidates = candidates.filter(candidate => {
-    // Show all candidates by default
-    return true;
-  });
+  // Use all candidates without filtering by keywords
+  const filteredCandidates = candidates || [];
 
-  const totalResults = filteredCandidates.length;
+  const totalResults = filteredCandidates.length || 0;
   const startIndex = (currentPage - 1) * resultsPerPage;
   const endIndex = startIndex + resultsPerPage;
-  const paginatedCandidates = filteredCandidates.slice(startIndex, endIndex);
+  const paginatedCandidates = filteredCandidates.length > 0 ? filteredCandidates.slice(startIndex, endIndex) : [];
 
   return (
     <>
@@ -227,13 +247,40 @@ export default function RelevantCandidates() {
               <TextField
                 fullWidth
                 size="small"
-                placeholder="Search Keywords in results"
-                value={filters.keywords}
-                onChange={(e) => setFilters({...filters, keywords: e.target.value})}
+                placeholder="Add keyword and press Enter"
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && keywordInput.trim()) {
+                    setFilters({
+                      ...filters, 
+                      keywords: [...filters.keywords, keywordInput.trim()]
+                    });
+                    setKeywordInput('');
+                    e.preventDefault();
+                  }
+                }}
                 InputProps={{
                   startAdornment: <SearchIcon sx={(theme) => ({ mr: 1, color: theme.palette.text.secondary, fontSize: 18 })} />
                 }}
               />
+              {filters.keywords.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                  {filters.keywords.map((keyword, index) => (
+                    <Chip
+                      key={index}
+                      label={keyword}
+                      size="small"
+                      onDelete={() => {
+                        const newKeywords = [...filters.keywords];
+                        newKeywords.splice(index, 1);
+                        setFilters({...filters, keywords: newKeywords});
+                      }}
+                      sx={{ fontSize: '0.75rem' }}
+                    />
+                  ))}
+                </Box>
+              )}
             </AccordionDetails>
           </Accordion>
 
@@ -323,7 +370,7 @@ export default function RelevantCandidates() {
           {/* Results Header */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Typography variant="h6" color="text.secondary">
-              Showing {candidates.length} result(s)
+              Showing {filteredCandidates ? filteredCandidates.length : 0} result(s)
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography variant="body2" color="text.secondary">
@@ -335,13 +382,13 @@ export default function RelevantCandidates() {
                 <MenuItem value={100}>100</MenuItem>
               </Select>
               <Typography variant="body2" color="text.secondary">
-                Page 1 of 1
+                Page {currentPage} of {Math.max(1, Math.ceil(totalResults / resultsPerPage))}
               </Typography>
             </Box>
           </Box>
 
           {/* Action Buttons */}
-          {candidates.length > 0 && (
+          {filteredCandidates && filteredCandidates.length > 0 && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Checkbox 
                 size="small" 
@@ -382,9 +429,9 @@ export default function RelevantCandidates() {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
               <CircularProgress size={40} />
             </Box>
-          ) : candidates.length > 0 ? (
+          ) : paginatedCandidates && paginatedCandidates.length > 0 ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {candidates.map((candidate) => (
+              {paginatedCandidates.map((candidate) => (
                 <Card 
                   key={candidate.id}
                   sx={(theme) => ({ 
@@ -573,7 +620,7 @@ export default function RelevantCandidates() {
           )}
 
           {/* Pagination */}
-          {candidates.length > 0 && (
+          {filteredCandidates && filteredCandidates.length > 0 && (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
               <Pagination 
                 count={Math.ceil(totalResults / resultsPerPage)} 
@@ -588,3 +635,4 @@ export default function RelevantCandidates() {
     </>
   );
 }
+
