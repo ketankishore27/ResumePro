@@ -13,6 +13,7 @@ ChartJS.register(ArcElement, ChartTooltip, Legend, ChartDataLabels);
 
 // Define motion-wrapped components at module scope to preserve component identity across renders
 const MotionPaper = motion(Paper);
+const MotionCard = motion(Card);
 
 import { usePdfText } from '../src/context/PdfTextContext';
 import Navigation from '../src/components/Navigation';
@@ -20,7 +21,7 @@ import Navigation from '../src/components/Navigation';
 
 
 // Reveal wrapper using IntersectionObserver + framer-motion spring
-const Reveal = ({ children, variant = 'grow', threshold = 0.15 }) => {
+const Reveal = ({ children, variant = 'grow', threshold = 0.15, delay = 0 }) => {
   const ref = useRef(null);
   const [inView, setInView] = useState(false);
 
@@ -36,17 +37,82 @@ const Reveal = ({ children, variant = 'grow', threshold = 0.15 }) => {
     return () => observer.disconnect();
   }, [threshold]);
 
-  const variants = useMemo(() => (
-    variant === 'fade'
-      ? {
+  const getTransition = (stiffness, damping, mass) => ({
+    type: 'spring',
+    stiffness,
+    damping,
+    mass,
+    delay
+  });
+
+  const variants = useMemo(() => {
+    switch (variant) {
+      case 'fade':
+        return {
           hidden: { opacity: 0, y: 12 },
-          show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 220, damping: 28, mass: 0.6 } },
-        }
-      : {
+          show: { 
+            opacity: 1, 
+            y: 0, 
+            transition: getTransition(220, 28, 0.6)
+          },
+        };
+      case 'slideUp':
+        return {
+          hidden: { opacity: 0, y: 40 },
+          show: { 
+            opacity: 1, 
+            y: 0, 
+            transition: getTransition(300, 32, 0.5)
+          },
+        };
+      case 'slideLeft':
+        return {
+          hidden: { opacity: 0, x: 40 },
+          show: { 
+            opacity: 1, 
+            x: 0, 
+            transition: getTransition(280, 30, 0.5)
+          },
+        };
+      case 'slideRight':
+        return {
+          hidden: { opacity: 0, x: -40 },
+          show: { 
+            opacity: 1, 
+            x: 0, 
+            transition: getTransition(280, 30, 0.5)
+          },
+        };
+      case 'zoom':
+        return {
+          hidden: { opacity: 0, scale: 0.85 },
+          show: { 
+            opacity: 1, 
+            scale: 1, 
+            transition: getTransition(300, 32, 0.4)
+          },
+        };
+      case 'flip':
+        return {
+          hidden: { opacity: 0, rotateX: 80 },
+          show: { 
+            opacity: 1, 
+            rotateX: 0, 
+            transition: getTransition(260, 26, 0.5)
+          },
+        };
+      default: // 'grow' default case
+        return {
           hidden: { opacity: 0, scale: 0.98, y: 8 },
-          show: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, mass: 0.6 } },
-        }
-  ), [variant]);
+          show: { 
+            opacity: 1, 
+            scale: 1, 
+            y: 0, 
+            transition: getTransition(260, 24, 0.6)
+          },
+        };
+    }
+  }, [variant, delay]);
 
   return (
     <motion.div ref={ref} initial="hidden" animate={inView ? 'show' : 'hidden'} variants={variants}>
@@ -56,33 +122,112 @@ const Reveal = ({ children, variant = 'grow', threshold = 0.15 }) => {
 };
 
 // Paper with built-in reveal using framer-motion spring
-const RevealPaper = ({ children, variant = 'grow', threshold = 0.15, ...paperProps }) => {
+const RevealPaper = ({ children, variant = 'grow', threshold = 0.15, delay = 0, ...paperProps }) => {
   const ref = useRef(null);
   const [inView, setInView] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
 
   useEffect(() => {
-    if (!ref.current) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setInView(true);
+    // Prevent animation from running on initial render to avoid blinking
+    const timer = setTimeout(() => {
+      if (!ref.current) return;
+      
+      const observer = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          setHasAnimated(true);
+          observer.disconnect();
+        }
+      }, { threshold, rootMargin: '50px' });
+      
+      observer.observe(ref.current);
+      return () => {
         observer.disconnect();
-      }
-    }, { threshold });
-    observer.observe(ref.current);
-    return () => observer.disconnect();
+        clearTimeout(timer);
+      };
+    }, 100); // Small delay to ensure component is fully mounted
+    
+    return () => clearTimeout(timer);
   }, [threshold]);
 
-  const variants = useMemo(() => (
-    variant === 'fade'
-      ? {
+  const getTransition = (stiffness, damping, mass) => ({
+    type: 'spring',
+    stiffness,
+    damping,
+    mass,
+    delay: hasAnimated ? 0 : delay, // Only apply delay on first animation
+    restDelta: 0.001, // More precise animation end detection
+    restSpeed: 0.001 // More precise animation end detection
+  });
+
+  const variants = useMemo(() => {
+    switch (variant) {
+      case 'fade':
+        return {
           hidden: { opacity: 0, y: 12 },
-          show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 220, damping: 28, mass: 0.6 } },
-        }
-      : {
-          hidden: { opacity: 0, scale: 0.98, y: 8 },
-          show: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, mass: 0.6 } },
-        }
-  ), [variant]);
+          show: { 
+            opacity: 1, 
+            y: 0, 
+            transition: getTransition(180, 26, 0.6)
+          },
+        };
+      case 'slideUp':
+        return {
+          hidden: { opacity: 0, y: 20 }, // Reduced distance for smoother animation
+          show: { 
+            opacity: 1, 
+            y: 0, 
+            transition: getTransition(200, 28, 0.5)
+          },
+        };
+      case 'slideLeft':
+        return {
+          hidden: { opacity: 0, x: 20 }, // Reduced distance for smoother animation
+          show: { 
+            opacity: 1, 
+            x: 0, 
+            transition: getTransition(200, 26, 0.5)
+          },
+        };
+      case 'slideRight':
+        return {
+          hidden: { opacity: 0, x: -20 }, // Reduced distance for smoother animation
+          show: { 
+            opacity: 1, 
+            x: 0, 
+            transition: getTransition(200, 26, 0.5)
+          },
+        };
+      case 'zoom':
+        return {
+          hidden: { opacity: 0, scale: 0.95 }, // Less extreme scale for smoother animation
+          show: { 
+            opacity: 1, 
+            scale: 1, 
+            transition: getTransition(200, 28, 0.4)
+          },
+        };
+      case 'flip':
+        return {
+          hidden: { opacity: 0, rotateX: 40 }, // Less extreme rotation for smoother animation
+          show: { 
+            opacity: 1, 
+            rotateX: 0, 
+            transition: getTransition(180, 24, 0.5)
+          },
+        };
+      default: // 'grow' default case
+        return {
+          hidden: { opacity: 0, scale: 0.98, y: 5 }, // Reduced distance for smoother animation
+          show: { 
+            opacity: 1, 
+            scale: 1, 
+            y: 0, 
+            transition: getTransition(180, 22, 0.6)
+          },
+        };
+    }
+  }, [variant, delay, hasAnimated]);
 
   return (
     <MotionPaper
@@ -148,6 +293,14 @@ export default function ResumeInsights() {
   const [totalExperience, setTotalExperience] = useState(null);
   const [relevantExperience, setRelevantExperience] = useState(null);
   const [experienceError, setExperienceError] = useState(null);
+
+  // Designation state
+  const [loadingDesignation, setLoadingDesignation] = useState(false);
+  const [designationInfo, setDesignationInfo] = useState({
+    current_designation: '',
+    previous_designation: ''
+  });
+  const [designationError, setDesignationError] = useState(null);
 
   // Location state
   const [loadingLocation, setLoadingLocation] = useState(false);
@@ -251,6 +404,12 @@ export default function ResumeInsights() {
       relevant_experience: '',
       technical_proficiency: []
     });
+    setDesignationInfo({
+      current_designation: '',
+      previous_designation: ''
+    });
+    setDesignationError(null);
+    
     setLocationInfo({
       location: '',
       confidence_score: 0
@@ -433,6 +592,7 @@ export default function ResumeInsights() {
     setLoadingProjects(true);
     setLoadingEmployment(true);
     setLoadingRecruitersOverview(true);
+    setLoadingDesignation(true);
     setLoadingLocation(true);
     setScoreError(null);
     setLocationError(null);
@@ -607,6 +767,55 @@ export default function ResumeInsights() {
         console.log('DEBUG - get_company data missing in API response');
         setEmploymentHistory([]);
       }
+      
+      // Map get_designation data
+      console.log('DEBUG - get_designation data received:', data.get_designation);
+      console.log('DEBUG - get_recruiters_overview data received:', data.get_recruiters_overview);
+      
+      // Check both possible field locations for designation data
+      // This handles the case where fields might be swapped in the database
+      let designationData = null;
+      
+      // First try the expected field
+      if (data.get_designation) {
+        designationData = typeof data.get_designation === 'string' ? JSON.parse(data.get_designation) : data.get_designation;
+        console.log('DEBUG - Parsed designation data from get_designation:', designationData);
+        
+        // Verify if this actually contains designation data
+        if (!designationData.current_designation && !designationData.previous_designation) {
+          console.log('DEBUG - get_designation field does not contain valid designation data');
+          designationData = null;
+        }
+      }
+      
+      // If not found in the expected field, check if it might be in recruiters_overview due to column swap
+      if (!designationData && data.get_recruiters_overview) {
+        const potentialDesignationData = typeof data.get_recruiters_overview === 'string' ? 
+          JSON.parse(data.get_recruiters_overview) : data.get_recruiters_overview;
+        
+        console.log('DEBUG - Checking get_recruiters_overview for designation data:', potentialDesignationData);
+        
+        // Check if this has designation structure
+        if (potentialDesignationData.current_designation || potentialDesignationData.previous_designation) {
+          console.log('DEBUG - Found designation data in get_recruiters_overview field');
+          designationData = potentialDesignationData;
+        }
+      }
+      
+      // Set designation info based on what we found
+      if (designationData) {
+        setDesignationInfo({
+          current_designation: designationData.current_designation || '',
+          previous_designation: designationData.previous_designation || ''
+        });
+      } else {
+        console.log('DEBUG - Designation data not found in any field');
+        setDesignationInfo({
+          current_designation: '',
+          previous_designation: ''
+        });
+      }
+      setLoadingDesignation(false);
       
       // Map get_location data
       console.log('DEBUG - get_location data received:', data.get_location);
@@ -900,7 +1109,7 @@ useEffect(() => {
       {/* Email Query Section - Hidden when redirected from bulk-import */}
       {!emailId && (
         <Box sx={{ p: 4, pb: 2 }}>
-          <RevealPaper sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
+          <RevealPaper variant="slideUp" sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               Query Candidate Database
             </Typography>
@@ -958,7 +1167,20 @@ useEffect(() => {
       <Grid container spacing={3}>
         {/* Sidebar */}
         <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
+          <RevealPaper 
+            variant="slideLeft"
+            threshold={0.1}
+            delay={0}
+            sx={{ 
+              p: 3, 
+              mb: 3, 
+              textAlign: 'center',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              } 
+            }}>
             {/* Candidate Name Section - Always show when we have actual data */}
             {(emailId || (pdfText && pdfText.trim() !== '') || (userName && userName.trim() !== '')) && (
               <Box sx={{ mb: 3, pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -1004,7 +1226,20 @@ useEffect(() => {
             )}
             {/* Upload & re-scan button removed */}
             {/* Experience Cards */}
-            <Box sx={{ mt: 3, mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, backgroundColor: 'surface.main' }}>
+            <Box sx={{ 
+              mt: 3, 
+              mb: 3, 
+              p: 2, 
+              border: '1px solid', 
+              borderColor: 'divider', 
+              borderRadius: 2, 
+              backgroundColor: 'surface.main',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                boxShadow: 2,
+                borderColor: 'primary.light'
+              }
+            }}>
               <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2, color: 'text.primary' }}>
                 Experience Overview
               </Typography>
@@ -1087,7 +1322,19 @@ useEffect(() => {
             </Box>
             
             {/* Contact Information Section */}
-            <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, backgroundColor: 'surface.main' }}>
+            <Box sx={{ 
+              mt: 3, 
+              p: 2, 
+              border: '1px solid', 
+              borderColor: 'divider', 
+              borderRadius: 2, 
+              backgroundColor: 'surface.main',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                boxShadow: 2,
+                borderColor: 'primary.light'
+              }
+            }}>
               <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2, color: 'text.primary' }}>
                 Contact Information
               </Typography>
@@ -1144,10 +1391,47 @@ useEffect(() => {
                 </Box>
               )}
             </Box>
-          </Paper>
+          </RevealPaper>
+          
+          {/* Designation Section */}
+          <RevealPaper 
+            variant="slideRight" 
+            threshold={0.1}
+            delay={0.1}
+            sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2, bgcolor: '#1e1e1e', color: 'white' }}>
+            <Typography variant="h5" fontWeight={700} gutterBottom>Designation</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              {loadingDesignation ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 100 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : designationError ? (
+                <Typography color="error">{designationError}</Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle1" sx={{ color: '#aaaaaa', mb: 0.5 }}>Current Designation:</Typography>
+                    <Typography variant="h6" fontWeight={500}>
+                      {designationInfo.current_designation || 'Not specified'}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ color: '#aaaaaa', mb: 0.5 }}>Previous Designation:</Typography>
+                    <Typography variant="h6" fontWeight={500}>
+                      {designationInfo.previous_designation || 'Not specified'}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          </RevealPaper>
           
           {/* Location Section */}
-          <Paper sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2, bgcolor: '#1e1e1e', color: 'white' }}>
+          <RevealPaper 
+            variant="slideRight" 
+            threshold={0.1}
+            delay={0.2}
+            sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2, bgcolor: '#1e1e1e', color: 'white' }}>
             <Typography variant="h5" fontWeight={700} gutterBottom>Location</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
               {loadingLocation ? (
@@ -1184,10 +1468,24 @@ useEffect(() => {
                 </Box>
               )}
             </Box>
-          </Paper>
+          </RevealPaper>
           
           {/* Functional Exposure Section */}
-          <Paper sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2 }}>
+          <RevealPaper 
+            variant="zoom" 
+            threshold={0.1}
+            delay={0.3}
+            sx={{ 
+              p: 3, 
+              mt: 3, 
+              position: 'relative', 
+              zIndex: 2,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              }
+            }}>
             <Typography variant="subtitle1" fontWeight={700} gutterBottom>Functional Exposure</Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
               {loadingFunctionalConstituent ? (
@@ -1200,10 +1498,24 @@ useEffect(() => {
                 />
               )}
             </Box>
-          </Paper>
+          </RevealPaper>
           
           {/* Technical Exposure Section */}
-          <Paper sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2 }}>
+          <RevealPaper 
+            variant="zoom" 
+            threshold={0.1}
+            delay={0.4}
+            sx={{ 
+              p: 3, 
+              mt: 3, 
+              position: 'relative', 
+              zIndex: 2,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              }
+            }}>
             <Typography variant="h6" fontWeight={700} gutterBottom>Technical Exposure</Typography>
             {loadingTechnicalConstituent ? (
               <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -1229,7 +1541,19 @@ useEffect(() => {
                     <Typography variant="subtitle2" fontWeight={600} color="success.main" gutterBottom>
                       High
                     </Typography>
-                    <Box sx={(theme) => ({ minHeight: 60, backgroundColor: alpha(theme.palette.success.main, 0.1), borderRadius: 1, p: 1, border: '1px solid', borderColor: theme.palette.success.main })}>
+                    <Box sx={(theme) => ({ 
+                      minHeight: 60, 
+                      backgroundColor: alpha(theme.palette.success.main, 0.1), 
+                      borderRadius: 1, 
+                      p: 1, 
+                      border: '1px solid', 
+                      borderColor: theme.palette.success.main,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.success.main, 0.2),
+                        boxShadow: `0 0 8px ${alpha(theme.palette.success.main, 0.4)}`
+                      }
+                    })}>
                       {technicalConstituent.high && technicalConstituent.high.length > 0 ? (
                         technicalConstituent.high.map((skill, index) => (
                           <Chip
@@ -1238,7 +1562,15 @@ useEffect(() => {
                             size="small"
                             color="success"
                             variant="outlined"
-                            sx={{ m: 0.5, fontSize: '0.75rem' }}
+                            sx={{ 
+                              m: 0.5, 
+                              fontSize: '0.75rem',
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                transform: 'scale(1.05)'
+                              }
+                            }}
                           />
                         ))
                       ) : (
@@ -1256,7 +1588,19 @@ useEffect(() => {
                     <Typography variant="subtitle2" fontWeight={600} color="warning.main" gutterBottom>
                       Medium
                     </Typography>
-                    <Box sx={(theme) => ({ minHeight: 60, backgroundColor: alpha(theme.palette.warning.main, 0.1), borderRadius: 1, p: 1, border: '1px solid', borderColor: theme.palette.warning.main })}>
+                    <Box sx={(theme) => ({ 
+                      minHeight: 60, 
+                      backgroundColor: alpha(theme.palette.warning.main, 0.1), 
+                      borderRadius: 1, 
+                      p: 1, 
+                      border: '1px solid', 
+                      borderColor: theme.palette.warning.main,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.warning.main, 0.2),
+                        boxShadow: `0 0 8px ${alpha(theme.palette.warning.main, 0.4)}`
+                      }
+                    })}>
                       {technicalConstituent.medium && technicalConstituent.medium.length > 0 ? (
                         technicalConstituent.medium.map((skill, index) => (
                           <Chip
@@ -1265,7 +1609,15 @@ useEffect(() => {
                             size="small"
                             color="warning"
                             variant="outlined"
-                            sx={{ m: 0.5, fontSize: '0.75rem' }}
+                            sx={{ 
+                              m: 0.5, 
+                              fontSize: '0.75rem',
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                                transform: 'scale(1.05)'
+                              }
+                            }}
                           />
                         ))
                       ) : (
@@ -1283,7 +1635,19 @@ useEffect(() => {
                     <Typography variant="subtitle2" fontWeight={600} color="error.main" gutterBottom>
                       Low
                     </Typography>
-                    <Box sx={(theme) => ({ minHeight: 60, backgroundColor: alpha(theme.palette.error.main, 0.1), borderRadius: 1, p: 1, border: '1px solid', borderColor: theme.palette.error.main })}>
+                    <Box sx={(theme) => ({ 
+                      minHeight: 60, 
+                      backgroundColor: alpha(theme.palette.error.main, 0.1), 
+                      borderRadius: 1, 
+                      p: 1, 
+                      border: '1px solid', 
+                      borderColor: theme.palette.error.main,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.error.main, 0.2),
+                        boxShadow: `0 0 8px ${alpha(theme.palette.error.main, 0.4)}`
+                      }
+                    })}>
                       {technicalConstituent.low && technicalConstituent.low.length > 0 ? (
                         technicalConstituent.low.map((skill, index) => (
                           <Chip
@@ -1292,7 +1656,15 @@ useEffect(() => {
                             size="small"
                             color="error"
                             variant="outlined"
-                            sx={{ m: 0.5, fontSize: '0.75rem' }}
+                            sx={{ 
+                              m: 0.5, 
+                              fontSize: '0.75rem',
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.error.main, 0.1),
+                                transform: 'scale(1.05)'
+                              }
+                            }}
                           />
                         ))
                       ) : (
@@ -1305,10 +1677,257 @@ useEffect(() => {
                 </Grid>
               </Grid>
             )}
-          </Paper>
+          </RevealPaper>
+        </Grid>
+        {/* Main Content */}
+        <Grid item xs={12} md={9}>
+          {/* Summary Section */}
+          <RevealPaper 
+            variant="slideUp" 
+            threshold={0.1}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              }
+            }}>
+            <Typography variant="h6" fontWeight={700}>Summary</Typography>
+            <Typography variant="body2" sx={{ my: 2 }}>
+              AI-powered analysis of your resume summary section and overall presentation.
+            </Typography>
+            
+            {loadingSummary ? (
+              <Box sx={{ mt: 2 }}>
+                <Skeleton variant="text" width={160} />
+                <Skeleton variant="text" width="80%" />
+                <Skeleton variant="text" width="90%" />
+                <Skeleton variant="text" width="75%" />
+              </Box>
+            ) : (
+              <Box sx={{ mt: 2 }}>
+                {/* Summary Points Section */}
+                {summaryInfo.summary && summaryInfo.summary.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
+                      Extracted Summary:
+                    </Typography>
+                    <Box component="ul" sx={{ 
+                      margin: 0, 
+                      paddingLeft: 3, 
+                      listStyleType: 'disc'
+                    }}>
+                      {summaryInfo.summary.map((point, index) => (
+                        <Box component="li" key={index} sx={{ mb: 1, lineHeight: 1.5 }}>
+                          <Typography variant="body2" component="span">
+                            {point}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+                
+                {/* Summary Quality Section */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    Summary Quality:
+                  </Typography>
+                  <Chip 
+                    label={summaryInfo.label || 'N/A'} 
+                    size="small" 
+                    color={summaryInfo.color === 'green' ? 'success' : 
+                           summaryInfo.color === 'blue' ? 'primary' : 
+                           summaryInfo.color === 'orange' ? 'warning' : 'error'}
+                    sx={{ textTransform: 'capitalize' }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    Score: {summaryInfo.score || 0}/100
+                  </Typography>
+                </Box>
+                
+                <Box>
+                  <Collapse in={expandSummaryComment || !(summaryInfo.comment && summaryInfo.comment.length > 180)} collapsedSize={64}>
+                    <Typography variant="body2" sx={{ 
+                      p: 2, 
+                      backgroundColor: 'surface.light', 
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      color: 'text.primary',
+                      fontWeight: 700,
+                      fontStyle: 'italic'
+                    }}>
+                      {summaryInfo.comment || 'No summary analysis available'}
+                    </Typography>
+                  </Collapse>
+                  {summaryInfo.comment && summaryInfo.comment.length > 180 && (
+                    <Button size="small" onClick={() => setExpandSummaryComment((v) => !v)} sx={{ mt: 1, textTransform: 'none' }}>
+                      {expandSummaryComment ? 'Show less' : 'Show more'}
+                    </Button>
+                  )}
+                </Box>
+              </Box>
+            )}
+          </RevealPaper>
+          
+          {/* Projects Section */}
+          <RevealPaper 
+            variant="zoom" 
+            threshold={0.1}
+            delay={0.1}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              }
+            }}>
+            <Typography variant="h6" fontWeight={700}>Projects</Typography>
+            <Typography variant="body2" sx={{ my: 2 }}>
+              AI-powered analysis of your project experience and technical implementations.
+            </Typography>
+            {loadingProjects ? (
+              <Reveal variant="fade" threshold={0.1} delay={0.05}>
+                <Grid container spacing={2}>
+                  {[0,1,2,3].map((i) => (
+                    <Reveal variant="fade" threshold={0.1} delay={i * 0.05} key={i}>
+                      <Grid item xs={12} md={6}>
+                        <Card>
+                          <CardContent>
+                            <Skeleton variant="text" width="60%" />
+                            <Skeleton variant="text" width={120} />
+                            <Skeleton variant="text" width="90%" />
+                            <Skeleton variant="text" width="85%" />
+                            <Skeleton variant="rectangular" height={24} width="50%" sx={{ mt: 1, borderRadius: 1 }} />
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </Reveal>
+                  ))}
+                </Grid>
+              </Reveal>
+            ) : (
+              <Box>
+                {projectsInfo && projectsInfo.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {projectsInfo.map((project, index) => (
+                      <Grid item xs={12} md={6} key={index}>
+                        <Reveal variant="fade" threshold={0.1} delay={index * 0.05}>
+                          <MotionCard 
+                            whileHover={{ 
+                              y: -8,
+                              boxShadow: '0 10px 20px rgba(0,0,0,0.15)'
+                            }}
+                            transition={{ type: 'spring', stiffness: 300 }}
+                            sx={{ 
+                              height: '100%', 
+                              border: '1px solid', 
+                              borderColor: (project.score || 0) >= 80 ? 'success.main' : 
+                                        (project.score || 0) >= 60 ? 'warning.main' : 'error.main',
+                              transition: 'all 0.3s ease'
+                            }}>
+                            <CardContent>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                                <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
+                                  {project.title || `Project ${index + 1}`}
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                  <Chip 
+                                    label={`${project.score || 0}%`}
+                                    size="small"
+                                    color={(project.score || 0) >= 80 ? 'success' : 
+                                          (project.score || 0) >= 60 ? 'warning' : 'error'}
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                  <Chip 
+                                    label={project.stage || 'Unknown'}
+                                    size="small"
+                                    variant="outlined"
+                                    color={project.stage === 'Production' ? 'primary' : 'default'}
+                                  />
+                                </Box>
+                              </Box>
+                              
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                {project.description || 'No description available'}
+                              </Typography>
+                              
+                              {project.comment && (
+                                <Box sx={{ mb: 2 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                    AI Analysis:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                                    {project.comment}
+                                  </Typography>
+                                </Box>
+                              )}
+                              
+                              {project.technologies && project.technologies.length > 0 && (
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
+                                    Technologies:
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                    {project.technologies.map((tech, techIndex) => (
+                                      <Tooltip key={techIndex} title={copied === tech ? 'Copied!' : 'Click to copy'}>
+                                        <span>
+                                          <Chip 
+                                            label={tech}
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() => handleCopy(tech)}
+                                            clickable
+                                            icon={<ContentCopy fontSize="small" />}
+                                            sx={{ 
+                                              fontSize: '0.75rem',
+                                              transition: 'all 0.2s ease',
+                                              '&:hover': {
+                                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                                transform: 'scale(1.05)'
+                                              }
+                                            }}
+                                          />
+                                        </span>
+                                      </Tooltip>
+                                    ))}
+                                  </Box>
+                                </Box>
+                              )}
+                            </CardContent>
+                          </MotionCard>
+                        </Reveal>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+                    No projects found in your resume. Consider adding project details to showcase your technical experience.
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </RevealPaper>
 
           {/* Recruiters Overview Section */}
-          <Paper sx={{ p: 3, mt: 3, mb: 3 }}>
+          <RevealPaper 
+            variant="slideLeft" 
+            threshold={0.1}
+            delay={0.15}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              }
+            }}>
             <Typography variant="h6" fontWeight={700}>Recruiters Overview</Typography>
             <Typography variant="body2" sx={{ my: 2 }}>
               AI-powered analysis of your resume from a recruiter's perspective.
@@ -1396,202 +2015,22 @@ useEffect(() => {
                 )}
               </Box>
             )}
-          </Paper>
-        </Grid>
-        {/* Main Content */}
-        <Grid item xs={12} md={9}>
-          {/* Summary Section */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" fontWeight={700}>Summary</Typography>
-            <Typography variant="body2" sx={{ my: 2 }}>
-              AI-powered analysis of your resume summary section and overall presentation.
-            </Typography>
-            
-            {loadingSummary ? (
-              <Box sx={{ mt: 2 }}>
-                <Skeleton variant="text" width={160} />
-                <Skeleton variant="text" width="80%" />
-                <Skeleton variant="text" width="90%" />
-                <Skeleton variant="text" width="75%" />
-              </Box>
-            ) : (
-              <Box sx={{ mt: 2 }}>
-                {/* Summary Points Section */}
-                {summaryInfo.summary && summaryInfo.summary.length > 0 && (
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
-                      Extracted Summary:
-                    </Typography>
-                    <Box component="ul" sx={{ 
-                      margin: 0, 
-                      paddingLeft: 3, 
-                      listStyleType: 'disc'
-                    }}>
-                      {summaryInfo.summary.map((point, index) => (
-                        <Box component="li" key={index} sx={{ mb: 1, lineHeight: 1.5 }}>
-                          <Typography variant="body2" component="span">
-                            {point}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-                
-                {/* Summary Quality Section */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <Typography variant="subtitle2" fontWeight={600}>
-                    Summary Quality:
-                  </Typography>
-                  <Chip 
-                    label={summaryInfo.label || 'N/A'} 
-                    size="small" 
-                    color={summaryInfo.color === 'green' ? 'success' : 
-                           summaryInfo.color === 'blue' ? 'primary' : 
-                           summaryInfo.color === 'orange' ? 'warning' : 'error'}
-                    sx={{ textTransform: 'capitalize' }}
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    Score: {summaryInfo.score || 0}/100
-                  </Typography>
-                </Box>
-                
-                <Box>
-                  <Collapse in={expandSummaryComment || !(summaryInfo.comment && summaryInfo.comment.length > 180)} collapsedSize={64}>
-                    <Typography variant="body2" sx={{ 
-                      p: 2, 
-                      backgroundColor: 'surface.light', 
-                      borderRadius: 1,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      color: 'text.primary',
-                      fontWeight: 700,
-                      fontStyle: 'italic'
-                    }}>
-                      {summaryInfo.comment || 'No summary analysis available'}
-                    </Typography>
-                  </Collapse>
-                  {summaryInfo.comment && summaryInfo.comment.length > 180 && (
-                    <Button size="small" onClick={() => setExpandSummaryComment((v) => !v)} sx={{ mt: 1, textTransform: 'none' }}>
-                      {expandSummaryComment ? 'Show less' : 'Show more'}
-                    </Button>
-                  )}
-                </Box>
-              </Box>
-            )}
-          </Paper>
-          
-          {/* Projects Section */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" fontWeight={700}>Projects</Typography>
-            <Typography variant="body2" sx={{ my: 2 }}>
-              AI-powered analysis of your project experience and technical implementations.
-            </Typography>
-            {loadingProjects ? (
-              <Grid container spacing={2}>
-                {[0,1,2,3].map((i) => (
-                  <Grid item xs={12} md={6} key={i}>
-                    <Card>
-                      <CardContent>
-                        <Skeleton variant="text" width="60%" />
-                        <Skeleton variant="text" width={120} />
-                        <Skeleton variant="text" width="90%" />
-                        <Skeleton variant="text" width="85%" />
-                        <Skeleton variant="rectangular" height={24} width="50%" sx={{ mt: 1, borderRadius: 1 }} />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Box>
-                {projectsInfo && projectsInfo.length > 0 ? (
-                  <Grid container spacing={2}>
-                    {projectsInfo.map((project, index) => (
-                      <Grid item xs={12} md={6} key={index}>
-                        <Card sx={{ 
-                          height: '100%', 
-                          border: '1px solid', 
-                          borderColor: (project.score || 0) >= 80 ? 'success.main' : 
-                                     (project.score || 0) >= 60 ? 'warning.main' : 'error.main'
-                        }}>
-                          <CardContent>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                              <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
-                                {project.title || `Project ${index + 1}`}
-                              </Typography>
-                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <Chip 
-                                  label={`${project.score || 0}%`}
-                                  size="small"
-                                  color={(project.score || 0) >= 80 ? 'success' : 
-                                         (project.score || 0) >= 60 ? 'warning' : 'error'}
-                                  sx={{ fontWeight: 600 }}
-                                />
-                                <Chip 
-                                  label={project.stage || 'Unknown'}
-                                  size="small"
-                                  variant="outlined"
-                                  color={project.stage === 'Production' ? 'primary' : 'default'}
-                                />
-                              </Box>
-                            </Box>
-                            
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                              {project.description || 'No description available'}
-                            </Typography>
-                            
-                            {project.comment && (
-                              <Box sx={{ mb: 2 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
-                                  AI Analysis:
-                                </Typography>
-                                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                                  {project.comment}
-                                </Typography>
-                              </Box>
-                            )}
-                            
-                            {project.technologies && project.technologies.length > 0 && (
-                              <Box>
-                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>
-                                  Technologies:
-                                </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                  {project.technologies.map((tech, techIndex) => (
-                                    <Tooltip key={techIndex} title={copied === tech ? 'Copied!' : 'Click to copy'}>
-                                      <span>
-                                        <Chip 
-                                          label={tech}
-                                          size="small"
-                                          variant="outlined"
-                                          onClick={() => handleCopy(tech)}
-                                          clickable
-                                          icon={<ContentCopy fontSize="small" />}
-                                          sx={{ fontSize: '0.75rem' }}
-                                        />
-                                      </span>
-                                    </Tooltip>
-                                  ))}
-                                </Box>
-                              </Box>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
-                    No projects found in your resume. Consider adding project details to showcase your technical experience.
-                  </Typography>
-                )}
-              </Box>
-            )}
-          </Paper>
+          </RevealPaper>
           
           {/* Resume Fixes Section */}
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <RevealPaper 
+            variant="slideUp" 
+            threshold={0.1}
+            delay={0.2}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              }
+            }}>
             <Typography variant="h6" fontWeight={700}>Resume Fixes <Chip label="IMPORTANT" size="small" color="default" sx={{ ml: 1 }} /></Typography>
             <Typography variant="body2" sx={{ my: 2 }}>
               These are the key fixes and optimization recommended for your resume to improve your chances with recruiters and ATS systems.
@@ -1732,10 +2171,22 @@ useEffect(() => {
                 </TableBody>
               </Table>
             </TableContainer>
-          </Paper>
+          </RevealPaper>
           
           {/* Professional Timeline Section */}
-          <Paper sx={{ p: 3, mb: 3 }}>  
+          <RevealPaper 
+            variant="flip" 
+            threshold={0.1}
+            delay={0.1}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              }
+            }}>  
             <Typography variant="h6" fontWeight={700} gutterBottom>
               Career Growth
             </Typography>
@@ -1956,10 +2407,22 @@ useEffect(() => {
                 )}
               </Box>
             )}
-          </Paper>
+          </RevealPaper>
           
           {/* Education History Section */}
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <RevealPaper 
+            variant="slideUp" 
+            threshold={0.1}
+            delay={0.25}
+            sx={{ 
+              p: 3, 
+              mb: 3,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: 6,
+                transform: 'translateY(-4px)'
+              }
+            }}>
             <Typography variant="h6" fontWeight={700} gutterBottom>
               Education Timeline
             </Typography>
@@ -2176,7 +2639,7 @@ useEffect(() => {
                 )}
               </Box>
             )}
-          </Paper>
+          </RevealPaper>
 
         </Grid>
       </Grid>

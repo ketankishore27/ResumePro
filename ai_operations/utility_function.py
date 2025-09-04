@@ -1034,3 +1034,96 @@ def extract_location():
     chain = prompt | llm | JsonOutputParser()
 
     return chain
+
+def designation_extractor():
+
+    class DesignationResponse(BaseModel):
+        current_designation: Optional[str] = Field(None, description="The candidate's most recent or current job title. Null if not found.")
+        previous_designation: Optional[str] = Field(None, description="The candidate's immediate past job title before the current one. Null if not found.")
+
+    
+    designation_output = PydanticOutputParser(pydantic_object=DesignationResponse).get_format_instructions()
+    
+    instruction_format = """
+    You are an expert resume parser.
+
+    Goal: From the provided resume text, extract the candidate’s CURRENT and PREVIOUS designation **together with the organization**, formatted exactly as:
+        "Job Title at Organization"
+    Return only JSON as specified at the end.
+    
+    Input placeholder:
+    {resume_string}
+    
+    —— INSTRUCTIONS ——
+    Think step-by-step internally and follow these rules exactly. Do NOT output your internal reasoning — only the final JSON.
+    
+    1) Locate the Experience section(s)
+       - Search for sections titled: Experience, Work Experience, Professional Experience, Employment History, Career History, Roles, or similar.
+       - Also consider company-by-company blocks, project headers that indicate employer/client, and any line that pairs a title with a company.
+    
+    2) Extract candidate entries
+       - For each employment entry capture:
+         • job title / designation (exact text as written; preserve capitalization and words, but normalize extra whitespace)
+         • organization / company name (prefer the company-level name; use client name only if company name is absent)
+         • start and end dates if available (e.g., "Oct 2017", "Apr’21", "2019–2020", "Present/Currently")
+         • employment type if present (e.g., "Intern", "Contract", "Full-time", "Permanent", "Freelance")
+       - Ignore purely academic projects, coursework, and certifications unless they are explicitly labeled as employment (e.g., "Research Intern", "Teaching Assistant", "Consultant at ...").
+    
+    3) Normalize dates for ordering
+       - Parse common date formats and normalize to YYYY-MM-DD for sorting:
+           • month+year → YYYY-MM-01 (e.g., "Oct 2017" → 2017-10-01)
+           • year-only → YYYY-07-01 (use mid-year as proxy)
+           • "Present", "Current", "Ongoing" → 2025-09-01 (use this fixed date)
+       - If an entry has start date but no end date → treat end as 2025-09-01.
+       - If no dates anywhere for an entry → fall back to document order (top-most entries are most recent).
+    
+    4) Rank entries by recency
+       - Primary: any entry with end date = Present/Current (treat these as most recent).
+       - Otherwise sort entries by end date descending; if end dates tie or missing, sort by start date descending.
+       - If still ambiguous, prefer the entry that appears earlier (higher) in the Experience section (assume top-down recency).
+    
+    5) Resolve concurrent/ambiguous current roles
+       - If multiple "Present" roles exist:
+           • Prefer full-time/permanent over contract, freelance, or internship.
+           • If multiple full-time, prefer the one with higher seniority keywords in the title (e.g., Principal > Lead > Head > Senior > Manager > Engineer > Associate > Junior).
+           • If still tied, choose the one that appears first in the resume.
+       - If a role is explicitly labeled as "Consultant" or "Freelance" and there's a full-time "Present" role, prefer the full-time role as CURRENT.
+    
+    6) Select CURRENT and PREVIOUS designations
+       - CURRENT = the job title + " at " + organization of the most recent ranked employment entry.
+       - PREVIOUS = the job title + " at " + organization of the next most recent employment entry (after removing the CURRENT entry).
+       - If only one employment entry exists → CURRENT = that entry, PREVIOUS = null.
+       - If no employment entries found → both CURRENT and PREVIOUS = null.
+    
+    7) Formatting rules for the returned strings
+       - Output exactly: "<Job Title> at <Organization>"
+       - If organization is missing but title is present → return just "<Job Title>" (no "at").
+       - If title is missing but organization present → return null for that slot.
+       - Trim leading/trailing whitespace and collapse multiple internal spaces to single spaces.
+       - Preserve original punctuation and capitalization from the resume (except whitespace normalization).
+    
+    8) De-duplication and client/project blocks
+       - If a single employer block contains multiple client-project sub-roles, prefer the top-level employer position as the designation (e.g., "SDE at ACME Corp" rather than "Project: QA for ClientX").
+       - If the resume lists the same title at the same employer multiple times (e.g., contract renewals), treat them as one continuous role for ordering.
+    
+    9) Exclusions
+       - Do NOT extract job descriptions, bullet points, or project titles as designations.
+       - Do NOT include internship/course titles unless explicitly listed as employment.
+       - Do NOT invent company names or titles.
+    
+    —— END ——
+    
+    Now parse the input and produce the results.
+    
+    Output format:
+    {output_format}
+    """
+
+    prompt = PromptTemplate.from_template(template=instruction_format, 
+                                          partial_variables={
+                                              "output_format": designation_output
+                                          })
+
+    chain = prompt | llm | JsonOutputParser()
+
+    return chain

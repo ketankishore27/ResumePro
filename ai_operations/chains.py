@@ -18,3 +18,5 @@ name_extractor_chain = extract_names()
 yoe_extractor_chain = extract_yoe()
 recruiters_overview_chain = extract_recruiters_overview()
 location_extractor_chain = extract_location()
+designation_extractor_chain = designation_extractor()
+

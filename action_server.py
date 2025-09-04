@@ -402,6 +402,29 @@ def getRecruitersOverview(data: dict):
         
     return {'bullets': [], 'relevant_experience': '', 'technical_proficiency': []}
 
+@app.post("/getDesignation")
+def getDesignation(data: dict):
+    print("Received request for getDesignation")
+    resumeText = data.get("resumeText")
+    
+    max_iter = 5
+    for iteration in range(max_iter):
+        try:
+            designation_info = designation_extractor_chain.invoke({"resume_string": resumeText})
+            keys_to_check = ['current_designation', 'previous_designation']
+            if isinstance(designation_info, dict):
+                if all(key in designation_info for key in keys_to_check):
+                    return designation_info
+
+            print(designation_info)
+        except Exception as e:
+            print("Exception in designationExtractor:", e)
+            pass
+
+        print("Retrying. Ended Iteration:", iteration)    
+        
+    return {'current_designation': '', 'previous_designation': ''}
+
 @app.post("/assembleData")
 def assembleData(data: dict):
     try:

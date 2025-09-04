@@ -124,6 +124,11 @@ export default function Home() {
   const [loadingRecruitersOverview, setLoadingRecruitersOverview] = useState(false);
   const [recruitersOverviewError, setRecruitersOverviewError] = useState(null);
   
+  // Designation state variables
+  const [designationInfo, setDesignationInfo] = useState({ current_designation: '', previous_designation: '' });
+  const [loadingDesignation, setLoadingDesignation] = useState(false);
+  const [designationError, setDesignationError] = useState(null);
+
   // Location state variables
   const [locationInfo, setLocationInfo] = useState({ location: '', confidence_score: 0 });
   const [loadingLocation, setLoadingLocation] = useState(false);
@@ -138,7 +143,7 @@ export default function Home() {
            !loadingCustomScores && !loadingOtherComments && 
            !loadingFunctionalConstituent && !loadingTechnicalConstituent && 
            !loadingEducation && !loadingProjects && !loadingEmployment &&
-           !loadingExperience && !loadingRecruitersOverview && !loadingLocation;
+           !loadingExperience && !loadingRecruitersOverview && !loadingDesignation && !loadingLocation;
   };
 
   // Upload validations and micro-interactions
@@ -337,6 +342,10 @@ export default function Home() {
       });
       setRecruitersOverviewError(null);
       
+      // Reset Designation state
+      setDesignationInfo({ current_designation: '', previous_designation: '' });
+      setDesignationError(null);
+      
       // Reset Location state
       setLocationInfo({ location: '', confidence_score: 0 });
       setLocationError(null);
@@ -354,6 +363,7 @@ export default function Home() {
       setLoadingProjects(true);
       setLoadingExperience(true);
       setLoadingRecruitersOverview(true);
+      setLoadingDesignation(true);
       setLoadingLocation(true);
 
       // Call fetchResumeName directly with the resume text
@@ -584,6 +594,25 @@ export default function Home() {
           }
         },
         {
+          name: 'getDesignation',
+          url: 'http://127.0.0.1:8000/getDesignation',
+          body: JSON.stringify({ resumeText }),
+          promise: null,
+          handler: async (response) => {
+            const data = await response.json();
+            console.log('Designation API Response:', data);
+            if (data && typeof data === 'object') {
+              setDesignationInfo({
+                current_designation: data.current_designation || '',
+                previous_designation: data.previous_designation || ''
+              });
+            } else {
+              setDesignationInfo({ current_designation: '', previous_designation: '' });
+            }
+            setLoadingDesignation(false);
+          }
+        },
+        {
           name: 'getLocation',
           url: 'http://127.0.0.1:8000/getLocation',
           body: JSON.stringify({ resumeText }),
@@ -640,6 +669,7 @@ export default function Home() {
               case 'getProjects': setLoadingProjects(false); break;
               case 'getYoe': setLoadingExperience(false); setExperienceError('Failed to load experience data'); break;
               case 'getRecruitersOverview': setLoadingRecruitersOverview(false); setRecruitersOverviewError('Failed to load recruiters overview data'); break;
+              case 'getDesignation': setLoadingDesignation(false); setDesignationError('Failed to load designation data'); break;
               case 'getLocation': setLoadingLocation(false); setLocationError('Failed to load location data'); break;
             }
           }
@@ -659,6 +689,7 @@ export default function Home() {
             case 'getProjects': setLoadingProjects(false); break;
             case 'getYoe': setLoadingExperience(false); setExperienceError('Failed to load experience data'); break;
             case 'getRecruitersOverview': setLoadingRecruitersOverview(false); setRecruitersOverviewError('Failed to load recruiters overview data'); break;
+            case 'getDesignation': setLoadingDesignation(false); setDesignationError('Failed to load designation data'); break;
             case 'getLocation': setLoadingLocation(false); setLocationError('Failed to load location data'); break;
           }
         }
@@ -680,6 +711,7 @@ export default function Home() {
       setLoadingEducation(false);
       setLoadingEmployment(false);
       setLoadingProjects(false);
+      setLoadingDesignation(false);
       setLoadingLocation(false);
     }
   };
@@ -1455,6 +1487,50 @@ export default function Home() {
                 </Box>
               </Paper>
 
+              {/* Designation */}
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Designation
+                </Typography>
+                {loadingDesignation ? (
+                  <CircularProgress size={24} />
+                ) : designationError ? (
+                  <Typography variant="body2" color="error">
+                    {designationError}
+                  </Typography>
+                ) : !designationInfo.current_designation && !designationInfo.previous_designation ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No designation data available
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {designationInfo.current_designation && (
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                          Current Designation
+                        </Typography>
+                        <Typography variant="body1">
+                          {designationInfo.current_designation}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    {designationInfo.previous_designation && (
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                          Previous Designation
+                        </Typography>
+                        <Typography variant="body1">
+                          {designationInfo.previous_designation}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                )}
+              </Paper>
+
               {/* Location */}
               <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -1647,88 +1723,6 @@ export default function Home() {
                       </Box>
                     </Grid>
                   </Grid>
-                )}
-              </Paper>
-
-              {/* Recruiters Overview Section */}
-              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
-                <Typography variant="h6" fontWeight={600} gutterBottom>
-                  Recruiters Overview
-                </Typography>
-                
-                {loadingRecruitersOverview ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Skeleton variant="text" width="80%" height={30} />
-                    <Box sx={{ pl: 2 }}>
-                      <Skeleton variant="text" width="90%" />
-                      <Skeleton variant="text" width="75%" />
-                      <Skeleton variant="text" width="85%" />
-                    </Box>
-                    <Skeleton variant="text" width="60%" height={30} />
-                    <Box sx={{ pl: 2 }}>
-                      <Skeleton variant="text" width="70%" />
-                      <Skeleton variant="text" width="80%" />
-                    </Box>
-                  </Box>
-                ) : recruitersOverviewError ? (
-                  <Typography variant="body2" color="error">
-                    {recruitersOverviewError}
-                  </Typography>
-                ) : recruitersOverview.bullets.length === 0 && 
-                   !recruitersOverview.relevant_experience && 
-                   recruitersOverview.technical_proficiency.length === 0 ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      No recruiter overview data available
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {/* Relevant Experience Summary */}
-                    {recruitersOverview.relevant_experience && (
-                      <Typography variant="body1">
-                        {recruitersOverview.relevant_experience}
-                      </Typography>
-                    )}
-                    
-                    {/* Recruiter-friendly Bullet Points */}
-                    {recruitersOverview.bullets && recruitersOverview.bullets.length > 0 && (
-                      <Box>
-                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                          Key Highlights
-                        </Typography>
-                        <List dense>
-                          {recruitersOverview.bullets.map((bullet, index) => (
-                            <ListItem key={index} sx={{ py: 0.5 }}>
-                              <ListItemIcon sx={{ minWidth: 36 }}>
-                                <Code color="primary" fontSize="small" />
-                              </ListItemIcon>
-                              <ListItemText primary={bullet} />
-                            </ListItem>
-                          ))}
-                        </List>
-                      </Box>
-                    )}
-                    
-                    {/* Technical Proficiencies */}
-                    {recruitersOverview.technical_proficiency && recruitersOverview.technical_proficiency.length > 0 && (
-                      <Box>
-                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                          Technical Proficiencies
-                        </Typography>
-                        <List dense>
-                          {recruitersOverview.technical_proficiency.map((tech, index) => (
-                            <ListItem key={index} sx={{ py: 0.5 }}>
-                              <ListItemIcon sx={{ minWidth: 36 }}>
-                                <Code color="primary" fontSize="small" />
-                              </ListItemIcon>
-                              <ListItemText primary={tech} />
-                            </ListItem>
-                          ))}
-                        </List>
-                      </Box>
-                    )}
-                  </Box>
                 )}
               </Paper>
             </Grid>
@@ -1926,6 +1920,88 @@ export default function Home() {
                       </Grid>
                     )}
                   </Grid>
+                )}
+              </Paper>
+
+              {/* Recruiters Overview Section */}
+              <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Recruiters Overview
+                </Typography>
+                
+                {loadingRecruitersOverview ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Skeleton variant="text" width="80%" height={30} />
+                    <Box sx={{ pl: 2 }}>
+                      <Skeleton variant="text" width="90%" />
+                      <Skeleton variant="text" width="75%" />
+                      <Skeleton variant="text" width="85%" />
+                    </Box>
+                    <Skeleton variant="text" width="60%" height={30} />
+                    <Box sx={{ pl: 2 }}>
+                      <Skeleton variant="text" width="70%" />
+                      <Skeleton variant="text" width="80%" />
+                    </Box>
+                  </Box>
+                ) : recruitersOverviewError ? (
+                  <Typography variant="body2" color="error">
+                    {recruitersOverviewError}
+                  </Typography>
+                ) : recruitersOverview.bullets.length === 0 && 
+                   !recruitersOverview.relevant_experience && 
+                   recruitersOverview.technical_proficiency.length === 0 ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No recruiter overview data available
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {/* Relevant Experience Summary */}
+                    {recruitersOverview.relevant_experience && (
+                      <Typography variant="body1">
+                        {recruitersOverview.relevant_experience}
+                      </Typography>
+                    )}
+                    
+                    {/* Recruiter-friendly Bullet Points */}
+                    {recruitersOverview.bullets && recruitersOverview.bullets.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                          Key Highlights
+                        </Typography>
+                        <List dense>
+                          {recruitersOverview.bullets.map((bullet, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Code color="primary" fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText primary={bullet} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    )}
+                    
+                    {/* Technical Proficiencies */}
+                    {recruitersOverview.technical_proficiency && recruitersOverview.technical_proficiency.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                          Technical Proficiencies
+                        </Typography>
+                        <List dense>
+                          {recruitersOverview.technical_proficiency.map((tech, index) => (
+                            <ListItem key={index} sx={{ py: 0.5 }}>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Code color="primary" fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText primary={tech} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    )}
+                  </Box>
                 )}
               </Paper>
 
@@ -2639,6 +2715,10 @@ export default function Home() {
                     "getYoe": totalExperience,
                     "getRyoe": relevantExperience,
                     "getRecruitersOverview": recruitersOverview,
+                    "getDesignation": {
+                      current_designation: designationInfo.current_designation,
+                      previous_designation: designationInfo.previous_designation
+                    },
                     "getLocation": {
                       location: locationInfo.location,
                       confidence_score: locationInfo.confidence_score
