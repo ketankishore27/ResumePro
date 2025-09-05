@@ -30,7 +30,8 @@ export default function RelevantCandidates() {
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [filters, setFilters] = useState({
-    keywords: []
+    keywords: [],
+    experience: ''
   });
   const [keywordInput, setKeywordInput] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,7 +59,8 @@ export default function RelevantCandidates() {
         body: JSON.stringify({
           wordList: filters.keywords,
           jobRole: jobRole,
-          jobDescription: jobDescription
+          jobDescription: jobDescription,
+          experienceFilter: filters.experience
         })
       });
       
@@ -211,8 +213,42 @@ export default function RelevantCandidates() {
     }
   };
 
-  // Use all candidates without filtering by keywords
-  const filteredCandidates = candidates || [];
+  // Helper function to parse experience string like "3y 1m" to months
+  const parseExperience = (expString) => {
+    if (!expString) return 0;
+    
+    const years = expString.match(/(\d+)y/);
+    const months = expString.match(/(\d+)m/);
+    
+    const totalMonths = (years ? parseInt(years[1]) * 12 : 0) + (months ? parseInt(months[1]) : 0);
+    return totalMonths;
+  };
+
+  // Filter candidates based on experience
+  const filterByExperience = (candidate) => {
+    if (!filters.experience) return true; // No filter applied
+    
+    const expMonths = parseExperience(candidate.experience);
+    const expYears = expMonths / 12;
+    
+    switch (filters.experience) {
+      case "<= 2 Years":
+        return expYears <= 2;
+      case "> 2 and <= 5 Years":
+        return expYears > 2 && expYears <= 5;
+      case "> 5 and <= 7 Years":
+        return expYears > 5 && expYears <= 7;
+      case "> 7 and <= 10 Years":
+        return expYears > 7 && expYears <= 10;
+      case "> 10 Years":
+        return expYears > 10;
+      default:
+        return true;
+    }
+  };
+
+  // Apply all filters
+  const filteredCandidates = candidates ? candidates.filter(filterByExperience) : [];
 
   const totalResults = filteredCandidates.length || 0;
   const startIndex = (currentPage - 1) * resultsPerPage;
@@ -328,6 +364,27 @@ export default function RelevantCandidates() {
                 <MenuItem value="Product Manager">Product Manager</MenuItem>
                 <MenuItem value="Program Manager">Program Manager</MenuItem>
                 <MenuItem value="UI/UX Designer">UI/UX Designer</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+
+          {/* Experience Filter */}
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
+              Experience
+            </Typography>
+            <FormControl fullWidth size="small">
+              <Select
+                value={filters.experience}
+                onChange={(e) => setFilters({...filters, experience: e.target.value})}
+                displayEmpty
+              >
+                <MenuItem value="">All Experience Levels</MenuItem>
+                <MenuItem value="<= 2 Years">{"<= 2 Years"}</MenuItem>
+                <MenuItem value="> 2 and <= 5 Years">{"> 2 and <= 5 Years"}</MenuItem>
+                <MenuItem value="> 5 and <= 7 Years">{"> 5 and <= 7 Years"}</MenuItem>
+                <MenuItem value="> 7 and <= 10 Years">{"> 7 and <= 10 Years"}</MenuItem>
+                <MenuItem value="> 10 Years">{"> 10 Years"}</MenuItem>
               </Select>
             </FormControl>
           </Box>

@@ -2005,11 +2005,11 @@ export default function Home() {
                 )}
               </Paper>
 
-              {/* Resume Fixes */}
+              {/* Miscellaneous Overview */}
               <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, mb: 3, ...liftTileSx }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                   <Typography variant="h6" fontWeight={600}>
-                    Resume Fixes
+                  Miscellaneous Overview
                   </Typography>
                   <Chip 
                     label="IMPORTANT" 
