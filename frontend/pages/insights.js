@@ -12,8 +12,8 @@ import { motion } from 'framer-motion';
 ChartJS.register(ArcElement, ChartTooltip, Legend, ChartDataLabels);
 
 // Define motion-wrapped components at module scope to preserve component identity across renders
-const MotionPaper = motion(Paper);
-const MotionCard = motion(Card);
+const MotionPaper = motion.create(Paper);
+const MotionCard = motion.create(Card);
 
 import { usePdfText } from '../src/context/PdfTextContext';
 import Navigation from '../src/components/Navigation';

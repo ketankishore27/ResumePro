@@ -21,8 +21,8 @@ import { motion } from 'framer-motion';
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
 // Motion wrappers
-const MotionBox = motion(Box);
-const MotionButton = motion(Button);
+const MotionBox = motion.create(Box);
+const MotionButton = motion.create(Button);
 
 export default function Home() {
   const [resumeFile, setResumeFile] = useState(null);
