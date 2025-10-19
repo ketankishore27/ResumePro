@@ -1,12 +1,25 @@
 from typing import List
 import time
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from ai_operations.chains import *
 
 from db_operations.utility_db import *
 
-app = FastAPI() 
+# Configure logging to suppress socket.io 404 logs
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+# Create custom middleware to filter out socket.io requests from logs
+class SocketIOFilterMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if "/ws/socket.io/" in request.url.path:
+            # Skip logging for socket.io requests
+            return await call_next(request)
+        return await call_next(request)
+
+app = FastAPI(docs_url=None, redoc_url=None)  # Disable automatic docs to reduce noise
 
 # Add CORS middleware
 app.add_middleware(
@@ -16,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Add socket.io filter middleware
+app.add_middleware(SocketIOFilterMiddleware)
 
 @app.post("/test")
 def test_endpoint():
@@ -238,32 +254,6 @@ def getTechnicalConstituent(data: dict):
         
     return {'technical_exposure': ''}
 
-@app.post("/generateCoverLetter")
-def generateCoverLetter(data: dict):
-    print("Received request for generateCoverLetter")
-    resumeText = data.get("resumeText")
-    description = data.get("description", "")
-    
-    try:
-        # Simple cover letter generation logic
-        # In a real implementation, you would use an AI model here
-        sample_cover_letter = f"""Dear Hiring Manager,
-
-I am writing to express my strong interest in the position at your esteemed organization. Based on your requirements: {description}
-
-With my background and experience as outlined in my resume, I am confident that I can contribute effectively to your team. My skills and expertise align well with the role requirements, and I am excited about the opportunity to bring my passion and dedication to your organization.
-
-I have extensive experience in various domains and have successfully delivered multiple projects that demonstrate my technical capabilities and problem-solving skills. I am particularly drawn to this opportunity because it aligns with my career goals and allows me to leverage my expertise in a meaningful way.
-
-Thank you for considering my application. I look forward to the opportunity to discuss how my background and enthusiasm can contribute to your team's success.
-
-Sincerely,
-Applicant"""
-        
-        return {'coverLetter': sample_cover_letter}
-    except Exception as e:
-        print("Exception in generateCoverLetter:", e)
-        return {'error': 'Failed to generate cover letter'}, 500
 
 @app.post("/getEducation")
 def getEducation(data: dict):
@@ -501,7 +491,6 @@ def get_location(data: dict):
         print("Retrying. Ended Iteration:", iteration)    
         
     return {'location': '', 'confidence_score': 0}
-
 
 
 @app.post("/filterCandidate")
