@@ -169,7 +169,6 @@ def technical_constituent():
         medium: List[str]
         low: List[str]
         
-    
     output_parser = PydanticOutputParser(pydantic_object=TechnicalExposureGrouped).get_format_instructions()
     
     instruction_format = load_prompt(prompt_name = "technical_constituent", filename = "prompts.yml")
