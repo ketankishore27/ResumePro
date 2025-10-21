@@ -15,6 +15,7 @@ llm_google = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
 #llm = ChatOpenAI(model="gpt-4o", temperature=0.)
 llm = AzureChatOpenAI(model="gpt-4o-mini", api_version="2025-04-01-preview")
 
+
 def create_resume_score():
 
     class ResumeScore(BaseModel):
@@ -340,6 +341,7 @@ def extract_location():
 
     return chain
 
+
 def designation_extractor():
 
     class DesignationResponse(BaseModel):
@@ -359,4 +361,5 @@ def designation_extractor():
     chain = prompt | llm | JsonOutputParser()
 
     return chain
+
 

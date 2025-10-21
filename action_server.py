@@ -5,8 +5,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from ai_operations.chains import *
-
 from db_operations.utility_db import *
+import structlog
+structlogger = structlog.get_logger(__name__)
 
 # Configure logging to suppress socket.io 404 logs
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -39,7 +40,7 @@ def test_endpoint():
 
 @app.post("/getNames")
 def getNames(data: dict):
-    print("Received request for getNames")
+    structlogger.debug("Received request for getNames")
     resumeText = data.get("resumeText", "")
     email_id = data.get("email_id", "")
     
@@ -51,18 +52,18 @@ def getNames(data: dict):
                 if 'name' in names:
                     return names
 
-            print(names)
+            structlogger.debug(names)
         except Exception as e:
-            print("Exception in getNames:", e)
+            structlogger.debug("Exception in getNames", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {"name": "Failed"}
 
 @app.post("/scoreResume")
 def scoreResume(data: dict):
-    print("Received request for scoreResume")
+    structlogger.debug("Received request for scoreResume")
     resumeText = data.get("resumeText", "")
     jobRole = data.get("jobRole", "")
     
@@ -79,12 +80,12 @@ def scoreResume(data: dict):
                             "items": scores_resume['items']
                             }
 
-            print(scores_resume)
+            structlogger.debug(scores_resume)
         except Exception as e:
-            print("Exception in scoreResume:", e)
+            structlogger.debug("Exception in scoreResume:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
 
     return {    
         "score": 0.1,
@@ -92,10 +93,9 @@ def scoreResume(data: dict):
         "items": []
     }
     
-
 @app.post("/getContacts")
 def getContacts(data: dict):
-    print("Received request for getContacts")
+    structlogger.debug("Received request for getContacts")
     resumeText = data.get("resumeText")
     
     max_iter = 5
@@ -108,12 +108,12 @@ def getContacts(data: dict):
                 if all(key in contact_info for key in keys_to_check):
                     return contact_info
 
-            print(contact_info)
+            structlogger.debug(contact_info)
         except Exception as e:
-            print("Exception in contactInfo:", e)
+            structlogger.debug("Exception in contactInfo:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {    
         "color": "red",
@@ -122,10 +122,9 @@ def getContacts(data: dict):
         "mobile_number": ""
     }
 
-
 @app.post("/getSummaryOverview")
 def getSummaryOverview(data: dict):
-    print("Received request for getSummaryOverview")
+    structlogger.debug("Received request for getSummaryOverview")
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -138,12 +137,12 @@ def getSummaryOverview(data: dict):
                 if all(key in summary_info for key in keys_to_check) and isinstance(summary_info['summary'], list):
                     return summary_info
 
-            print(summary_info)
+            structlogger.debug(summary_info)
         except Exception as e:
-            print("Exception in summaryInfo:", e)
+            structlogger.debug("Exception in summaryInfo:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'score': 0,
             'color': 'red',
@@ -152,7 +151,7 @@ def getSummaryOverview(data: dict):
 
 @app.post("/getCustomScores")
 def getCustomScores(data: dict):
-    print("Received request for getCustomScores")
+    structlogger.debug("Received request for getCustomScores")
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -165,12 +164,12 @@ def getCustomScores(data: dict):
                 if all(key in custom_scores_info for key in keys_to_check):
                     return custom_scores_info
 
-            print(custom_scores_info)
+            structlogger.debug(custom_scores_info)
         except Exception as e:
-            print("Exception in customScores:", e)
+            structlogger.debug("Exception in customScores:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'searchibility_score': 0,
             'hard_skills_score': 0,
@@ -179,7 +178,7 @@ def getCustomScores(data: dict):
 
 @app.post("/getOtherComments")
 def getOtherComments(data: dict):
-    print("Received request for getOtherComments")
+    structlogger.debug("Received request for getOtherComments")
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -192,12 +191,12 @@ def getOtherComments(data: dict):
                 if all(key in other_comments_info for key in keys_to_check):
                     return other_comments_info
 
-            print(other_comments_info)
+            structlogger.debug(other_comments_info)
         except Exception as e:
-            print("Exception in otherComments:", e)
+            structlogger.debug("Exception in otherComments:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'headings_feedback': '',
             'title_match': '',
@@ -205,7 +204,7 @@ def getOtherComments(data: dict):
 
 @app.post("/getFunctionalConstituent")
 def getFunctionalConstituent(data: dict):
-    print("Received request for getFunctionalConstituent")
+    structlogger.debug("Received request for getFunctionalConstituent")
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -218,12 +217,12 @@ def getFunctionalConstituent(data: dict):
                 if all(key in functional_constituent_info for key in keys_to_check):
                     return functional_constituent_info
 
-            print(functional_constituent_info)
+            structlogger.debug(functional_constituent_info)
         except Exception as e:
-            print("Exception in functionalConstituent:", e)
+            structlogger.debug("Exception in functionalConstituent:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'constituent': '',
             'industries': '', 
@@ -232,7 +231,7 @@ def getFunctionalConstituent(data: dict):
 
 @app.post("/getTechnicalConstituent")
 def getTechnicalConstituent(data: dict):
-    print("Received request for getTechnicalConstituent")
+    structlogger.debug("Received request for getTechnicalConstituent")
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -245,19 +244,18 @@ def getTechnicalConstituent(data: dict):
                 if all(key in technical_constituent_info for key in keys_to_check):
                     return technical_constituent_info
 
-            print(technical_constituent_info)
+            structlogger.debug(technical_constituent_info)
         except Exception as e:
-            print("Exception in technicalConstituent:", e)
+            structlogger.debug("Exception in technicalConstituent:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'technical_exposure': ''}
 
-
 @app.post("/getEducation")
 def getEducation(data: dict):
-    print("Received request for getEducation")
+    structlogger.debug("Received request for getEducation")
     resumeText = data.get("resumeText")
     schema_iteration_check = 0
     
@@ -274,18 +272,18 @@ def getEducation(data: dict):
             if schema_iteration_check == len(education_info):
                 return education_info
     
-            print(education_info)
+            structlogger.debug(education_info)
         except Exception as e:
-            print("Exception in educationExtractor:", e)
+            structlogger.debug("Exception in educationExtractor:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'education_history': []}
 
 @app.post("/getProjects")
 def getProjects(data: dict):
-    print("Received request for getProjects")
+    structlogger.debug("Received request for getProjects")
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     schema_iteration_check = 0
@@ -304,18 +302,18 @@ def getProjects(data: dict):
             if schema_iteration_check == len(project_info['projects']):
                 return project_info
     
-            print(project_info)
+            structlogger.debug(project_info)
         except Exception as e:
-            print("Exception in projectExtractor:", e)
+            structlogger.debug("Exception in projectExtractor:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'projects': []}
         
 @app.post("/getCompany")
 def getCompany(data: dict):
-    print("Received request for getCompany")
+    structlogger.debug("Received request for getCompany")
     resumeText = data.get("resumeText")
     schema_iteration_check = 0
     
@@ -333,18 +331,18 @@ def getCompany(data: dict):
             if schema_iteration_check == len(company_info['employment_history']):
                 return company_info
     
-            print(company_info)
+            structlogger.debug(company_info)
         except Exception as e:
-            print("Exception in companyExtractor:", e)
+            structlogger.debug("Exception in companyExtractor:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'employment_history': []}
 
 @app.post("/getYoe")
 def getYoe(data: dict):
-    print("Received request for getYoe")
+    structlogger.debug("Received request for getYoe")
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -357,18 +355,18 @@ def getYoe(data: dict):
                 if all(key in yoe_info for key in keys_to_check):
                     return yoe_info
 
-            print(yoe_info)
+            structlogger.debug(yoe_info)
         except Exception as e:
-            print("Exception in yoeExtractor:", e)
+            structlogger.debug("Exception in yoeExtractor:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'yoe': 0, 'ryoe': 0}
 
 @app.post("/getRecruitersOverview")
 def getRecruitersOverview(data: dict):
-    print("Received request for getRecruitersOverview")
+    structlogger.debug("Received request for getRecruitersOverview")
     resumeText = data.get("resumeText")
     jobRole = data.get("jobRole", "")
     
@@ -383,58 +381,57 @@ def getRecruitersOverview(data: dict):
                        isinstance(recruiters_overview_info['technical_proficiency'], list):
                         return recruiters_overview_info
 
-            print(recruiters_overview_info)
+            structlogger.debug(recruiters_overview_info)
         except Exception as e:
-            print("Exception in recruitersOverviewExtractor:", e)
+            structlogger.debug("Exception in recruitersOverviewExtractor:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'bullets': [], 'relevant_experience': '', 'technical_proficiency': []}
 
 @app.post("/getDesignation")
 def getDesignation(data: dict):
-    print("Received request for getDesignation")
+    structlogger.debug("Received request for getDesignation")
     resumeText = data.get("resumeText")
     
     max_iter = 5
     for iteration in range(max_iter):
         try:
-            designation_info = designation_extractor_chain.invoke({"resume_string": resumeText})
+            designation_info = designation_extractor_chain.invoke({"resume_text": resumeText})
             keys_to_check = ['current_designation', 'previous_designation']
             if isinstance(designation_info, dict):
                 if all(key in designation_info for key in keys_to_check):
                     return designation_info
 
-            print(designation_info)
+            structlogger.debug(designation_info)
         except Exception as e:
-            print("Exception in designationExtractor:", e)
+            structlogger.debug("Exception in designationExtractor:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'current_designation': '', 'previous_designation': ''}
 
 @app.post("/assembleData")
 def assembleData(data: dict):
     try:
-        print("Received request for assembleData")
+        structlogger.debug("Received request for assembleData")
         status = insert_data(data)
         return status
     except Exception as e:
-        print("Exception in assembleData:", e)
+        structlogger.debug("Exception in assembleData:", details=e)
         return {"response": "Failed"}
-
 
 @app.post("/processBulkImport")
 def process_bulk_import(data: dict):
 
     try:
-        print("Received request for processBulkImport")
+        structlogger.debug("Received request for processBulkImport")
         return_payload= process_individual_resume(data)
         return return_payload
     except Exception as e:
-        print("Exception in processBulkImport:", e)
+        structlogger.debug("Exception in processBulkImport:", details=e)
         return {
                     "email_id": "",
                     "contact_number": "",
@@ -446,32 +443,23 @@ def process_bulk_import(data: dict):
 @app.post("/extractData")
 def extract_data_db(data: dict):
     try:
-        print("Received request for extractData")
-        print("Request data:", data, type(data))
         email_id = data.get("email_id", None)
-        print("Email ID:", email_id)
         
         return_payload = extract_data(email_id)
-        print("Database query result type:", type(return_payload))
-        print("Database query result length:", len(return_payload))
         
-        # Check if the return payload indicates no candidate was found
         if len(return_payload) == 0:
-            print("No candidate found in database")
             return {"response": "Candidate not found", "error": "Relevant Candidate Not Found", "status": 404}
         
         # Return the first candidate
         result = return_payload[0]
-        print("Returning candidate data with keys:", result.keys() if isinstance(result, dict) else "Not a dictionary")
         return result
 
     except Exception as e:
-        print("Exception in extractData:", e)
         return {"response": "Failed to extract data", "error": "An error occurred while processing your request", "status": 500}
 
 @app.post("/getLocation")
 def get_location(data: dict):
-    print("Received request for getLocation")
+    structlogger.debug("Received request for getLocation")
     resumeText = data.get("resumeText")
     
     max_iter = 5
@@ -483,28 +471,28 @@ def get_location(data: dict):
                 if all(key in location_info for key in keys_to_check):
                     return location_info
 
-            print(location_info)
+            structlogger.debug(location_info)
         except Exception as e:
-            print("Exception in locationExtractor:", e)
+            structlogger.debug("Exception in locationExtractor:", details=e)
             pass
 
-        print("Retrying. Ended Iteration:", iteration)    
+        structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'location': '', 'confidence_score': 0}
-
 
 @app.post("/filterCandidate")
 def filter_candidate(data: dict):
     try:
-        print("Received request for filterCandidate")
-        print("Request data:", data, type(data))
+        structlogger.debug("Received request for filterCandidate")
+        structlogger.debug("Request data:", details=data)
         wordList = data.get("wordList", None)
         jobRole = data.get("jobRole", None)
         jobDescription = data.get("jobDescription", None)
+        experience = data.get("experience", None)
         
-        return resume_extraction(wordList, jobRole, jobDescription)
+        return resume_extraction(wordList, jobRole, jobDescription, experience)
 
     except Exception as e:
-        print("Exception in filterCandidate:", e)
+        structlogger.debug("Exception in filterCandidate:", details=e)
         return {"response": "Failed to filter candidate", "error": "An error occurred while processing your request", "status": 500}
 
