@@ -119,7 +119,7 @@ ${userInfo.name}`;
   }
 
   return (
-    <Box sx={{ background: '#f7faff', minHeight: '100vh', py: 4 }}>
+    <Box sx={{ minHeight: '100vh', py: 4 }}>
       {/* Header */}
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', mb: 4 }}>

@@ -1148,13 +1148,13 @@ useEffect(() => {
   const functionalData = createFunctionalData(functionalConstituent.constituent);
   
   return (
-    <Box sx={{ backgroundColor: 'background.default', minHeight: '100vh' }}>
+    <Box sx={{ minHeight: '100vh' }}>
       <Navigation currentPage="Query Candidate" onQueryCandidateClick={resetAllStates} />
       
       {/* Email Query Section - Hidden when redirected from bulk-import */}
       {!emailId && (
         <Box sx={{ p: 4, pb: 2 }}>
-          <RevealPaper variant="slideUp" sx={{ p: 3, mb: 3, backgroundColor: 'background.paper' }}>
+          <RevealPaper variant="slideUp" sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               Query Candidate Database
             </Typography>
@@ -1498,7 +1498,7 @@ useEffect(() => {
             variant="slideRight" 
             threshold={0.1}
             delay={0.1}
-            sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2, bgcolor: '#1e1e1e', color: 'white' }}>
+            sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2, bgcolor: 'rgba(30, 30, 30, 0.05)', backdropFilter: 'blur(12px)', color: 'white' }}>
             <Typography variant="h5" fontWeight={700} gutterBottom>Designation</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
               {loadingDesignation ? (
@@ -1531,7 +1531,7 @@ useEffect(() => {
             variant="slideRight" 
             threshold={0.1}
             delay={0.2}
-            sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2, bgcolor: '#1e1e1e', color: 'white' }}>
+            sx={{ p: 3, mt: 3, position: 'relative', zIndex: 2, bgcolor: 'rgba(30, 30, 30, 0.05)', backdropFilter: 'blur(12px)', color: 'white' }}>
             <Typography variant="h5" fontWeight={700} gutterBottom>Location</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
               {loadingLocation ? (
@@ -1552,9 +1552,10 @@ useEffect(() => {
                     <Box 
                       sx={{ 
                         display: 'inline-flex',
-                        bgcolor: locationInfo.confidence_score >= 80 ? '#8AE9A1' : 
-                                locationInfo.confidence_score >= 60 ? '#63B3ED' : 
-                                locationInfo.confidence_score >= 40 ? '#F6AD55' : '#F56565',
+                        bgcolor: locationInfo.confidence_score >= 80 ? 'rgba(138, 233, 161, 0.9)' : 
+                                locationInfo.confidence_score >= 60 ? 'rgba(99, 179, 237, 0.9)' : 
+                                locationInfo.confidence_score >= 40 ? 'rgba(246, 173, 85, 0.9)' : 'rgba(245, 101, 101, 0.9)',
+                        backdropFilter: 'blur(8px)',
                         color: '#000000',
                         borderRadius: '20px',
                         px: 2,

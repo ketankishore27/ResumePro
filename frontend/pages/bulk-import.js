@@ -426,7 +426,7 @@ export default function BulkImport() {
   };
 
   return (
-    <Box sx={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)', minHeight: '100vh' }}>
+    <Box sx={{ minHeight: '100vh' }}>
       <Navigation currentPage="Bulk Import" />
 
       {/* Main Content */}
@@ -510,12 +510,13 @@ export default function BulkImport() {
               borderRadius: 2,
               p: 6,
               textAlign: 'center',
-              backgroundColor: dragActive ? '#2a2a2a' : '#212121',
+              backgroundColor: dragActive ? 'rgba(42, 42, 42, 0.05)' : 'rgba(33, 33, 33, 0.05)',
+              backdropFilter: 'blur(12px)',
               borderColor: dragActive ? 'primary.main' : 'divider',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               '&:hover': {
-                backgroundColor: '#2a2a2a',
+                backgroundColor: 'rgba(42, 42, 42, 0.05)',
                 borderColor: 'divider'
               }
             }}
@@ -588,7 +589,8 @@ export default function BulkImport() {
                 borderColor: 'divider', 
                 borderRadius: 2, 
                 p: 2,
-                backgroundColor: '#212121'
+                backgroundColor: 'rgba(33, 33, 33, 0.05)',
+                backdropFilter: 'blur(12px)'
               }}>
                 <Stack spacing={1}>
                   {selectedFiles.map((file, index) => (
@@ -599,7 +601,8 @@ export default function BulkImport() {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         p: 2,
-                        backgroundColor: '#1a1a1a',
+                        backgroundColor: 'rgba(26, 26, 26, 0.05)',
+                        backdropFilter: 'blur(12px)',
                         borderRadius: 1,
                         border: '1px solid',
                         borderColor: 'divider'
@@ -645,7 +648,8 @@ export default function BulkImport() {
             <Box sx={{ 
               mb: 3, 
               p: 3, 
-              backgroundColor: '#212121', 
+              backgroundColor: 'rgba(33, 33, 33, 0.05)',
+              backdropFilter: 'blur(12px)', 
               border: '1px solid', 
               borderColor: 'divider', 
               borderRadius: 2 
@@ -697,7 +701,7 @@ export default function BulkImport() {
               </Typography>
               <TableContainer component={Paper} sx={{ border: '1px solid', borderColor: 'divider', overflowX: 'auto' }}>
                 <Table sx={{ tableLayout: 'fixed' }}>
-                  <TableHead sx={{ backgroundColor: '#2a2a2a' }}>
+                  <TableHead sx={{ backgroundColor: 'rgba(42, 42, 42, 0.05)', backdropFilter: 'blur(12px)' }}>
                     <TableRow>
                       <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '8%' }}>Status</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '18%' }}>File Name</TableCell>
@@ -718,10 +722,11 @@ export default function BulkImport() {
                           }
                         }}
                         sx={{ 
-                          '&:nth-of-type(odd)': { backgroundColor: '#1e1e1e' },
+                          '&:nth-of-type(odd)': { backgroundColor: 'rgba(30, 30, 30, 0.05)', backdropFilter: 'blur(12px)' },
                           cursor: result.email_id && result.email_id !== '-' ? 'pointer' : 'default',
                           '&:hover': result.email_id && result.email_id !== '-' ? { 
-                            backgroundColor: '#2a2a2a',
+                            backgroundColor: 'rgba(42, 42, 42, 0.1)',
+                            backdropFilter: 'blur(12px)',
                             transform: 'scale(1.01)',
                             transition: 'all 0.2s ease-in-out'
                           } : {}

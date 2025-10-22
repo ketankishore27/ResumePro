@@ -58,9 +58,10 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between', 
-        background: 'linear-gradient(135deg, #1a1a1a 0%, #212121 100%)', 
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-        borderBottom: '1px solid #333333'
+        backgroundColor: 'rgba(26, 26, 26, 0.05)', 
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+        borderBottom: '1px solid rgba(51, 51, 51, 0.2)'
       }}>
         {/* Left side - Logo and Navigation */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>

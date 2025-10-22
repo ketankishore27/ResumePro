@@ -107,10 +107,19 @@ const theme = createTheme({
           '100%': { boxShadow: '0 0 0 0 rgba(0, 230, 118, 0)' },
         },
         body: {
-          background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)',
-          backgroundSize: '200% 200%',
-          animation: 'gradientShift 20s ease infinite',
+          background: 'url("/G500-2020-86-Deutsche-Telekom-GettyImages-1210335103.jpg") center center / cover no-repeat fixed',
+          position: 'relative',
           minHeight: '100vh',
+          '&::before': {
+            content: '""',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(135deg, rgba(10, 10, 10, 0.92) 0%, rgba(26, 26, 26, 0.88) 100%)',
+            zIndex: -1,
+          }
         },
         '#nprogress': {
           pointerEvents: 'none',
@@ -143,23 +152,25 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          backgroundColor: '#1a1a1a',
-          border: '1px solid #333333',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          backgroundColor: 'rgba(26, 26, 26, 0.05)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(51, 51, 51, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: '#1a1a1a',
-          border: '1px solid #333333',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          backgroundColor: 'rgba(26, 26, 26, 0.05)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(51, 51, 51, 0.2)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
           transition: 'all 0.3s ease-in-out',
           '&:hover': {
             transform: 'translateY(-4px)',
             boxShadow: '0 12px 40px rgba(0, 230, 118, 0.15)',
-            borderColor: '#00e676',
+            borderColor: 'rgba(0, 230, 118, 0.5)',
           },
         },
       },
@@ -242,9 +253,10 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            backgroundColor: '#212121',
+            backgroundColor: 'rgba(33, 33, 33, 0.05)',
+            backdropFilter: 'blur(12px)',
             '& fieldset': {
-              borderColor: '#333333',
+              borderColor: 'rgba(51, 51, 51, 0.3)',
             },
             '&:hover fieldset': {
               borderColor: '#00e676',
@@ -272,10 +284,11 @@ const theme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          backgroundColor: '#212121',
+          backgroundColor: 'rgba(33, 33, 33, 0.05)',
+          backdropFilter: 'blur(12px)',
           borderRadius: 8,
           '& fieldset': {
-            borderColor: '#333333',
+            borderColor: 'rgba(51, 51, 51, 0.3)',
           },
           '&:hover fieldset': {
             borderColor: '#00e676',
@@ -299,7 +312,8 @@ const theme = createTheme({
     MuiTableContainer: {
       styleOverrides: {
         root: {
-          backgroundColor: '#1a1a1a',
+          backgroundColor: 'rgba(26, 26, 26, 0.05)',
+          backdropFilter: 'blur(12px)',
         },
       },
     },
@@ -309,7 +323,8 @@ const theme = createTheme({
           borderColor: '#333333',
         },
         head: {
-          backgroundColor: '#212121',
+          backgroundColor: 'rgba(33, 33, 33, 0.05)',
+          backdropFilter: 'blur(12px)',
           fontWeight: 600,
         },
       },

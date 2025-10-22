@@ -1002,11 +1002,27 @@ export default function Home() {
   // Remove default handleResumeSubmit, let upload trigger navigation
 
   return (
-    <Box sx={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)', minHeight: '100vh', pb: 8, position: 'relative' }}>
+    <Box sx={{ minHeight: '100vh', pb: 8, position: 'relative' }}>
       <Navigation currentPage="Home" />
 
       {/* Hero Section */}
-      <Box sx={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)', border: '1px solid #333333', borderRadius: 4, mt: 4, mb: 6, mx: 'auto', maxWidth: 1200, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', p: { xs: 3, md: 6 }, gap: { xs: 4, md: 0 } }}>
+      <Box 
+        sx={{ 
+          backgroundColor: 'rgba(26, 26, 26, 0.05)', 
+          backdropFilter: 'blur(12px)', 
+          border: '1px solid rgba(51, 51, 51, 0.2)', 
+          borderRadius: 4, 
+          mt: 4, 
+          mb: 6, 
+          mx: 'auto', 
+          maxWidth: 1200, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          alignItems: 'center', 
+          p: { xs: 3, md: 6 }, 
+          gap: { xs: 4, md: 0 } 
+        }}
+      >
         <Box sx={{ flex: 1, px: { xs: 0, md: 3 } }}>
           <Typography variant="h3" fontWeight={700} gutterBottom>
             Professional <span style={{ color: '#00e676' }}>Resume Services</span>
@@ -1014,23 +1030,35 @@ export default function Home() {
           <Typography sx={{ color: '#b0b0b0', fontSize: 18, mb: 2 }}>
             Upload your resume for instant insights, search stored resumes for job fit, and request personalized feedback — all in one place.
           </Typography>
-          {/* Save Success Dialog */}
+        </Box>
+        <Box sx={{ flex: 1, textAlign: 'center' }}>
+          <Image
+            src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=600&q=80"
+            alt="Resume Illustration"
+            width={340}
+            height={220}
+            style={{ borderRadius: 16, objectFit: 'cover' }}
+          />
+        </Box>
+      </Box>
+
+      {/* Save Success Dialog */}
       <Dialog
         open={saveDialogOpen}
         onClose={() => setSaveDialogOpen(false)}
         PaperProps={{
           sx: {
-            backgroundColor: 'background.paper',
+            backgroundColor: 'rgba(26, 26, 26, 0.95)',
+            backdropFilter: 'blur(12px)',
             borderRadius: 3,
-            border: '1px solid',
-            borderColor: 'divider',
+            border: '1px solid rgba(51, 51, 51, 0.3)',
             minWidth: { xs: 280, sm: 420 }
           }
         }}
       >
         <DialogTitle>
           <Stack direction="row" spacing={1} alignItems="center">
-            <CheckCircleOutlineIcon sx={{ color: 'primary.main' }} />
+            <CheckCircle sx={{ color: 'primary.main' }} />
             <Typography variant="h6" fontWeight={700}>
               {saveDialogMessage || 'Resume Data Saved'}
             </Typography>
@@ -1051,18 +1079,6 @@ export default function Home() {
         </DialogActions>
       </Dialog>
 
-    </Box>
-        <Box sx={{ flex: 1, textAlign: 'center' }}>
-          <Image
-            src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=600&q=80"
-            alt="Resume Illustration"
-            width={340}
-            height={220}
-            style={{ borderRadius: 16, objectFit: 'cover' }}
-          />
-        </Box>
-      </Box>
-
       {/* User Information Section */}
       <Box sx={{ maxWidth: 1200, mx: 'auto', mb: 4, px: 3 }}>
         <Typography variant="h5" fontWeight={700} align="center" gutterBottom sx={{ mb: 3 }}>
@@ -1076,12 +1092,12 @@ export default function Home() {
               fullWidth
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { backgroundColor: '#212121' } }}
+              sx={{ '& .MuiOutlinedInput-root': { backgroundColor: 'rgba(33, 33, 33, 0.05)', backdropFilter: 'blur(12px)' } }}
               label="Name"
             />
           </Grid>
           <Grid item xs={12} md={4}>
-            <FormControl fullWidth sx={{ '& .MuiOutlinedInput-root': { backgroundColor: '#212121' } }}>
+            <FormControl fullWidth sx={{ '& .MuiOutlinedInput-root': { backgroundColor: 'rgba(33, 33, 33, 0.05)', backdropFilter: 'blur(12px)' } }}>
               <Select
                 value={userJobRole}
                 onChange={(e) => setUserJobRole(e.target.value)}
@@ -1446,10 +1462,11 @@ export default function Home() {
 
                 {/* Contact Information Section */}
                 <Box sx={{ 
-                  backgroundColor: '#212121', 
+                  backgroundColor: 'rgba(33, 33, 33, 0.05)', 
+                  backdropFilter: 'blur(12px)',
                   borderRadius: 2, 
                   p: 2.5,
-                  border: '1px solid #333333'
+                  border: '1px solid rgba(51, 51, 51, 0.2)'
                 }}>
                   <Typography variant="h6" fontWeight={600} gutterBottom sx={{ textAlign: 'center', mb: 2 }}>
                     Contact Information
@@ -1753,10 +1770,11 @@ export default function Home() {
                           Resume Summary
                         </Typography>
                         <Box sx={{ 
-                          backgroundColor: '#212121',
+                          backgroundColor: 'rgba(33, 33, 33, 0.05)',
+                          backdropFilter: 'blur(12px)',
                           p: 3,
                           borderRadius: 2,
-                          border: '1px solid #333333',
+                          border: '1px solid rgba(51, 51, 51, 0.2)',
                           mb: 2
                         }}>
                           {summaryInfo.summary.map((summaryPoint, index) => (
@@ -1792,10 +1810,11 @@ export default function Home() {
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.primary" sx={{ 
-                      backgroundColor: '#2a2a2a',
+                      backgroundColor: 'rgba(42, 42, 42, 0.05)',
+                      backdropFilter: 'blur(12px)',
                       p: 2,
                       borderRadius: 1,
-                      border: '1px solid #333333'
+                      border: '1px solid rgba(51, 51, 51, 0.2)'
                     }}>
                       {summaryInfo.comment || 'Analyzing summary...'}
                     </Typography>
@@ -1822,8 +1841,9 @@ export default function Home() {
                             height: '100%',
                             display: 'flex',
                             flexDirection: 'column',
-                            backgroundColor: '#1a1a1a',
-                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                            backgroundColor: 'rgba(26, 26, 26, 0.05)',
+                            backdropFilter: 'blur(12px)',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
                             '&:hover': {
                               boxShadow: '0 12px 40px rgba(0, 230, 118, 0.15)',
                               transform: 'translateY(-2px)',
@@ -1880,10 +1900,11 @@ export default function Home() {
                                 </Typography>
                                 <Typography variant="body2" sx={{ 
                                   fontSize: '0.8rem',
-                                  backgroundColor: '#f8f9fa',
+                                  backgroundColor: 'rgba(248, 249, 250, 0.05)',
+                                  backdropFilter: 'blur(12px)',
                                   p: 1.5,
                                   borderRadius: 1,
-                                  border: '1px solid #e9ecef',
+                                  border: '1px solid rgba(233, 236, 239, 0.2)',
                                   lineHeight: 1.4,
                                   color: '#555'
                                 }}>
@@ -2034,7 +2055,7 @@ export default function Home() {
                   <TableContainer>
                     <Table>
                       <TableHead>
-                        <TableRow sx={{ backgroundColor: '#2a2a2a' }}>
+                        <TableRow sx={{ backgroundColor: 'rgba(42, 42, 42, 0.05)', backdropFilter: 'blur(12px)' }}>
                           <TableCell sx={{ fontWeight: 600, width: '20%' }}>Check</TableCell>
                           <TableCell sx={{ fontWeight: 600, width: '15%' }}>Status</TableCell>
                           <TableCell sx={{ fontWeight: 600, width: '65%' }}>Details</TableCell>

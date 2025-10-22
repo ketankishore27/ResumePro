@@ -507,7 +507,7 @@ export default function RelevantCandidates() {
       
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'transparent' }}>
         {/* Left Sidebar - Filters */}
-        <Box sx={(theme) => ({ width: 280, bgcolor: theme.palette.background.paper, borderRight: `1px solid ${theme.palette.divider}`, p: 2 })}>
+        <Box sx={(theme) => ({ width: 280, bgcolor: 'rgba(26, 26, 26, 0.05)', backdropFilter: 'blur(12px)', borderRight: `1px solid ${theme.palette.divider}`, p: 2 })}>
           {/* Filters Header */}
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <FilterListIcon sx={(theme) => ({ mr: 1, color: theme.palette.text.secondary })} />
@@ -772,9 +772,10 @@ export default function RelevantCandidates() {
             <Paper 
               elevation={3} 
               sx={(theme) => ({ 
-                p: 2, 
+                p: 2,
+                backgroundColor: 'rgba(26, 26, 26, 0.05)',
+                backdropFilter: 'blur(12px)', 
                 mb: 3, 
-                bgcolor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`
               })}
             >
@@ -903,7 +904,8 @@ export default function RelevantCandidates() {
                     border: `1px solid ${theme.palette.divider}`,
                     borderLeft: `4px solid ${theme.palette.primary.main}`,
                     borderRadius: 2,
-                    backgroundColor: theme.palette.background.paper,
+                    backgroundColor: 'rgba(26, 26, 26, 0.05)',
+                    backdropFilter: 'blur(12px)',
                     '&:hover': { 
                       boxShadow: theme.palette.mode === 'dark' ? '0 4px 12px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.1)',
                       transform: 'translateY(-1px)',
