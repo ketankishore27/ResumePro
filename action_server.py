@@ -507,3 +507,13 @@ def get_all_candidates():
         structlogger.debug("Exception in getAllCandidates:", details=e)
         return {"response": "Failed to retrieve candidates", "error": "An error occurred while processing your request", "status": 500}
 
+@app.get("/getAllCandidatesDropdown")
+def get_candidates_dropdown_api():
+    try:
+        structlogger.debug("Received request for getAllCandidatesDropdown")
+        candidates = get_all_candidates_dropdown()
+        structlogger.debug(f"Returning {len(candidates)} candidates")
+        return candidates
+    except Exception as e:
+        structlogger.debug("Exception in getAllCandidatesDropdown:", details=e)
+        return {"response": "Failed to retrieve candidates", "error": "An error occurred while processing your request", "status": 500}

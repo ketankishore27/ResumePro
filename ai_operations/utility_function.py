@@ -362,4 +362,3 @@ def designation_extractor():
 
     return chain
 
-

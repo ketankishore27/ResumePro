@@ -177,3 +177,18 @@ def resume_extraction(wordList = [], jobRole = None, jobDescription = None):
     if jobDescription is not None:
         pass
 
+def get_all_candidates_dropdown():
+    
+    base_sql = "select distinct name, email_id from resume_store"
+    data = pd.read_sql(base_sql, engine).to_dict("records")
+
+    print("Data: ", data)
+    candidates = []
+    for entity in data:
+        name = entity.get("name", None)
+        email_id = entity.get("email_id", None)
+        sample_name = name + " - " + email_id
+        candidates.append(sample_name)
+
+    return candidates
+    

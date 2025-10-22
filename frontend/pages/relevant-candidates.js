@@ -82,6 +82,7 @@ export default function RelevantCandidates() {
           relevantExperience: formatExperience(candidate.get_ryoe),
           location: candidate.get_location?.location || 'Not Specified',
           skills: extractSkills(candidate.get_technical_constituent),
+          technologies: extractTechnologies(candidate.get_projects),
           education: extractEducation(candidate.get_education),
           current: extractCurrentJob(candidate.get_company),
           previous: extractPreviousJob(candidate.get_company),
@@ -130,6 +131,23 @@ export default function RelevantCandidates() {
     if (techConstituent.high) skills.push(...techConstituent.high);
     if (techConstituent.medium) skills.push(...techConstituent.medium.slice(0, 3));
     return skills.slice(0, 8);
+  };
+
+  const extractTechnologies = (projects) => {
+    if (!projects || !projects.projects || !Array.isArray(projects.projects)) return [];
+    
+    // Collect all technologies from all projects
+    const allTechnologies = [];
+    projects.projects.forEach(project => {
+      if (project.technologies && Array.isArray(project.technologies)) {
+        allTechnologies.push(...project.technologies);
+      }
+    });
+    
+    // Deduplicate technologies using Set
+    const uniqueTechnologies = [...new Set(allTechnologies)];
+    
+    return uniqueTechnologies;
   };
 
   const extractEducation = (education) => {
@@ -998,25 +1016,46 @@ export default function RelevantCandidates() {
                         </Grid>
                       </Grid>
 
-                      {/* Skills */}
-                      {candidate.skills && candidate.skills.length > 0 && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 1 }}>
-                            Key skills
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {candidate.skills.map((skill, index) => (
-                              <Chip 
-                                key={index} 
-                                label={skill} 
-                                size="small" 
-                                variant="outlined"
-                                color="primary"
-                                sx={{ fontSize: '0.75rem', height: 24 }}
-                              />
-                            ))}
-                          </Box>
-                        </Box>
+                      {/* Technologies */}
+                      {candidate.technologies && candidate.technologies.length > 0 && (
+                        <Accordion 
+                          sx={{ 
+                            mb: 2, 
+                            boxShadow: 'none',
+                            '&:before': { display: 'none' },
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: '8px !important',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <AccordionSummary
+                            expandIcon={<ExpandMoreIcon />}
+                            sx={{ 
+                              minHeight: 40,
+                              '&.Mui-expanded': { minHeight: 40 },
+                              '& .MuiAccordionSummary-content': { margin: '8px 0' }
+                            }}
+                          >
+                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              Technologies ({candidate.technologies.length})
+                            </Typography>
+                          </AccordionSummary>
+                          <AccordionDetails sx={{ pt: 0, pb: 2 }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {candidate.technologies.map((tech, index) => (
+                                <Chip 
+                                  key={index} 
+                                  label={tech} 
+                                  size="small" 
+                                  variant="outlined"
+                                  color="secondary"
+                                  sx={{ fontSize: '0.75rem', height: 24 }}
+                                />
+                              ))}
+                            </Box>
+                          </AccordionDetails>
+                        </Accordion>
                       )}
 
                       {/* Footer Actions */}

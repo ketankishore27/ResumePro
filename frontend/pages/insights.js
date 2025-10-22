@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Skeleton, Tooltip, Snackbar, Alert, Zoom, Fab, Collapse, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Typography, LinearProgress, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Button, CircularProgress, Card, CardContent, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Skeleton, Tooltip, Snackbar, Alert, Zoom, Fab, Collapse, List, ListItem, ListItemIcon, ListItemText, Autocomplete } from '@mui/material';
 import { Phone, Email, Check, ContentCopy, KeyboardArrowUp, WorkOutline, CheckCircle, Code } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -334,6 +334,9 @@ export default function ResumeInsights() {
   const [showFab, setShowFab] = useState(false);
   // Collapse controls
   const [expandSummaryComment, setExpandSummaryComment] = useState(false);
+  // Candidates dropdown state
+  const [candidatesList, setCandidatesList] = useState([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
   
   // Dialog state for error messages
   const [openDialog, setOpenDialog] = useState(false);
@@ -941,6 +944,44 @@ useEffect(() => {
 
   const isValidEmail = (email) => /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email);
 
+  // Helper function to extract email from dropdown option format "Name - email@example.com"
+  const extractEmailFromOption = (option) => {
+    if (!option) return '';
+    const parts = option.split(' - ');
+    return parts.length > 1 ? parts[1] : option;
+  };
+
+  // Fetch candidates list on component mount
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      setLoadingCandidates(true);
+      try {
+        const response = await fetch('http://127.0.0.1:8000/getAllCandidatesDropdown', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = await response.json();
+        console.log('Fetched candidates:', data);
+        if (Array.isArray(data)) {
+          setCandidatesList(data);
+        } else {
+          console.error('Invalid response format for candidates');
+          setCandidatesList([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch candidates:', error);
+        setSnackbar({ open: true, message: 'Failed to load candidates list', severity: 'error' });
+        setCandidatesList([]);
+      } finally {
+        setLoadingCandidates(false);
+      }
+    };
+
+    fetchCandidates();
+  }, []);
+
   const handleCopy = (text) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard && text) {
       navigator.clipboard.writeText(text);
@@ -1058,12 +1099,16 @@ useEffect(() => {
   // Handle email input query
   const handleEmailQuery = async () => {
     setEmailTouched(true);
-    if (!emailInput.trim() || !isValidEmail(emailInput.trim())) {
-      setSnackbar({ open: true, message: 'Please enter a valid email address', severity: 'error' });
+    
+    // Extract email from dropdown option if it's in "Name - email" format
+    const emailToQuery = extractEmailFromOption(emailInput);
+    
+    if (!emailToQuery.trim() || !isValidEmail(emailToQuery.trim())) {
+      setSnackbar({ open: true, message: 'Please select a valid candidate', severity: 'error' });
       return;
     }
 
-    console.log('Query button pressed for email:', emailInput.trim());
+    console.log('Query button pressed for email:', emailToQuery.trim());
   
     // Clear context immediately
     console.log('Clearing context data');
@@ -1082,10 +1127,10 @@ useEffect(() => {
     await new Promise(resolve => setTimeout(resolve, 1000));
   
     // Make API request
-    console.log('Making API request to /extractData with email:', emailInput.trim());
+    console.log('Making API request to /extractData with email:', emailToQuery.trim());
   
     try {
-      await fetchDataFromDatabase(emailInput.trim());
+      await fetchDataFromDatabase(emailToQuery.trim());
       setLoadingEmailQuery(false);
       setQuerySuccess(true);
       setSnackbar({ open: true, message: 'Candidate data loaded successfully', severity: 'success' });
@@ -1117,30 +1162,85 @@ useEffect(() => {
               Enter an email ID to retrieve candidate information from the database
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <TextField
+              <Autocomplete
                 fullWidth
-                label="Email ID"
-                placeholder="Enter candidate email (e.g., john.doe@example.com)"
+                options={candidatesList}
                 value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                variant="outlined"
-                size="medium"
-                disabled={loadingEmailQuery}
-                error={emailTouched && !!emailInput && !isValidEmail(emailInput)}
-                helperText={emailTouched && !!emailInput && !isValidEmail(emailInput) ? 'Enter a valid email address' : ' '}
-                onBlur={() => setEmailTouched(true)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleEmailQuery();
+                onChange={(event, newValue) => {
+                  setEmailInput(newValue || '');
+                  setEmailTouched(false);
+                }}
+                onInputChange={(event, newInputValue) => {
+                  // Allow manual typing as well
+                  if (event && event.type === 'change') {
+                    setEmailInput(newInputValue);
                   }
                 }}
-                sx={{ maxWidth: 400, '& .MuiFormHelperText-root': { transition: 'color 200ms ease' } }}
+                filterOptions={(options, { inputValue }) => {
+                  // Real-time filtering on both name and email
+                  if (!inputValue) return [];
+                  
+                  const searchTerm = inputValue.toLowerCase();
+                  return options.filter((option) => {
+                    const lowerOption = option.toLowerCase();
+                    // Split by " - " to separately check name and email
+                    const parts = option.split(' - ');
+                    const name = parts[0]?.toLowerCase() || '';
+                    const email = parts[1]?.toLowerCase() || '';
+                    
+                    // Match if search term is found in either name or email
+                    return lowerOption.includes(searchTerm) || 
+                           name.includes(searchTerm) || 
+                           email.includes(searchTerm);
+                  });
+                }}
+                loading={loadingCandidates}
+                disabled={loadingEmailQuery}
+                freeSolo
+                ListboxProps={{
+                  style: {
+                    maxHeight: '300px',
+                    overflow: 'auto',
+                  }
+                }}
+                noOptionsText={emailInput ? "No matching candidates found" : "Start typing to search..."}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Email ID"
+                    placeholder="Type name or email to search"
+                    variant="outlined"
+                    size="medium"
+                    error={emailTouched && !!emailInput && !isValidEmail(extractEmailFromOption(emailInput))}
+                    helperText={
+                      emailTouched && !!emailInput && !isValidEmail(extractEmailFromOption(emailInput))
+                        ? 'Select a valid candidate'
+                        : ' '
+                    }
+                    onBlur={() => setEmailTouched(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleEmailQuery();
+                      }
+                    }}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingCandidates ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                sx={{ maxWidth: 600 }}
               />
               <Button
                 variant="contained"
                 color="primary"
                 onClick={handleEmailQuery}
-                disabled={loadingEmailQuery || !emailInput.trim() || (emailTouched && !isValidEmail(emailInput))}
+                disabled={loadingEmailQuery || !emailInput.trim() || (emailTouched && !isValidEmail(extractEmailFromOption(emailInput)))}
                 sx={{ 
                   minWidth: 120,
                   height: 56,
