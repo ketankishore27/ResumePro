@@ -5,6 +5,7 @@ import time
 import requests
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 load_dotenv()
 
 
@@ -75,6 +76,9 @@ def insert_data(assembled_field: dict):
     else:
         getCompany = assembled_field.get("getCompany", None)
     ##
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     
 
     data = pd.DataFrame([[candidate_id, name, job_role, resume_text, email_id, mobile_number, yoe, ryoe, scoreResume, getContacts, getSummaryOverview, getCustomScores, getOtherComments, getFunctionalConstituent, 
@@ -90,7 +94,6 @@ def insert_data(assembled_field: dict):
         data.to_sql(name=table_name, con=conn, if_exists="append", index=False, dtype=col_mapping)
         
     return {"response": "Data inserted successfully"}
-
 
 def process_individual_resume(data: dict):
 
@@ -145,6 +148,11 @@ def extract_data(email_id):
              .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
     return data
 
+def extract_all_resumes():
+    base_sql = "select * from resume_store"
+    data = pd.read_sql(base_sql, engine)\
+             .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
+    return data
 
 def resume_extraction(wordList = [], jobRole = None, jobDescription = None):
 
@@ -165,7 +173,7 @@ def resume_extraction(wordList = [], jobRole = None, jobDescription = None):
 
     data = pd.read_sql(base_sql, engine)\
              .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
+
     if jobDescription is not None:
         pass
 
-    

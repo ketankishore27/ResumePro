@@ -496,3 +496,14 @@ def filter_candidate(data: dict):
         structlogger.debug("Exception in filterCandidate:", details=e)
         return {"response": "Failed to filter candidate", "error": "An error occurred while processing your request", "status": 500}
 
+@app.get("/getAllCandidates")
+def get_all_candidates():
+    try:
+        structlogger.debug("Received request for getAllCandidates")
+        candidates = extract_all_resumes()
+        structlogger.debug(f"Returning {len(candidates)} candidates")
+        return candidates
+    except Exception as e:
+        structlogger.debug("Exception in getAllCandidates:", details=e)
+        return {"response": "Failed to retrieve candidates", "error": "An error occurred while processing your request", "status": 500}
+

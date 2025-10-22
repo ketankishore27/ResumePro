@@ -7,6 +7,9 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
+import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
+import SortIcon from '@mui/icons-material/Sort';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
@@ -23,10 +26,12 @@ import Navigation from '../src/components/Navigation';
 export default function RelevantCandidates() {
   const router = useRouter();
   const [jobRole, setJobRole] = useState('');
+  const [jobName, setJobName] = useState('');
+  const [jobId, setJobId] = useState('');
   const [jobDescription, setJobDescription] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [candidates, setCandidates] = useState([]);
-  const [searchPerformed, setSearchPerformed] = useState(false);
+  const [searchPerformed, setSearchPerformed] = useState(true);
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [filters, setFilters] = useState({
@@ -36,7 +41,139 @@ export default function RelevantCandidates() {
   const [keywordInput, setKeywordInput] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [resultsPerPage, setResultsPerPage] = useState(20);
-  const [sortBy, setSortBy] = useState('Apply date');
+  const [sortKeys, setSortKeys] = useState([{ key: 'Newest First', direction: 'desc' }]);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [statusCounts, setStatusCounts] = useState({
+    sourced: 0,
+    applied: 0,
+    aptitude: 0,
+    interview: 0,
+    offer: 0,
+    hire: 0
+  });
+
+  // Load all candidates on mount
+  useEffect(() => {
+    loadAllCandidates();
+  }, []);
+
+  const loadAllCandidates = async () => {
+    setLoading(true);
+    
+    try {
+      const response = await fetch('http://127.0.0.1:8000/getAllCandidates', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data && Array.isArray(data) && data.length > 0) {
+        // Transform database data to frontend format
+        const transformedCandidates = data.map((candidate, index) => ({
+          id: index + 1,
+          name: candidate.name || 'Unknown',
+          jobRole: candidate.job_role || 'Not Specified',
+          email_id: candidate.email_id || '',
+          mobile_number: candidate.mobile_number || 'N/A',
+          experience: formatExperience(candidate.get_yoe),
+          relevantExperience: formatExperience(candidate.get_ryoe),
+          location: candidate.get_location?.location || 'Not Specified',
+          skills: extractSkills(candidate.get_technical_constituent),
+          education: extractEducation(candidate.get_education),
+          current: extractCurrentJob(candidate.get_company),
+          previous: extractPreviousJob(candidate.get_company),
+          summary: candidate.get_summary_overview?.comment || '',
+          resumeScore: candidate.score_resume?.score || 0,
+          designation: candidate.get_designation?.current_designation || '',
+          addedDate: candidate.created_at ? new Date(candidate.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          status: 'Sourced',
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.name || 'User')}&background=random`
+        }));
+        
+        setCandidates(transformedCandidates);
+        
+        // Update status counts (for now all are sourced)
+        setStatusCounts({
+          sourced: transformedCandidates.length,
+          applied: 0,
+          aptitude: 0,
+          interview: 0,
+          offer: 0,
+          hire: 0
+        });
+      } else {
+        console.log('No candidates found in database');
+        setCandidates([]);
+      }
+    } catch (error) {
+      console.error('Error loading candidates:', error);
+      setCandidates([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper functions to extract data from JSON fields
+  const formatExperience = (yoe) => {
+    if (!yoe) return '0y';
+    const years = Math.floor(yoe);
+    const months = Math.round((yoe - years) * 12);
+    return months > 0 ? `${years}y ${months}m` : `${years}y`;
+  };
+
+  const extractSkills = (techConstituent) => {
+    if (!techConstituent) return [];
+    const skills = [];
+    if (techConstituent.high) skills.push(...techConstituent.high);
+    if (techConstituent.medium) skills.push(...techConstituent.medium.slice(0, 3));
+    return skills.slice(0, 8);
+  };
+
+  const extractEducation = (education) => {
+    if (!education || !Array.isArray(education) || education.length === 0) return [];
+    
+    // Sort by end_year descending (most recent first)
+    const sortedEducation = [...education].sort((a, b) => {
+      const yearA = a.end_year === 'ongoing' ? 9999 : parseInt(a.end_year) || 0;
+      const yearB = b.end_year === 'ongoing' ? 9999 : parseInt(b.end_year) || 0;
+      return yearB - yearA;
+    });
+    
+    // Get the first two (most recent)
+    const recentTwo = sortedEducation.slice(0, 2);
+    return recentTwo.map(edu => `${edu.degree || ''} ${edu.institution || ''} (${edu.end_year || 'Ongoing'})`.trim());
+  };
+
+  const extractCurrentJob = (company) => {
+    if (!company || !company.employment_history || company.employment_history.length === 0) return 'Not Specified';
+    
+    // Sort by end_year descending (most recent first)
+    const sortedJobs = [...company.employment_history].sort((a, b) => {
+      const yearA = a.end_year === 'Currently Working' ? 9999 : parseInt(a.end_year) || 0;
+      const yearB = b.end_year === 'Currently Working' ? 9999 : parseInt(b.end_year) || 0;
+      return yearB - yearA;
+    });
+    
+    const latest = sortedJobs[0];
+    return `${latest.position || ''} at ${latest.company || ''}`.trim();
+  };
+
+  const extractPreviousJob = (company) => {
+    if (!company || !company.employment_history || company.employment_history.length < 2) return 'Not Specified';
+    
+    // Sort by end_year descending (most recent first)
+    const sortedJobs = [...company.employment_history].sort((a, b) => {
+      const yearA = a.end_year === 'Currently Working' ? 9999 : parseInt(a.end_year) || 0;
+      const yearB = b.end_year === 'Currently Working' ? 9999 : parseInt(b.end_year) || 0;
+      return yearB - yearA;
+    });
+    
+    const previous = sortedJobs[1];
+    return `${previous.position || ''} at ${previous.company || ''}`.trim();
+  };
 
   const handleSearch = async () => {
     if (!jobRole && !jobDescription) {
@@ -59,6 +196,8 @@ export default function RelevantCandidates() {
         body: JSON.stringify({
           wordList: filters.keywords,
           jobRole: jobRole,
+          jobName: jobName,
+          jobId: jobId,
           jobDescription: jobDescription,
           experienceFilter: filters.experience
         })
@@ -187,7 +326,7 @@ export default function RelevantCandidates() {
   };
 
   const handleCandidateClick = (candidate) => {
-    router.push(`/insights?email_id=${candidate.email}`);
+    router.push(`/insights?email_id=${candidate.email_id}`);
   };
 
   const getMatchColor = (match) => {
@@ -248,7 +387,96 @@ export default function RelevantCandidates() {
   };
 
   // Apply all filters
-  const filteredCandidates = candidates ? candidates.filter(filterByExperience) : [];
+  let filteredCandidates = candidates ? candidates.filter(filterByExperience) : [];
+
+  // Multi-level sorting function
+  const getComparatorForKey = (key, direction) => {
+    const multiplier = direction === 'asc' ? 1 : -1;
+    
+    switch (key) {
+      case 'Newest First':
+      case 'Oldest First':
+      case 'Date Added':
+        return (a, b) => {
+          const dateA = new Date(a.addedDate);
+          const dateB = new Date(b.addedDate);
+          return (dateB - dateA) * multiplier;
+        };
+      
+      case 'Name':
+        return (a, b) => {
+          const nameA = (a.name || '').toLowerCase();
+          const nameB = (b.name || '').toLowerCase();
+          return nameA.localeCompare(nameB) * multiplier;
+        };
+      
+      case 'Experience':
+        return (a, b) => {
+          const expA = parseExperience(a.experience);
+          const expB = parseExperience(b.experience);
+          return (expB - expA) * multiplier;
+        };
+      
+      case 'Resume Score':
+        return (a, b) => {
+          const scoreA = a.resumeScore || 0;
+          const scoreB = b.resumeScore || 0;
+          return (scoreB - scoreA) * multiplier;
+        };
+      
+      case 'Location':
+        return (a, b) => {
+          const locA = (a.location || '').toLowerCase();
+          const locB = (b.location || '').toLowerCase();
+          return locA.localeCompare(locB) * multiplier;
+        };
+      
+      default:
+        return () => 0;
+    }
+  };
+
+  // Apply multi-level sorting
+  const sortCandidates = (candidatesToSort) => {
+    if (sortKeys.length === 0) return candidatesToSort;
+    
+    return [...candidatesToSort].sort((a, b) => {
+      // Apply each sort key in order until a non-zero comparison is found
+      for (const sortKey of sortKeys) {
+        const comparator = getComparatorForKey(sortKey.key, sortKey.direction);
+        const result = comparator(a, b);
+        if (result !== 0) return result;
+      }
+      return 0;
+    });
+  };
+
+  filteredCandidates = sortCandidates(filteredCandidates);
+
+  // Helper functions for sort management
+  const addSortKey = () => {
+    setSortKeys([...sortKeys, { key: 'Name', direction: 'desc' }]);
+  };
+
+  const removeSortKey = (index) => {
+    const newSortKeys = sortKeys.filter((_, i) => i !== index);
+    setSortKeys(newSortKeys.length > 0 ? newSortKeys : [{ key: 'Newest First', direction: 'desc' }]);
+  };
+
+  const updateSortKey = (index, field, value) => {
+    const newSortKeys = [...sortKeys];
+    newSortKeys[index][field] = value;
+    setSortKeys(newSortKeys);
+  };
+
+  const moveSortKey = (index, direction) => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= sortKeys.length) return;
+    
+    const newSortKeys = [...sortKeys];
+    [newSortKeys[index], newSortKeys[newIndex]] = [newSortKeys[newIndex], newSortKeys[index]];
+    setSortKeys(newSortKeys);
+  };
 
   const totalResults = filteredCandidates.length || 0;
   const startIndex = (currentPage - 1) * resultsPerPage;
@@ -389,6 +617,34 @@ export default function RelevantCandidates() {
             </FormControl>
           </Box>
 
+          {/* Job Name Filter */}
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
+              Job Name
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Enter job name..."
+              value={jobName}
+              onChange={(e) => setJobName(e.target.value)}
+            />
+          </Box>
+
+          {/* Job Id Filter */}
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
+              Job Id
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Enter job ID..."
+              value={jobId}
+              onChange={(e) => setJobId(e.target.value)}
+            />
+          </Box>
+
           {/* Job Description Filter */}
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
@@ -424,6 +680,17 @@ export default function RelevantCandidates() {
 
         {/* Right Side - Results */}
         <Box sx={{ flex: 1, p: 3 }}>
+          {/* Status Badges */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+            <Chip label={`All Candidates`} color="default" sx={{ fontWeight: 600 }} />
+            <Chip label={`${statusCounts.sourced} Sourced`} sx={{ bgcolor: '#9e9e9e', color: 'white', fontWeight: 500 }} />
+            <Chip label={`${statusCounts.applied} Applied`} sx={{ bgcolor: '#2196f3', color: 'white', fontWeight: 500 }} />
+            <Chip label={`${statusCounts.aptitude} Aptitude`} sx={{ bgcolor: '#00bcd4', color: 'white', fontWeight: 500 }} />
+            <Chip label={`${statusCounts.interview} Interview`} sx={{ bgcolor: '#ff9800', color: 'white', fontWeight: 500 }} />
+            <Chip label={`${statusCounts.offer} Offer`} sx={{ bgcolor: '#ff5722', color: 'white', fontWeight: 500 }} />
+            <Chip label={`${statusCounts.hire} Hire`} sx={{ bgcolor: '#4caf50', color: 'white', fontWeight: 500 }} />
+          </Box>
+
           {/* Results Header */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Typography variant="h6" color="text.secondary">
@@ -469,16 +736,138 @@ export default function RelevantCandidates() {
                 Delete
               </Button>
               <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Sort by:
-                </Typography>
-                <Select size="small" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                  <MenuItem value="Apply date">Apply date</MenuItem>
-                  <MenuItem value="Name">Name</MenuItem>
-                  <MenuItem value="Match">Match %</MenuItem>
-                </Select>
+                <Button 
+                  size="small" 
+                  startIcon={<SortIcon />}
+                  onClick={() => setShowSortMenu(!showSortMenu)}
+                  sx={{ textTransform: 'none' }}
+                  variant="outlined"
+                >
+                  Multi-Sort ({sortKeys.length})
+                </Button>
               </Box>
             </Box>
+          )}
+
+          {/* Multi-Sort Menu */}
+          {showSortMenu && (
+            <Paper 
+              elevation={3} 
+              sx={(theme) => ({ 
+                p: 2, 
+                mb: 3, 
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`
+              })}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  Multi-Level Sorting
+                </Typography>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={addSortKey}
+                  variant="outlined"
+                  sx={{ textTransform: 'none' }}
+                >
+                  Add Sort Key
+                </Button>
+              </Box>
+              
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Sort priority: Top to bottom. Candidates are sorted by the first key, then by the second key for ties, and so on.
+              </Typography>
+
+              {sortKeys.map((sortKey, index) => (
+                <Box 
+                  key={index}
+                  sx={(theme) => ({ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 2, 
+                    mb: 2,
+                    p: 2,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                    borderRadius: 1,
+                    border: `1px solid ${theme.palette.divider}`
+                  })}
+                >
+                  <Chip 
+                    label={`#${index + 1}`} 
+                    size="small" 
+                    color="primary"
+                    sx={{ minWidth: 40 }}
+                  />
+                  
+                  <FormControl size="small" sx={{ minWidth: 180 }}>
+                    <Select
+                      value={sortKey.key}
+                      onChange={(e) => updateSortKey(index, 'key', e.target.value)}
+                    >
+                      <MenuItem value="Date Added">Date Added</MenuItem>
+                      <MenuItem value="Name">Name</MenuItem>
+                      <MenuItem value="Experience">Experience</MenuItem>
+                      <MenuItem value="Resume Score">Resume Score</MenuItem>
+                      <MenuItem value="Location">Location</MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  <FormControl size="small" sx={{ minWidth: 140 }}>
+                    <Select
+                      value={sortKey.direction}
+                      onChange={(e) => updateSortKey(index, 'direction', e.target.value)}
+                    >
+                      <MenuItem value="desc">High to Low</MenuItem>
+                      <MenuItem value="asc">Low to High</MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => moveSortKey(index, 'up')}
+                      disabled={index === 0}
+                      title="Move up"
+                    >
+                      <ExpandMoreIcon sx={{ transform: 'rotate(180deg)' }} />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => moveSortKey(index, 'down')}
+                      disabled={index === sortKeys.length - 1}
+                      title="Move down"
+                    >
+                      <ExpandMoreIcon />
+                    </IconButton>
+                  </Box>
+
+                  <IconButton
+                    size="small"
+                    onClick={() => removeSortKey(index)}
+                    disabled={sortKeys.length === 1}
+                    color="error"
+                    title="Remove sort key"
+                  >
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+              ))}
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Active sort keys: {sortKeys.length}
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={() => setShowSortMenu(false)}
+                  variant="contained"
+                  sx={{ textTransform: 'none' }}
+                >
+                  Apply & Close
+                </Button>
+              </Box>
+            </Paper>
           )}
 
           {/* Candidate Cards */}
@@ -517,17 +906,33 @@ export default function RelevantCandidates() {
                     <Box sx={{ flex: 1 }}>
                       {/* Header Row */}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Box>
-                          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, color: 'primary.main' }}>
-                            {candidate.name}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                              <Typography variant="body2" color="text.secondary">
-                                {candidate.experience}
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                            <Avatar 
+                              src={candidate.avatar} 
+                              sx={{ width: 50, height: 50 }}
+                            />
+                            <Box>
+                              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0, color: 'primary.main', cursor: 'pointer' }}
+                                onClick={() => handleCandidateClick(candidate)}>
+                                {candidate.name}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                {candidate.jobRole}
                               </Typography>
                             </Box>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1, flexWrap: 'wrap' }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              {candidate.experience} Exp
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontSize: 16, color: 'text.secondary' }}>•</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                📞 {candidate.mobile_number}
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2" sx={{ fontSize: 16, color: 'text.secondary' }}>•</Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                               <LocationOnOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                               <Typography variant="body2" color="text.secondary">
@@ -537,26 +942,20 @@ export default function RelevantCandidates() {
                           </Box>
                         </Box>
 
-                        {/* Right Side - Avatar and Actions */}
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                          <Avatar 
-                            src={candidate.avatar} 
-                            sx={{ width: 60, height: 60 }}
-                          />
-                          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                            {candidate.phone}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', fontSize: '0.75rem' }}>
-                            {candidate.email}
-                          </Typography>
+                        {/* Right Side - Date and Status */}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                            {candidate.comments} Comments
+                            Added: {candidate.addedDate}
                           </Typography>
                           <Chip
                             label={candidate.status}
                             size="small"
-                            color={candidate.status === 'Shortlisted' ? 'success' : 'default'}
-                            sx={{ fontSize: '0.75rem' }}
+                            sx={{ 
+                              bgcolor: '#9e9e9e', 
+                              color: 'white', 
+                              fontWeight: 500,
+                              fontSize: '0.75rem'
+                            }}
                           />
                         </Box>
                       </Box>
@@ -583,36 +982,53 @@ export default function RelevantCandidates() {
                           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                             Education
                           </Typography>
-                          <Typography variant="body2" sx={{ mt: 0.5 }}>
-                            {candidate.education}
-                          </Typography>
+                          {Array.isArray(candidate.education) && candidate.education.length > 0 ? (
+                            <Box component="ul" sx={{ mt: 0.5, pl: 2, mb: 0 }}>
+                              {candidate.education.map((edu, index) => (
+                                <Typography key={index} component="li" variant="body2" sx={{ fontSize: '0.875rem' }}>
+                                  {edu}
+                                </Typography>
+                              ))}
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" sx={{ mt: 0.5 }}>
+                              Not Specified
+                            </Typography>
+                          )}
                         </Grid>
                       </Grid>
 
                       {/* Skills */}
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 1 }}>
-                          Key skills
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {candidate.skills.map((skill, index) => (
-                            <Chip 
-                              key={index} 
-                              label={skill} 
-                              size="small" 
-                              variant="outlined"
-                              color="primary"
-                              sx={{ fontSize: '0.75rem', height: 24 }}
-                            />
-                          ))}
+                      {candidate.skills && candidate.skills.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 1 }}>
+                            Key skills
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {candidate.skills.map((skill, index) => (
+                              <Chip 
+                                key={index} 
+                                label={skill} 
+                                size="small" 
+                                variant="outlined"
+                                color="primary"
+                                sx={{ fontSize: '0.75rem', height: 24 }}
+                              />
+                            ))}
+                          </Box>
                         </Box>
-                      </Box>
+                      )}
 
                       {/* Footer Actions */}
                       <Box sx={(theme) => ({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 2, borderTop: `1px solid ${theme.palette.divider}` })}>
-                        <Typography variant="body2" color="text.secondary">
-                          Applied on: {candidate.applyDate}
-                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                            📊 Resume Score: {candidate.resumeScore}/100
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                            ✉️ {candidate.email_id}
+                          </Typography>
+                        </Box>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                           <Button
                             variant="outlined"
