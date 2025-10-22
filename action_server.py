@@ -479,7 +479,6 @@ def get_location(data: dict):
         structlogger.debug("Retrying. Ended Iteration:", details=iteration)    
         
     return {'location': '', 'confidence_score': 0}
-heklouhtyvb
 
 @app.post("/filterCandidate")
 def filter_candidate(data: dict):
