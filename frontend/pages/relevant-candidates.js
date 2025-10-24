@@ -194,8 +194,13 @@ export default function RelevantCandidates() {
   };
 
   const handleSearch = async () => {
-    if (!jobRole && !jobDescription) {
-      alert('Please select a job role or enter a job description');
+    // Check if any filters are applied
+    const hasFilters = jobRole || jobDescription || jobName || jobId || 
+                       filters.keywords.length > 0 || filters.experience;
+    
+    // If no filters are set, load all candidates (same as initial page load)
+    if (!hasFilters) {
+      await loadAllCandidates();
       return;
     }
 
@@ -223,123 +228,48 @@ export default function RelevantCandidates() {
       
       const data = await response.json();
       
-      // If we got valid data back, use it
+      // If we got valid data back, transform it
       if (data && Array.isArray(data) && data.length > 0) {
-        candidateData = data;
+        // Transform database data to frontend format (same as loadAllCandidates)
+        candidateData = data.map((candidate, index) => ({
+          id: index + 1,
+          name: candidate.name || 'Unknown',
+          jobRole: candidate.job_role || 'Not Specified',
+          email_id: candidate.email_id || '',
+          mobile_number: candidate.mobile_number || 'N/A',
+          experience: formatExperience(candidate.get_yoe),
+          relevantExperience: formatExperience(candidate.get_ryoe),
+          location: candidate.get_location?.location || 'Not Specified',
+          skills: extractSkills(candidate.get_technical_constituent),
+          technologies: extractTechnologies(candidate.get_projects),
+          education: extractEducation(candidate.get_education),
+          current: extractCurrentJob(candidate.get_company),
+          previous: extractPreviousJob(candidate.get_company),
+          summary: candidate.get_summary_overview?.comment || '',
+          resumeScore: candidate.score_resume?.score || 0,
+          designation: candidate.get_designation?.current_designation || '',
+          addedDate: candidate.created_at ? new Date(candidate.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          status: 'Sourced',
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.name || 'User')}&background=random`
+        }));
       }
     } catch (error) {
       console.error('Error searching candidates:', error);
     }
     
-    // If no data from API, use mock data
-    if (candidateData.length === 0) {
-      console.log('No data returned from API, using mock data');
-      candidateData = [
-        {
-          id: 1,
-          name: 'Ankita Devagn',
-          email: 'ankita.devagn@gmail.com',
-          phone: '9112345678',
-          location: 'Pune',
-          experience: '3y 1m',
-          salary: '9 Lacs',
-          notice: '3m+ notice',
-          skills: ['Java Architecture', 'Technical Leadership', 'Technical Architecture', 'Project Management', 'J2EE', 'Java', 'Spring', 'XML'],
-          education: 'B.Sc Indian Institute of Technology (IIT), Kanpur 2017',
-          current: 'Oracle Database Administrator at TATA TECHNOLOGIES LTD.',
-          previous: 'Software Tester at TATA STEEL LIMITED',
-          match: 92,
-          avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-          comments: 4,
-          applyDate: '16 Apr 21',
-          status: 'Shortlisted',
-          starRating: 4
-        },
-        {
-          id: 2,
-          name: 'Rahul Sharma',
-          email: 'rahul.sharma@gmail.com',
-          phone: '9223456789',
-          location: 'Bangalore',
-          experience: '4y 3m',
-          salary: '12 Lacs',
-          notice: '1m notice',
-          skills: ['Python', 'Django', 'React', 'AWS', 'Full Stack', 'JavaScript', 'Node.js'],
-          education: 'M.Tech Computer Science, IIT Delhi 2019',
-          current: 'Full Stack Developer at Infosys',
-          previous: 'Web Developer at TCS',
-          match: 85,
-          avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-          comments: 2,
-          applyDate: '14 Apr 21',
-          status: 'Pending',
-          starRating: 3
-        },
-        {
-          id: 3,
-          name: 'Priya Patel',
-          email: 'priya.patel@gmail.com',
-          phone: '9334567890',
-          location: 'Mumbai',
-          experience: '2y 6m',
-          salary: '8 Lacs',
-          notice: 'Immediate',
-          skills: ['UI/UX', 'Figma', 'Adobe XD', 'Sketch', 'HTML', 'CSS', 'JavaScript'],
-          education: 'B.Des, NID Ahmedabad 2020',
-          current: 'UI Designer at Amazon',
-          previous: 'Junior Designer at Flipkart',
-          match: 78,
-          avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
-          comments: 1,
-          applyDate: '12 Apr 21',
-          status: 'Pending',
-          starRating: 2
-        },
-        {
-          id: 4,
-          name: 'Amit Kumar',
-          email: 'amit.kumar@gmail.com',
-          phone: '9445678901',
-          location: 'Chennai',
-          experience: '5y 2m',
-          salary: '15 Lacs',
-          notice: '2m notice',
-          skills: ['DevOps', 'AWS', 'Docker', 'Kubernetes', 'Jenkins', 'Python', 'Linux'],
-          education: 'M.Tech, IIT Madras 2018',
-          current: 'DevOps Engineer at Microsoft',
-          previous: 'System Administrator at Cognizant',
-          match: 88,
-          avatar: 'https://randomuser.me/api/portraits/men/75.jpg',
-          comments: 3,
-          applyDate: '10 Apr 21',
-          status: 'Shortlisted',
-          starRating: 5
-        },
-        {
-          id: 5,
-          name: 'Sneha Reddy',
-          email: 'sneha.reddy@gmail.com',
-          phone: '9556789012',
-          location: 'Hyderabad',
-          experience: '3y 8m',
-          salary: '11 Lacs',
-          notice: '1m notice',
-          skills: ['Data Science', 'Python', 'Machine Learning', 'SQL', 'Tableau', 'R'],
-          education: 'M.Sc Statistics, University of Hyderabad 2019',
-          current: 'Data Scientist at Wipro',
-          previous: 'Data Analyst at HCL',
-          match: 82,
-          avatar: 'https://randomuser.me/api/portraits/women/25.jpg',
-          comments: 2,
-          applyDate: '08 Apr 21',
-          status: 'Pending',
-          starRating: 3
-        }
-      ];
-      
-    }
-    
+    // Set candidates from API response (empty array if no data)
     setCandidates(candidateData);
+    
+    // Update status counts
+    setStatusCounts({
+      sourced: candidateData.length,
+      applied: 0,
+      aptitude: 0,
+      interview: 0,
+      offer: 0,
+      hire: 0
+    });
+    
     setLoading(false);
   };
 

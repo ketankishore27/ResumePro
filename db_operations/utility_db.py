@@ -1,11 +1,16 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.types import JSON, Text, Integer, Float
+from sqlalchemy import text
 import pandas as pd
 import time
 import requests
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+from ai_operations.utility_function import refined_search_results
+
+import structlog
+structlogger = structlog.get_logger(__name__)
 load_dotenv()
 
 
@@ -154,28 +159,78 @@ def extract_all_resumes():
              .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
     return data
 
-def resume_extraction(wordList = [], jobRole = None, jobDescription = None):
+
+
+
+
+def refined_resume(wordList = [], jobRole = None, jobDescription = None, experience = None):
 
     print("WordList: ", wordList)
     print("JobRole: ", jobRole)
     print("jobDescription: ", jobDescription)
+    print("Experience: ", experience)
 
-    base_sql = "select * from resume_store where "
+    base_sql = "select * from resume_store"
 
     if len(wordList) > 0:
+        
+        if base_sql.strip().endswith("resume_store"):
+            base_sql += " where ("
+        
+        if base_sql.strip().endswith("or"):
+            base_sql = base_sql.strip(" or ") + " and "
+
+        structlogger.info("Processing wordList: ", details=wordList)
         for word in wordList:
-            base_sql += f"resume_raw_text LIKE '%{word}%' and "
+            base_sql += f"resume_raw_text ILIKE '%{word}%' or "
+
+        base_sql = base_sql.strip(" or ") + ")"
+
+    if jobRole:
+        
+        if base_sql.strip().endswith("resume_store"):
+            base_sql += " where "
+        
+        elif base_sql.strip().endswith("or"):
+            base_sql = base_sql.strip(" or ") + " and "
             
-    if jobRole is not None:
-        base_sql += f"job_role = '{jobRole}' and "
+        else:
+            base_sql += " and "
+            
+        structlogger.info("Processing jobRole: ", details=jobRole)
+        base_sql += f"lower(job_role) = '{jobRole.lower()}'"
 
-    base_sql = base_sql.strip(" and ") + ";"
 
-    data = pd.read_sql(base_sql, engine)\
-             .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
+    if experience:
+
+        if base_sql.strip().endswith("resume_store"):
+            base_sql += " where "
+        
+        elif base_sql.strip().endswith("or"):
+            base_sql = base_sql.strip(" or ") + " and "
+
+        else:
+            base_sql += " and "
+
+        structlogger.info("Processing experience: ", details=experience)
+        exp_level = experience.replace("<", "").replace(">", "")\
+                                .replace("=", "").replace("Years", "")\
+                              .replace(" ", "").strip().split("and")\
+
+        start_exp = int(exp_level[0])
+        end_exp = int(exp_level[1])
+        base_sql += f"get_yoe between {start_exp} and {end_exp}"
+
+    structlogger.info("Base SQL: ", details=base_sql)
+
+    data = pd.read_sql(text(base_sql), engine)\
+             .drop(columns = ['candidate_id', 'mode']).to_dict("records")
 
     if jobDescription is not None:
         pass
+        #data = refined_search_results(data, jobDescription, num_results=2)
+
+    return data
 
 def get_all_candidates_dropdown():
     

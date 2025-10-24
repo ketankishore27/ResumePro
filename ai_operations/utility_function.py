@@ -1,4 +1,3 @@
-from json import load
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field, RootModel, conint
 from langchain_core.output_parsers import PydanticOutputParser, JsonOutputParser
@@ -9,11 +8,15 @@ from enum import Enum
 from typing import Dict, List, Union, Literal, Optional
 from datetime import datetime
 from ai_operations.utils import load_prompt
-
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import numpy as np
+import pandas as pd
 load_dotenv(override=True)
-llm_google = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
+
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
+embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 #llm = ChatOpenAI(model="gpt-4o", temperature=0.)
-llm = AzureChatOpenAI(model="gpt-4o-mini", api_version="2025-04-01-preview")
+#llm = AzureChatOpenAI(model="gpt-4o-mini", api_version="2025-04-01-preview")
 
 
 def create_resume_score():
@@ -361,4 +364,41 @@ def designation_extractor():
     chain = prompt | llm | JsonOutputParser()
 
     return chain
+
+
+def create_similarity_score(job_description_emb, recruiter_overview_emb):
+
+    dot_product = np.dot(job_description_emb, recruiter_overview_emb)
+    magnitude_jd = np.linalg.norm(job_description_emb)
+    magnitude_ro = np.linalg.norm(recruiter_overview_emb)
+
+    similarity_score = dot_product / (magnitude_jd * magnitude_ro)
+    return similarity_score
+
+
+def refined_search_results(data, jobDescription, num_results=3):
+    
+    name_list, overview_list = [], []
+    for candidate in data:
+        name_list.append(candidate['name'])
+        overview = candidate['get_recruiters_overview']['bullets']
+        overview_str = " ".join(overview)
+        overview_list.append(overview_str)
+
+    overview_emb = embeddings.embed_documents(overview_list)
+    jobDescription_emb = embeddings.embed_query(jobDescription)
+
+    final_list = []
+    for idx, name in enumerate(name_list):
+        final_list.append([name, overview_list[idx], round(create_similarity_score(jobDescription_emb, overview_emb[idx]), 3)])
+        
+    final_list.sort(key = lambda x: x[2], reverse=True)
+    final_list = final_list[:num_results]
+    name_list_desc = [name for name, _, _ in final_list]
+
+    # Get all the required data for candidates
+    df = pd.DataFrame.from_records(data)
+    df = df[df['name'].isin(name_list_desc)].to_dict("records")
+
+    return df
 

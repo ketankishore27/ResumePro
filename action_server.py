@@ -484,13 +484,12 @@ def get_location(data: dict):
 def filter_candidate(data: dict):
     try:
         structlogger.debug("Received request for filterCandidate")
-        structlogger.debug("Request data:", details=data)
         wordList = data.get("wordList", None)
         jobRole = data.get("jobRole", None)
         jobDescription = data.get("jobDescription", None)
-        experience = data.get("experience", None)
+        experience = data.get("experienceFilter", None)
         
-        return resume_extraction(wordList, jobRole, jobDescription, experience)
+        return refined_resume(wordList, jobRole, jobDescription, experience)
 
     except Exception as e:
         structlogger.debug("Exception in filterCandidate:", details=e)
@@ -517,3 +516,18 @@ def get_candidates_dropdown_api():
     except Exception as e:
         structlogger.debug("Exception in getAllCandidatesDropdown:", details=e)
         return {"response": "Failed to retrieve candidates", "error": "An error occurred while processing your request", "status": 500}
+
+@app.get("/getRefinedResume")
+def get_refined_resume():
+    try:
+        structlogger.debug("Received request for getRefinedResume")
+        refined_resume = get_refined_resume(
+            wordList = [],
+            
+        )
+        structlogger.debug(f"Returning refined resume")
+        return refined_resume
+    except Exception as e:
+        structlogger.debug("Exception in getRefinedResume:", details=e)
+        return {"response": "Failed to retrieve refined resume", "error": "An error occurred while processing your request", "status": 500}
+        
