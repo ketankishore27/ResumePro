@@ -36,7 +36,8 @@ export default function RelevantCandidates() {
   const [selectAll, setSelectAll] = useState(false);
   const [filters, setFilters] = useState({
     keywords: [],
-    experience: ''
+    minExperience: '',
+    maxExperience: ''
   });
   const [keywordInput, setKeywordInput] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,6 +52,8 @@ export default function RelevantCandidates() {
     offer: 0,
     hire: 0
   });
+  const [recentResumesEnabled, setRecentResumesEnabled] = useState(false);
+  const [recentResumesCount, setRecentResumesCount] = useState(10);
 
   // Load all candidates on mount
   useEffect(() => {
@@ -94,7 +97,11 @@ export default function RelevantCandidates() {
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.name || 'User')}&background=random`
         }));
         
-        setCandidates(transformedCandidates);
+        // Sort by resume score in descending order
+        const sortedCandidates = transformedCandidates.sort((a, b) => b.resumeScore - a.resumeScore);
+        console.log('Candidates sorted by resume score (descending):', sortedCandidates.map(c => ({name: c.name, score: c.resumeScore})));
+        
+        setCandidates(sortedCandidates);
         
         // Update status counts (for now all are sourced)
         setStatusCounts({
@@ -196,7 +203,8 @@ export default function RelevantCandidates() {
   const handleSearch = async () => {
     // Check if any filters are applied
     const hasFilters = jobRole || jobDescription || jobName || jobId || 
-                       filters.keywords.length > 0 || filters.experience;
+                       filters.keywords.length > 0 || filters.minExperience || filters.maxExperience || 
+                       (recentResumesEnabled && recentResumesCount);
     
     // If no filters are set, load all candidates (same as initial page load)
     if (!hasFilters) {
@@ -210,20 +218,31 @@ export default function RelevantCandidates() {
     let candidateData = [];
     
     try {
+      // Prepare request payload
+      const requestPayload = {
+        wordList: filters.keywords,
+        jobRole: jobRole,
+        jobName: jobName,
+        jobId: jobId,
+        jobDescription: jobDescription,
+        minExperience: filters.minExperience,
+        maxExperience: filters.maxExperience,
+        recentResumeCount: recentResumesEnabled ? recentResumesCount : null
+      };
+      
+      console.log('Sending filter request:', {
+        recentResumeCount: requestPayload.recentResumeCount,
+        minExperience: requestPayload.minExperience,
+        maxExperience: requestPayload.maxExperience
+      });
+      
       // Make API call to filterCandidate endpoint
       const response = await fetch('http://127.0.0.1:8000/filterCandidate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          wordList: filters.keywords,
-          jobRole: jobRole,
-          jobName: jobName,
-          jobId: jobId,
-          jobDescription: jobDescription,
-          experienceFilter: filters.experience
-        })
+        body: JSON.stringify(requestPayload)
       });
       
       const data = await response.json();
@@ -252,6 +271,10 @@ export default function RelevantCandidates() {
           status: 'Sourced',
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.name || 'User')}&background=random`
         }));
+        
+        // Sort by resume score in descending order
+        candidateData = candidateData.sort((a, b) => b.resumeScore - a.resumeScore);
+        console.log('Filtered candidates sorted by resume score (descending):', candidateData.map(c => ({name: c.name, score: c.resumeScore})));
       }
     } catch (error) {
       console.error('Error searching candidates:', error);
@@ -313,25 +336,23 @@ export default function RelevantCandidates() {
 
   // Filter candidates based on experience
   const filterByExperience = (candidate) => {
-    if (!filters.experience) return true; // No filter applied
-    
     const expMonths = parseExperience(candidate.experience);
     const expYears = expMonths / 12;
     
-    switch (filters.experience) {
-      case "<= 2 Years":
-        return expYears <= 2;
-      case "> 2 and <= 5 Years":
-        return expYears > 2 && expYears <= 5;
-      case "> 5 and <= 7 Years":
-        return expYears > 5 && expYears <= 7;
-      case "> 7 and <= 10 Years":
-        return expYears > 7 && expYears <= 10;
-      case "> 10 Years":
-        return expYears > 10;
-      default:
-        return true;
-    }
+    const minExp = filters.minExperience ? parseFloat(filters.minExperience) : null;
+    const maxExp = filters.maxExperience ? parseFloat(filters.maxExperience) : null;
+    
+    // If both filters are empty, show all
+    if (!minExp && !maxExp) return true;
+    
+    // If only min is set
+    if (minExp && !maxExp) return expYears >= minExp;
+    
+    // If only max is set
+    if (!minExp && maxExp) return expYears <= maxExp;
+    
+    // If both are set
+    return expYears >= minExp && expYears <= maxExp;
   };
 
   // Apply all filters
@@ -339,7 +360,7 @@ export default function RelevantCandidates() {
 
   // Multi-level sorting function
   const getComparatorForKey = (key, direction) => {
-    const multiplier = direction === 'asc' ? 1 : -1;
+    const multiplier = direction === 'asc' ? -1 : 1;
     
     switch (key) {
       case 'Newest First':
@@ -446,7 +467,57 @@ export default function RelevantCandidates() {
             </Typography>
           </Box>
 
-          {/* Matching/Not Matching Filter */}
+          {/* Recent Resumes Filter */}
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <Checkbox
+                size="small"
+                checked={recentResumesEnabled}
+                onChange={(e) => setRecentResumesEnabled(e.target.checked)}
+              />
+              <Typography variant="body2" fontWeight={500}>
+                Recent Resumes
+              </Typography>
+            </Box>
+            <TextField
+              fullWidth
+              size="small"
+              type="text"
+              value={recentResumesCount}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Only allow positive integers - reject any non-numeric characters
+                if (value === '') {
+                  setRecentResumesCount('');
+                } else if (/^\d+$/.test(value)) {
+                  const numValue = parseInt(value, 10);
+                  if (numValue > 0) {
+                    setRecentResumesCount(numValue);
+                  }
+                }
+                // If value doesn't match the pattern, don't update state (ignore the input)
+              }}
+              onKeyPress={(e) => {
+                // Prevent any non-numeric key press
+                if (!/[0-9]/.test(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              disabled={!recentResumesEnabled}
+              placeholder="Enter count"
+              inputMode="numeric"
+              sx={{
+                '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+                  display: 'none',
+                },
+                '& input[type=number]': {
+                  MozAppearance: 'textfield',
+                },
+              }}
+            />
+          </Box>
+
+          <Divider sx={{ mb: 2 }} />
 
           {/* Keywords Section */}
           <Accordion sx={{ boxShadow: 'none', '&:before': { display: 'none' } }}>
@@ -547,22 +618,49 @@ export default function RelevantCandidates() {
           {/* Experience Filter */}
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
-              Experience
+              Experience (Years)
             </Typography>
-            <FormControl fullWidth size="small">
-              <Select
-                value={filters.experience}
-                onChange={(e) => setFilters({...filters, experience: e.target.value})}
-                displayEmpty
-              >
-                <MenuItem value="">All Experience Levels</MenuItem>
-                <MenuItem value="<= 2 Years">{"<= 2 Years"}</MenuItem>
-                <MenuItem value="> 2 and <= 5 Years">{"> 2 and <= 5 Years"}</MenuItem>
-                <MenuItem value="> 5 and <= 7 Years">{"> 5 and <= 7 Years"}</MenuItem>
-                <MenuItem value="> 7 and <= 10 Years">{"> 7 and <= 10 Years"}</MenuItem>
-                <MenuItem value="> 10 Years">{"> 10 Years"}</MenuItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={filters.minExperience}
+                  onChange={(e) => {
+                    const newMin = e.target.value;
+                    // If new min is greater than or equal to current max, reset max
+                    if (newMin && filters.maxExperience && parseInt(newMin) >= parseInt(filters.maxExperience)) {
+                      setFilters({...filters, minExperience: newMin, maxExperience: ''});
+                    } else {
+                      setFilters({...filters, minExperience: newMin});
+                    }
+                  }}
+                  displayEmpty
+                >
+                  <MenuItem value="">Min</MenuItem>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((year) => (
+                    <MenuItem key={year} value={year.toString()}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Typography variant="body2" color="text.secondary">-</Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={filters.maxExperience}
+                  onChange={(e) => setFilters({...filters, maxExperience: e.target.value})}
+                  displayEmpty
+                >
+                  <MenuItem value="">Max</MenuItem>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                    .filter((year) => !filters.minExperience || year > parseInt(filters.minExperience))
+                    .map((year) => (
+                      <MenuItem key={year} value={year.toString()}>
+                        {year}
+                      </MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
+            </Box>
           </Box>
 
           {/* Job Name Filter */}
@@ -892,21 +990,36 @@ export default function RelevantCandidates() {
                           </Box>
                         </Box>
 
-                        {/* Right Side - Date and Status */}
+                        {/* Right Side - Date, Resume Score, and Status */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                             Added: {candidate.addedDate}
                           </Typography>
-                          <Chip
-                            label={candidate.status}
-                            size="small"
-                            sx={{ 
-                              bgcolor: '#9e9e9e', 
-                              color: 'white', 
-                              fontWeight: 500,
-                              fontSize: '0.75rem'
-                            }}
-                          />
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            {/* Resume Score Badge */}
+                            <Chip
+                              label={`Score: ${candidate.resumeScore}/100`}
+                              size="small"
+                              sx={{ 
+                                bgcolor: candidate.resumeScore >= 80 ? '#4caf50' : 
+                                         candidate.resumeScore >= 60 ? '#2196f3' : 
+                                         candidate.resumeScore >= 40 ? '#ff9800' : '#f44336',
+                                color: 'white', 
+                                fontWeight: 600,
+                                fontSize: '0.75rem'
+                              }}
+                            />
+                            <Chip
+                              label={candidate.status}
+                              size="small"
+                              sx={{ 
+                                bgcolor: '#9e9e9e', 
+                                color: 'white', 
+                                fontWeight: 500,
+                                fontSize: '0.75rem'
+                              }}
+                            />
+                          </Box>
                         </Box>
                       </Box>
 
@@ -993,9 +1106,6 @@ export default function RelevantCandidates() {
                       {/* Footer Actions */}
                       <Box sx={(theme) => ({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 2, borderTop: `1px solid ${theme.palette.divider}` })}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                            📊 Resume Score: {candidate.resumeScore}/100
-                          </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                             ✉️ {candidate.email_id}
                           </Typography>

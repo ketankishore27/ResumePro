@@ -763,7 +763,7 @@ export default function Home() {
       // PDF file handling
       if (fileType === 'application/pdf' || fileExtension === 'pdf') {
         const pdfjsLib = await import('pdfjs-dist/build/pdf');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
         const fileReader = new FileReader();
         fileReader.onload = async function () {
           const typedarray = new Uint8Array(this.result);
@@ -859,7 +859,7 @@ export default function Home() {
       // PDF file handling
       if (fileType === 'application/pdf' || fileExtension === 'pdf') {
         const pdfjsLib = await import('pdfjs-dist/build/pdf');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
         const fileReader = new FileReader();
         fileReader.onload = async function () {
           const typedarray = new Uint8Array(this.result);

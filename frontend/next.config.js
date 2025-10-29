@@ -15,6 +15,16 @@ module.exports = {
         ignored: ['**/node_modules', '**/.git'],
       };
     }
+    
+    // Fix for pdfjs-dist canvas dependency (needed for version 3.x)
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        canvas: false,
+        fs: false,
+      };
+    }
+    
     return config;
   },
   // Suppress noisy development logs

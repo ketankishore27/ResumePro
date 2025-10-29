@@ -159,16 +159,11 @@ def extract_all_resumes():
              .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
     return data
 
+def refined_resume(wordList = [], jobRole = None, jobDescription = None, experience = None, recent_resume_count = None):
 
-
-
-
-def refined_resume(wordList = [], jobRole = None, jobDescription = None, experience = None):
-
-    print("WordList: ", wordList)
-    print("JobRole: ", jobRole)
-    print("jobDescription: ", jobDescription)
-    print("Experience: ", experience)
+    structlogger.info("jobDescription: ", details=jobDescription[:50] + "...")
+    structlogger.info("Experience: ", details=experience)
+    structlogger.info("Recent Resume Count: ", details=recent_resume_count)
 
     base_sql = "select * from resume_store"
 
@@ -200,7 +195,6 @@ def refined_resume(wordList = [], jobRole = None, jobDescription = None, experie
         structlogger.info("Processing jobRole: ", details=jobRole)
         base_sql += f"lower(job_role) = '{jobRole.lower()}'"
 
-
     if experience:
 
         if base_sql.strip().endswith("resume_store"):
@@ -221,16 +215,21 @@ def refined_resume(wordList = [], jobRole = None, jobDescription = None, experie
         end_exp = int(exp_level[1])
         base_sql += f"get_yoe between {start_exp} and {end_exp}"
 
+    if recent_resume_count:
+        base_sql += " order by created_at desc limit {}".format(recent_resume_count)
+
     structlogger.info("Base SQL: ", details=base_sql)
 
     data = pd.read_sql(text(base_sql), engine)\
              .drop(columns = ['candidate_id', 'mode']).to_dict("records")
 
-    if jobDescription is not None:
-        pass
-        #data = refined_search_results(data, jobDescription, num_results=2)
-
-    return data
+    if jobDescription is not None and len(jobDescription.strip()) > 10:
+        data_refined = refined_search_results(data, jobDescription, num_results=recent_resume_count if recent_resume_count else 10)
+        return data_refined
+    else:
+        # Sort by resume score in descending order when no job description
+        data_sorted = sorted(data, key=lambda x: x.get('score_resume', {}).get('score', 0), reverse=True)
+        return data_sorted
 
 def get_all_candidates_dropdown():
     

@@ -376,21 +376,22 @@ def create_similarity_score(job_description_emb, recruiter_overview_emb):
     return similarity_score
 
 
-def refined_search_results(data, jobDescription, num_results=3):
+def refined_search_results(data, jobDescription, num_results=10):
     
-    name_list, overview_list = [], []
+    name_list, overview_list, resume_score_list = [], [], []
     for candidate in data:
         name_list.append(candidate['name'])
         overview = candidate['get_recruiters_overview']['bullets']
         overview_str = " ".join(overview)
         overview_list.append(overview_str)
+        resume_score_list.append(candidate['score_resume']['score'])
 
     overview_emb = embeddings.embed_documents(overview_list)
     jobDescription_emb = embeddings.embed_query(jobDescription)
 
     final_list = []
     for idx, name in enumerate(name_list):
-        final_list.append([name, overview_list[idx], round(create_similarity_score(jobDescription_emb, overview_emb[idx]), 3)])
+        final_list.append([name, overview_list[idx], round(create_similarity_score(jobDescription_emb, overview_emb[idx]), 3), ])
         
     final_list.sort(key = lambda x: x[2], reverse=True)
     final_list = final_list[:num_results]
@@ -398,7 +399,11 @@ def refined_search_results(data, jobDescription, num_results=3):
 
     # Get all the required data for candidates
     df = pd.DataFrame.from_records(data)
-    df = df[df['name'].isin(name_list_desc)].to_dict("records")
-
-    return df
+    df = df[df['name'].isin(name_list_desc)]
+    
+    # Sort by resume score in descending order
+    df['resume_score'] = df['score_resume'].apply(lambda x: x.get('score', 0) if isinstance(x, dict) else 0)
+    df = df.sort_values(by='resume_score', ascending=False).drop(columns=['resume_score'])
+    
+    return df.to_dict("records")
 

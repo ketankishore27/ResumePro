@@ -54,7 +54,7 @@ export default function BulkImport() {
     try {
       console.log(`Starting PDF text extraction for: ${file.name}`);
       const pdfjsLib = await import('pdfjs-dist/build/pdf');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
       
       const fileReader = new FileReader();
       

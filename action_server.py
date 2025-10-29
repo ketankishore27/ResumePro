@@ -488,8 +488,9 @@ def filter_candidate(data: dict):
         jobRole = data.get("jobRole", None)
         jobDescription = data.get("jobDescription", None)
         experience = data.get("experienceFilter", None)
+        recentResumeCount = data.get("recentResumeCount", None)
         
-        return refined_resume(wordList, jobRole, jobDescription, experience)
+        return refined_resume(wordList, jobRole, jobDescription, experience, recentResumeCount)
 
     except Exception as e:
         structlogger.debug("Exception in filterCandidate:", details=e)
@@ -518,11 +519,15 @@ def get_candidates_dropdown_api():
         return {"response": "Failed to retrieve candidates", "error": "An error occurred while processing your request", "status": 500}
 
 @app.get("/getRefinedResume")
-def get_refined_resume():
+def getRefinedResume(data: dict):
     try:
         structlogger.debug("Received request for getRefinedResume")
         refined_resume = get_refined_resume(
-            wordList = [],
+            wordList = data.get("wordList", []),
+            jobRole = data.get("jobRole", None),
+            jobDescription = data.get("jobDescription", None),
+            experience = data.get("experienceFilter", None),
+            recent_resume_count = data.get("recentResumeCount", None)
             
         )
         structlogger.debug(f"Returning refined resume")
@@ -531,3 +536,4 @@ def get_refined_resume():
         structlogger.debug("Exception in getRefinedResume:", details=e)
         return {"response": "Failed to retrieve refined resume", "error": "An error occurred while processing your request", "status": 500}
         
+
