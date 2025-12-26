@@ -4,6 +4,8 @@ from langchain_core.output_parsers import PydanticOutputParser, JsonOutputParser
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
+from langchain.agents import create_agent
+from langchain.agents.middleware import TodoListMiddleware, ModelFallbackMiddleware
 from enum import Enum
 from typing import Dict, List, Union, Literal, Optional
 from datetime import datetime
@@ -11,13 +13,20 @@ from ai_operations.utils import load_prompt
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import numpy as np
 import pandas as pd
+from typing import Annotated
+import operator
 load_dotenv(override=True)
 
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
+llm_fallback = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.)
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-#llm = ChatOpenAI(model="gpt-4o", temperature=0.)
+constant_middlewares = [TodoListMiddleware(), ModelFallbackMiddleware(llm_fallback)]
+#llm = ChatOpenAI(model="gpt-4.1", temperature=0.)
 #llm = AzureChatOpenAI(model="gpt-4o-mini", api_version="2025-04-01-preview")
 
+class AgentState(TypedDict):
+    messages: Annotated[list, operator.add]
+    todos: Annotated[list, operator.add]  # reducer to merge multiple todo updates
 
 def create_resume_score():
 
@@ -26,16 +35,17 @@ def create_resume_score():
         score: int = Field("Overall score of the resume, an Applicant Tracking System would give to the resume.")
         items: list[str] = Field("Pointwise, very crisp and concise suggestions for improvement in the resume.", min_items=1, max_items=7)
 
-    output_format = PydanticOutputParser(pydantic_object = ResumeScore).get_format_instructions()
+    # output_format = PydanticOutputParser(pydantic_object = ResumeScore).get_format_instructions()
+    agent = create_agent(model = llm, 
+                        middleware = constant_middlewares, 
+                        response_format = ResumeScore, 
+                        state_type=AgentState)
     
     instruction_prompt = load_prompt(prompt_name = "create_resume_score", filename = "prompts.yml")
 
-    scoring_prompt = PromptTemplate.from_template(template=instruction_prompt, 
-                                              partial_variables = {"format_instructions": output_format})
-
-    chain = scoring_prompt | llm | JsonOutputParser()
+    scoring_prompt = PromptTemplate.from_template(template=instruction_prompt)
     
-    return chain
+    return agent, scoring_prompt
 
 
 def get_contact_information():
@@ -68,16 +78,16 @@ def get_summary_overview():
         color: Literal["red", "orange", "green"] = Field(..., description="Color indicating severity level")
         comment: str = Field(..., description="Short justification for the score")
 
-    output_parser = PydanticOutputParser(pydantic_object = ResumeSummaryScore).get_format_instructions()
-    
+    #output_parser = PydanticOutputParser(pydantic_object = ResumeSummaryScore).get_format_instructions()
+    agent = create_agent(model = llm, 
+                        middleware = constant_middlewares, 
+                        response_format = ResumeSummaryScore, 
+                        state_type=AgentState)
     instruction_format = load_prompt(prompt_name = "get_summary_overview", filename = "prompts.yml")
 
-    prompt_template = PromptTemplate.from_template(template = instruction_format, 
-                                                   partial_variables={"output_information": output_parser})
+    prompt_template = PromptTemplate.from_template(template = instruction_format)
 
-    chain = prompt_template | llm | JsonOutputParser()
-
-    return chain
+    return agent, prompt_template 
 
 
 def get_custom_scores():
@@ -242,7 +252,7 @@ def company_extractor():
         company: str = Field(..., description="Name of the company or organization")
         position: str = Field(..., description="Role or job title held by the candidate")
         start_year: int = Field(..., ge=1900, le=2100, description="4-digit year of job start")
-        end_year: Union[int, Literal["Currently Working"]] = Field(
+        end_year: Union[int, str] = Field(
             ..., description="4-digit year of job end or 'Currently Working'"
         )
         employment_type: Literal[
@@ -252,17 +262,13 @@ def company_extractor():
     class EmploymentHistory(BaseModel):
         employment_history: List[EmploymentEntry]
 
-    
-    output_parser = PydanticOutputParser(pydantic_object=EmploymentHistory).get_format_instructions()
+    agent = create_agent(model = llm, middleware = constant_middlewares, response_format = EmploymentHistory)
         
     instruction_format = load_prompt(prompt_name = "company_extractor", filename = "prompts.yml")
 
-    prompt = PromptTemplate.from_template(template=instruction_format, 
-                                          partial_variables = {"output_format": output_parser})
+    prompt = PromptTemplate.from_template(template=instruction_format)
 
-    chain = prompt | llm | JsonOutputParser()
-
-    return chain
+    return agent, prompt
 
 
 def extract_names():
@@ -288,20 +294,17 @@ def extract_yoe():
         yoe: float = Field(..., description="Total years of corporate experience, rounded to 1 decimal place")
         ryoe: float = Field(..., description="Relevant years of experience with respect to the job role, rounded to 1 decimal place")
 
-    summary_output = PydanticOutputParser(pydantic_object = ExperienceSummary).get_format_instructions()
-    
+    agent = create_agent(model = llm, middleware = constant_middlewares, response_format = ExperienceSummary)
+
     instruction_format = load_prompt(prompt_name = "extract_yoe", filename = "prompts.yml")
 
     prompt = PromptTemplate.from_template(template=instruction_format, 
                                           partial_variables={
-                                              "current_date": str(datetime.now().date()),
-                                              "output_format": summary_output
+                                              "current_date": str(datetime.now().date())
                                           })
 
-    chain = prompt | llm | JsonOutputParser()
-
-    return chain
-
+    return agent, prompt 
+    
 
 def extract_recruiters_overview():
 
@@ -310,19 +313,16 @@ def extract_recruiters_overview():
         relevant_experience: str = Field(description="A line summarizing the candidate’s relevant years of experience.")
         technical_proficiency: List[str] = Field(description="Detailed technical proficiencies, grouped by technology or domain area.")
 
-    overview_format = PydanticOutputParser(pydantic_object=RecruiterOverview).get_format_instructions()
+    agent = create_agent(model = llm, middleware = constant_middlewares, response_format = RecruiterOverview)
     
     instruction_format = load_prompt(prompt_name = "extract_recruiters_overview", filename = "prompts.yml")
 
     prompt = PromptTemplate.from_template(template = instruction_format,
                                           partial_variables = {
-                                              "current_date": str(datetime.now().date()),
-                                              "output_format": overview_format
+                                              "current_date": str(datetime.now().date())
                                           })
 
-    chain = prompt | llm | JsonOutputParser()
-
-    return chain
+    return agent, prompt
 
 
 def extract_location():
@@ -406,4 +406,3 @@ def refined_search_results(data, jobDescription, num_results=10):
     df = df.sort_values(by='resume_score', ascending=False).drop(columns=['resume_score'])
     
     return df.to_dict("records")
-

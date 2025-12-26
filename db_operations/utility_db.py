@@ -8,14 +8,14 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 from ai_operations.utility_function import refined_search_results
-
+import httpx
+import asyncio
 import structlog
+
 structlogger = structlog.get_logger(__name__)
 load_dotenv()
 
-
 engine = create_engine(f"postgresql+psycopg2://postgres:resume_db@localhost:5432/postgres")
-
 
 def insert_data(assembled_field: dict):
 
@@ -83,8 +83,6 @@ def insert_data(assembled_field: dict):
     ##
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    
 
     data = pd.DataFrame([[candidate_id, name, job_role, resume_text, email_id, mobile_number, yoe, ryoe, scoreResume, getContacts, getSummaryOverview, getCustomScores, getOtherComments, getFunctionalConstituent, 
                           getTechnicalConstituent, getEducation, getProjects, getCompany, getlocation, getRecruitersOverview, getDesignation, mode]], 
@@ -100,51 +98,90 @@ def insert_data(assembled_field: dict):
         
     return {"response": "Data inserted successfully"}
 
-def process_individual_resume(data: dict):
+async def process_individual_resume(data: dict):
 
     final_payload = {}
     return_payload = {}
 
     headers = {
-        "Content-Type": "application/json",
-        "Authorization": None # If authentication is required
+        "Content-Type": "application/json"
     }
     
-    get_contact_information = {"getContacts": requests.post("http://127.0.0.1:8000/getContacts", json = data, headers=headers).json()}
-    data["email_id"] = get_contact_information.get("getContacts", None).get("email_id", None)
-    return_payload["email_id"] = get_contact_information.get("getContacts", None).get("email_id", None)
-    return_payload["contact_number"] = get_contact_information.get("getContacts", None).get("mobile_number", None)
-    get_name = requests.post("http://127.0.0.1:8000/getNames", json = data, headers=headers).json()
-    return_payload["name"] = get_name.get("name", None)
-    get_custom_scores = {"getCustomScores": requests.post("http://127.0.0.1:8000/getCustomScores", json = data, headers=headers).json()}
-    get_summary_overview = {"getSummaryOverview": requests.post("http://127.0.0.1:8000/getSummaryOverview", json = data, headers=headers).json()}
-    return_payload["summary_overview"] = get_summary_overview.get("getSummaryOverview", None).get("comment", None)
-    get_functional_constituent = {"getFunctionalConstituent": requests.post("http://127.0.0.1:8000/getFunctionalConstituent", json = data, headers=headers).json()}
-    get_other_comments = {"getOtherComments": requests.post("http://127.0.0.1:8000/getOtherComments", json = data, headers=headers).json()}
-    get_education = {"getEducation": requests.post("http://127.0.0.1:8000/getEducation", json = data, headers=headers).json()}
-    get_score_resume = {"scoreResume": requests.post("http://127.0.0.1:8000/scoreResume", json = data, headers=headers).json()}
-    return_payload["score_resume"] = get_score_resume.get("scoreResume", None)
-    get_technical_constituent = {"getTechnicalConstituent": requests.post("http://127.0.0.1:8000/getTechnicalConstituent", json = data, headers=headers).json()}
-    get_comapny = {"getCompany": requests.post("http://127.0.0.1:8000/getCompany", json = data, headers=headers).json()}
-    get_project = {"getProjects": requests.post("http://127.0.0.1:8000/getProjects", json = data, headers=headers).json()}
-    get_data = {"job_role": data.get('jobRole', None), "resume_text": data.get('resumeText', None)}
-    exp_params = requests.post("http://127.0.0.1:8000/getYoe", json = data, headers=headers).json()
-    get_yoe = {'getYoe': exp_params.get("yoe", None)}
-    get_ryoe = {'getRyoe': exp_params.get("ryoe", None)}
-    get_location = {"getLocation": requests.post("http://127.0.0.1:8000/getLocation", json = data, headers=headers).json()}
-    get_recruiters_overview = {"getRecruitersOverview": requests.post("http://127.0.0.1:8000/getRecruitersOverview", json = data, headers=headers).json()}
-    get_designation = {"getDesignation": requests.post("http://127.0.0.1:8000/getDesignation", json = data, headers=headers).json()}
+    base_url = "http://127.0.0.1:8000"
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        task = [
+            client.post(f"{base_url}/getContacts", json=data, headers=headers),
+            client.post(f"{base_url}/getNames", json=data, headers=headers),
+            client.post(f"{base_url}/getCustomScores", json=data, headers=headers),
+            client.post(f"{base_url}/getSummaryOverview", json=data, headers=headers),
+            client.post(f"{base_url}/getFunctionalConstituent", json=data, headers=headers),
+            client.post(f"{base_url}/getOtherComments", json=data, headers=headers),
+            client.post(f"{base_url}/getEducation", json=data, headers=headers),
+            client.post(f"{base_url}/scoreResume", json=data, headers=headers),
+            client.post(f"{base_url}/getTechnicalConstituent", json=data, headers=headers),
+            client.post(f"{base_url}/getCompany", json=data, headers=headers),
+            client.post(f"{base_url}/getProjects", json=data, headers=headers),
+            client.post(f"{base_url}/getYoe", json=data, headers=headers),
+            client.post(f"{base_url}/getLocation", json=data, headers=headers),
+            client.post(f"{base_url}/getRecruitersOverview", json=data, headers=headers),
+            client.post(f"{base_url}/getDesignation", json=data, headers=headers)
+        ]
+
+        responses = await asyncio.gather(*task, return_exceptions=True)
+
+    try:
+        get_contact_information = {"getContacts": responses[0].json()}
+        data["email_id"] = get_contact_information.get("getContacts", None).get("email_id", None)
+        return_payload["email_id"] = get_contact_information.get("getContacts", None).get("email_id", None)
+        return_payload["contact_number"] = get_contact_information.get("getContacts", None).get("mobile_number", None)
+
+        get_name = responses[1].json()
+        return_payload["name"] = get_name.get("name", None)
+
+        get_custom_scores = {"getCustomScores": responses[2].json() if not isinstance(responses[2], Exception) else {}}
+        get_summary_overview = {"getSummaryOverview": responses[3].json() if not isinstance(responses[3], Exception) else {}}
+        return_payload["summary_overview"] = get_summary_overview.get("getSummaryOverview", {}).get("comment", None)
+        
+        get_functional_constituent = {"getFunctionalConstituent": responses[4].json() if not isinstance(responses[4], Exception) else {}}
+        get_other_comments = {"getOtherComments": responses[5].json() if not isinstance(responses[5], Exception) else {}}
+        get_education = {"getEducation": responses[6].json() if not isinstance(responses[6], Exception) else {}}
+        
+        get_score_resume = {"scoreResume": responses[7].json() if not isinstance(responses[7], Exception) else {}}
+        return_payload["score_resume"] = get_score_resume.get("scoreResume", None)
+        
+        get_technical_constituent = {"getTechnicalConstituent": responses[8].json() if not isinstance(responses[8], Exception) else {}}
+        get_comapny = {"getCompany": responses[9].json() if not isinstance(responses[9], Exception) else {}}
+        get_project = {"getProjects": responses[10].json() if not isinstance(responses[10], Exception) else {}}
+        get_data = {"job_role": data.get('jobRole', None), "resume_text": data.get('resumeText', None)}
+        
+        exp_params = responses[11].json() if not isinstance(responses[11], Exception) else {}
+        get_yoe = {'getYoe': exp_params.get("yoe", None)}
+        get_ryoe = {'getRyoe': exp_params.get("ryoe", None)}
+        
+        get_location = {"getLocation": responses[12].json() if not isinstance(responses[12], Exception) else {}}
+        get_recruiters_overview = {"getRecruitersOverview": responses[13].json() if not isinstance(responses[13], Exception) else {}}
+        get_designation = {"getDesignation": responses[14].json() if not isinstance(responses[14], Exception) else {}}
+
+    except Exception as e:
+        print(f"Error parsing responses at line {e.__traceback__.tb_lineno}: {e}")
+        return {"email_id": "", "contact_number": "", "name": "", "parsed_status": "UnSuccessful"}
+    
     input_data = {"input_data": {**get_name, **get_data}}
     get_mode = {"mode": "batch"}
-    final_payload = {**input_data, **get_contact_information, **get_custom_scores, **get_summary_overview, **get_functional_constituent, **get_other_comments, 
-                     **get_education, **get_score_resume, **get_technical_constituent, **get_comapny, **get_project, **get_yoe, **get_ryoe, **get_recruiters_overview, 
-                     **get_designation, **get_location, **get_mode}
-
-    status = requests.post("http://127.0.0.1:8000/assembleData", json = final_payload, headers=headers)
-    return_payload["parsed_status"] = "Successful"
-
-    return return_payload
-
+    
+    structlogger.debug("Creating finalPayload for database sync")
+    final_payload = {**input_data, **get_contact_information, **get_custom_scores, **get_summary_overview, 
+                     **get_functional_constituent, **get_other_comments, **get_education, **get_score_resume, 
+                     **get_technical_constituent, **get_comapny, **get_project, **get_yoe, **get_ryoe, 
+                     **get_recruiters_overview, **get_designation, **get_location, **get_mode}
+    
+    async with httpx.AsyncClient(timeout=60) as client:
+        status = await client.post("http://127.0.0.1:8000/assembleData", json=final_payload, headers=headers)
+    
+    final_payload["parsed_status"] = "Successful"
+    return final_payload
+    
 def extract_data(email_id):
 
     TABLE_NAME = os.getenv("TABLE_NAME", None)
@@ -236,7 +273,6 @@ def get_all_candidates_dropdown():
     base_sql = "select distinct name, email_id from resume_store"
     data = pd.read_sql(base_sql, engine).to_dict("records")
 
-    print("Data: ", data)
     candidates = []
     for entity in data:
         name = entity.get("name", None)

@@ -10,15 +10,15 @@ import {
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import Navigation from '../src/components/Navigation';
 
-export default function BulkImport() {
-  const [jobRole, setJobRole] = useState('');
+export default function AdhocCandidateRanking() {
+  const [jobTitle, setJobTitle] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [extractedTexts, setExtractedTexts] = useState([]);
@@ -115,7 +115,6 @@ export default function BulkImport() {
           try {
             const arrayBuffer = this.result;
             
-            // Use mammoth to extract text from Word document
             const result = await mammoth.extractRawText({ arrayBuffer });
             const text = result.value;
             
@@ -125,8 +124,6 @@ export default function BulkImport() {
               preview: text.substring(0, 200) + '...'
             });
             
-            // For Word docs, we don't have page count, so we estimate based on text length
-            // Assuming ~500 words per page and ~6 characters per word
             const estimatedPageCount = Math.max(1, Math.ceil(text.length / (500 * 6)));
             
             resolve({
@@ -163,7 +160,6 @@ export default function BulkImport() {
       const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
       
       if (allowedTypes.includes(fileExtension) && file.size <= 10 * 1024 * 1024) {
-        // Check if file is already selected
         const isAlreadySelected = selectedFiles.some(existingFile => 
           existingFile.name === file.name && existingFile.size === file.size
         );
@@ -177,13 +173,11 @@ export default function BulkImport() {
     });
     
     if (validFiles.length > 0) {
-      // Hide results when new files are uploaded
       setShowResults(false);
       setProcessedResults([]);
       
       setSelectedFiles(prev => [...prev, ...validFiles]);
       
-      // Extract text from all valid files
       setProcessingFiles(true);
       console.log(`Processing ${validFiles.length} files for text extraction...`);
       
@@ -200,18 +194,7 @@ export default function BulkImport() {
         );
         
         console.log('All file text extractions completed:', textExtractions);
-        console.log('Extracted texts summary:', textExtractions.map(item => ({
-          fileName: item.fileName,
-          textLength: item.text.length,
-          pageCount: item.pageCount
-        })));
-        
         setExtractedTexts(prev => [...prev, ...textExtractions]);
-        
-        // Log the complete extracted texts array
-        const allTexts = [...extractedTexts, ...textExtractions];
-        console.log('Complete extracted texts array:', allTexts);
-        console.log('Total files processed:', allTexts.length);
         
       } catch (error) {
         console.error('Error during batch file text extraction:', error);
@@ -233,16 +216,19 @@ export default function BulkImport() {
     }
   };
 
-  const handleJobRoleChange = (event) => {
-    setJobRole(event.target.value);
+  const handleJobTitleChange = (event) => {
+    setJobTitle(event.target.value);
   };
 
-  const handleNext = async () => {
+  const handleJobDescriptionChange = (event) => {
+    setJobDescription(event.target.value);
+  };
+
+  const handleSubmit = async () => {
     if (selectedFiles.length > 0 && extractedTexts.length === selectedFiles.length) {
-      // Process the files by sending individual requests to bulk import API
-      console.log('Starting individual resume processing for bulk import:');
+      console.log('Starting adhoc candidate ranking processing:');
       console.log('Total files to process:', extractedTexts.length);
-      console.log('Selected files:', selectedFiles.map(f => f.name));
+      console.log('Job Description:', jobDescription);
       
       setProcessingFiles(true);
       setCurrentProcessing(0);
@@ -252,42 +238,27 @@ export default function BulkImport() {
       const errors = [];
       
       try {
-        // Process each resume individually
         for (let i = 0; i < extractedTexts.length; i++) {
           const resumeData = extractedTexts[i];
           
-          // Update progress at the start of each iteration
           setCurrentProcessing(i + 1);
           setProcessingFileName(resumeData.fileName);
           
           console.log(`\n--- Processing Resume ${i + 1}/${extractedTexts.length} ---`);
           console.log(`File: ${resumeData.fileName}`);
-          console.log(`Pages: ${resumeData.pageCount}`);
-          console.log(`Text length: ${resumeData.text.length} characters`);
-          console.log(`Text preview: ${resumeData.text.substring(0, 150)}...`);
           
-          // Prepare individual resume data
           const individualResumeData = {
             fileName: resumeData.fileName,
             fileSize: resumeData.fileSize,
             resumeText: resumeData.text,
             pageCount: resumeData.pageCount,
-            jobRole: jobRole,
+            jobRole: jobTitle,
+            jobDescription: jobDescription,
             processIndex: i + 1,
             totalFiles: extractedTexts.length
           };
           
-          console.log(`Sending individual request ${i + 1} to processBulkImport API:`);
-          console.log('Request data:', {
-            fileName: individualResumeData.fileName,
-            textLength: individualResumeData.resumeText.length,
-            pageCount: individualResumeData.pageCount,
-            jobRole: individualResumeData.jobRole,
-            processIndex: individualResumeData.processIndex
-          });
-          
           try {
-            // Call the API for individual resume
             const response = await fetch('http://127.0.0.1:8000/processBulkImport', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -301,16 +272,17 @@ export default function BulkImport() {
               // Extract values from nested final_payload structure
               const contactInfo = result.getContacts || {};
               const inputData = result.input_data || {};
+              const scoreInfo = result.scoreResume || {};
               const summaryInfo = result.getSummaryOverview || {};
               
-              // Ensure result is an object and has expected structure
               const safeResult = {
                 fileName: resumeData.fileName,
                 success: true,
                 email_id: contactInfo.email_id || '',
                 contact_number: contactInfo.mobile_number || '',
                 name: inputData.name || '',
-                summary_overview: summaryInfo.comment || '',
+                match_score: scoreInfo.score || 0,
+                summary: summaryInfo.comment || '',
                 parsed_status: result.parsed_status || 'Successful'
               };
               
@@ -323,7 +295,8 @@ export default function BulkImport() {
                 email_id: "",
                 contact_number: "",
                 name: "",
-                summary_overview: "",
+                match_score: 0,
+                summary: "",
                 parsed_status: "UnSuccessful",
                 error: response.statusText
               };
@@ -339,7 +312,8 @@ export default function BulkImport() {
               email_id: "",
               contact_number: "",
               name: "",
-              summary_overview: "",
+              match_score: 0,
+              summary: "",
               parsed_status: "UnSuccessful",
               error: apiError.message
             };
@@ -347,46 +321,38 @@ export default function BulkImport() {
             errors.push({ fileName: resumeData.fileName, error: apiError.message });
           }
           
-          // Small delay between requests to avoid overwhelming the server
           if (i < extractedTexts.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         }
         
-        // Log final results
-        console.log('\n=== BULK IMPORT COMPLETED ===');
+        console.log('\n=== ADHOC RANKING COMPLETED ===');
         console.log(`Total files processed: ${extractedTexts.length}`);
-        console.log(`Successful: ${results.length}`);
+        console.log(`Successful: ${results.filter(r => r.success).length}`);
         console.log(`Failed: ${errors.length}`);
-        console.log('Successful files:', results.map(r => r.fileName));
-        if (errors.length > 0) {
-          console.log('Failed files:', errors);
-        }
         
-        // Store results and show table
-        console.log('Final results before setting state:', results);
-        
-        // Ensure all results have the required structure
         const sanitizedResults = results.map(result => ({
           fileName: result.fileName || 'Unknown File',
           success: result.success || false,
           email_id: result.email_id || '',
           contact_number: result.contact_number || '',
           name: result.name || '',
-          summary_overview: result.summary_overview || '',
+          match_score: result.match_score || 0,
+          summary: result.summary || '',
           parsed_status: result.parsed_status || 'UnSuccessful',
           error: result.error || null
         }));
         
-        console.log('Sanitized results:', sanitizedResults);
+        // Sort results by match_score in descending order
+        sanitizedResults.sort((a, b) => b.match_score - a.match_score);
+        
+        console.log('Sanitized and sorted results:', sanitizedResults);
         setProcessedResults(sanitizedResults);
         setShowResults(true);
         
-        // Clear selected files and extracted texts after processing is complete
         setSelectedFiles([]);
         setExtractedTexts([]);
         
-        // Show user feedback
         if (errors.length === 0) {
           console.log(`Successfully processed all ${results.length} resume files!`);
         } else {
@@ -394,8 +360,8 @@ export default function BulkImport() {
         }
         
       } catch (error) {
-        console.error('Error during bulk processing:', error);
-        alert('Error during bulk processing. Please check the console and try again.');
+        console.error('Error during adhoc ranking processing:', error);
+        alert('Error during processing. Please check the console and try again.');
       } finally {
         setProcessingFiles(false);
         setCurrentProcessing(0);
@@ -404,8 +370,8 @@ export default function BulkImport() {
       
     } else if (selectedFiles.length > 0 && processingFiles) {
       alert('Please wait for processing to complete');
-    } else if (!jobRole.trim()) {
-      alert('Please enter a job role');
+    } else if (!jobDescription.trim()) {
+      alert('Please enter a job description');
     } else {
       alert('Please select at least one file to continue');
     }
@@ -415,42 +381,40 @@ export default function BulkImport() {
     console.log(`Removing file at index ${indexToRemove}`);
     setSelectedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
     setExtractedTexts(prev => prev.filter((_, index) => index !== indexToRemove));
-    
-    // Log updated arrays after removal
-    const updatedFiles = selectedFiles.filter((_, index) => index !== indexToRemove);
-    const updatedTexts = extractedTexts.filter((_, index) => index !== indexToRemove);
-    console.log('Files after removal:', updatedFiles.map(f => f.name));
-    console.log('Extracted texts after removal:', updatedTexts.length);
   };
 
   const clearAllFiles = () => {
     console.log('Clearing all files and extracted texts');
     setSelectedFiles([]);
     setExtractedTexts([]);
-    console.log('All files and texts cleared');
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return '#10b981';
+    if (score >= 60) return '#3b82f6';
+    if (score >= 40) return '#f59e0b';
+    return '#ef4444';
   };
 
   return (
     <Box sx={{ minHeight: '100vh' }}>
-      <Navigation currentPage="Bulk Import" />
+      <Navigation currentPage="Adhoc Candidate Ranking" />
 
-      {/* Main Content */}
       <Box sx={{ px: 3, py: 4, maxWidth: 1200, mx: 'auto' }}>
         <Typography variant="h4" fontWeight={700} sx={{ mb: 4, color: 'text.primary' }}>
-          Bulk Import
+          Adhoc Candidate Ranking
         </Typography>
 
         <Paper sx={{ p: 4, borderRadius: 2, boxShadow: 1 }}>
-          {/* Job Role Input */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
-              Job Role
+              Job Title
             </Typography>
             
-            <FormControl fullWidth sx={{ mb: 2 }}>
+            <FormControl fullWidth sx={{ mb: 3 }}>
               <Select
-                value={jobRole}
-                onChange={handleJobRoleChange}
+                value={jobTitle}
+                onChange={handleJobTitleChange}
                 displayEmpty
                 sx={{ 
                   borderRadius: 2,
@@ -460,7 +424,7 @@ export default function BulkImport() {
                 }}
               >
                 <MenuItem value="" disabled>
-                  <em>Select a job role</em>
+                  <em>Select a job title</em>
                 </MenuItem>
                 <MenuItem value="Entry-Level / Junior Roles">Entry-Level / Junior Roles</MenuItem>
                 <MenuItem value="IT Support Technician">IT Support Technician</MenuItem>
@@ -496,19 +460,38 @@ export default function BulkImport() {
               </Select>
             </FormControl>
 
+            <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
+              Job Description
+            </Typography>
+            
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <TextField
+                multiline
+                rows={6}
+                value={jobDescription}
+                onChange={handleJobDescriptionChange}
+                placeholder="Enter the job description here... Include responsibilities, required skills, qualifications, and any other relevant details."
+                sx={{ 
+                  borderRadius: 2,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
+              />
+            </FormControl>
+
             <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
               <Typography variant="body2" color="text.secondary">
                 Allowed Formats: <strong>.PDF, .DOC, .DOCX</strong>
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                This job role will be used for analyzing all uploaded resumes
+                Upload candidate resumes to rank them against the job description
               </Typography>
             </Box>
           </Box>
 
           <Divider sx={{ my: 3 }} />
 
-          {/* File Upload Area */}
           <Box
             sx={{
               border: '2px dashed',
@@ -571,7 +554,6 @@ export default function BulkImport() {
             />
           </Box>
 
-          {/* Selected Files Display */}
           {selectedFiles.length > 0 && !showResults && (
             <Box sx={{ mt: 4 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -648,10 +630,10 @@ export default function BulkImport() {
             </Box>
           )}
 
-          {/* Progress Bar Section */}
           {processingFiles && (
             <Box sx={{ 
               mb: 3, 
+              mt: 3,
               p: 3, 
               backgroundColor: 'rgba(33, 33, 33, 0.05)',
               backdropFilter: 'blur(12px)', 
@@ -698,22 +680,23 @@ export default function BulkImport() {
             </Box>
           )}
 
-          {/* Results Table */}
           {showResults && processedResults.length > 0 && (
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: 3, mt: 3 }}>
               <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
-                Processing Results ({processedResults.length} files)
+                Ranking Results ({processedResults.length} candidates) - Sorted by Match Score
               </Typography>
               <TableContainer component={Paper} sx={{ border: '1px solid', borderColor: 'divider', overflowX: 'auto' }}>
                 <Table sx={{ tableLayout: 'fixed' }}>
                   <TableHead sx={{ backgroundColor: 'rgba(42, 42, 42, 0.05)', backdropFilter: 'blur(12px)' }}>
                     <TableRow>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '5%' }}>Rank</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '8%' }}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '18%' }}>File Name</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '10%' }}>Score</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '15%' }}>File Name</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '12%' }}>Name</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '18%' }}>Email</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '12%' }}>Contact</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '32%' }}>Summary Overview</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '15%' }}>Email</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '10%' }}>Contact</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', width: '25%' }}>Summary</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -722,7 +705,6 @@ export default function BulkImport() {
                         key={index} 
                         onClick={() => {
                           if (result.email_id && result.email_id !== '-') {
-                            // Open insights page in a new tab with email_id as query parameter
                             window.open(`/insights?email_id=${encodeURIComponent(result.email_id)}`, '_blank');
                           }
                         }}
@@ -737,6 +719,9 @@ export default function BulkImport() {
                           } : {}
                         }}
                       >
+                        <TableCell sx={{ width: '5%', textAlign: 'center', fontWeight: 600, fontSize: '1.1rem' }}>
+                          #{index + 1}
+                        </TableCell>
                         <TableCell sx={{ width: '8%', textAlign: 'center' }}>
                           {result.parsed_status === 'Successful' ? (
                             <CheckCircleIcon sx={{ color: '#10b981', fontSize: 24 }} />
@@ -744,7 +729,18 @@ export default function BulkImport() {
                             <CancelIcon sx={{ color: '#ef4444', fontSize: 24 }} />
                           )}
                         </TableCell>
-                        <TableCell sx={{ width: '18%', wordBreak: 'break-word', verticalAlign: 'top' }}>
+                        <TableCell sx={{ width: '10%', textAlign: 'center' }}>
+                          <Chip
+                            label={`${result.match_score}%`}
+                            sx={{
+                              backgroundColor: getScoreColor(result.match_score),
+                              color: '#ffffff',
+                              fontWeight: 700,
+                              fontSize: '0.9rem'
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ width: '15%', wordBreak: 'break-word', verticalAlign: 'top' }}>
                           <Typography variant="body2" fontWeight={500}>
                             {result.fileName}
                           </Typography>
@@ -754,22 +750,22 @@ export default function BulkImport() {
                             {String(result.name || '-')}
                           </Typography>
                         </TableCell>
-                        <TableCell sx={{ width: '18%', wordBreak: 'break-word', verticalAlign: 'top' }}>
+                        <TableCell sx={{ width: '15%', wordBreak: 'break-word', verticalAlign: 'top' }}>
                           <Typography variant="body2">
                             {String(result.email_id || '-')}
                           </Typography>
                         </TableCell>
-                        <TableCell sx={{ width: '12%', wordBreak: 'break-word', verticalAlign: 'top' }}>
+                        <TableCell sx={{ width: '10%', wordBreak: 'break-word', verticalAlign: 'top' }}>
                           <Typography variant="body2">
                             {String(result.contact_number || '-')}
                           </Typography>
                         </TableCell>
-                        <TableCell sx={{ width: '32%', wordBreak: 'break-word', verticalAlign: 'top' }}>
+                        <TableCell sx={{ width: '25%', wordBreak: 'break-word', verticalAlign: 'top' }}>
                           <Typography variant="body2" sx={{ 
                             whiteSpace: 'pre-wrap',
                             lineHeight: 1.4
                           }}>
-                            {String(result.summary_overview || '-')}
+                            {String(result.summary || '-')}
                           </Typography>
                         </TableCell>
                       </TableRow>
@@ -780,9 +776,7 @@ export default function BulkImport() {
             </Box>
           )}
 
-          {/* Action Buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4 }}>
-            {/* Left side - Clear button */}
             <Button
               variant="outlined"
               onClick={() => {
@@ -816,7 +810,6 @@ export default function BulkImport() {
               CLEAR ALL
             </Button>
 
-            {/* Right side - Action buttons */}
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Button
                 variant="outlined"
@@ -831,50 +824,50 @@ export default function BulkImport() {
               >
                 BACK
               </Button>
-            {!showResults && (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={selectedFiles.length === 0 || processingFiles || extractedTexts.length !== selectedFiles.length || !jobRole.trim()}
-                sx={{ 
-                  px: 4, 
-                  py: 1.5, 
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderRadius: 2,
-                  backgroundColor: selectedFiles.length > 0 ? '#6366f1' : '#d1d5db',
-                  '&:hover': {
-                    backgroundColor: selectedFiles.length > 0 ? '#4f46e5' : '#d1d5db'
-                  }
-                }}
-              >
-                PROCESS {selectedFiles.length > 0 ? `${selectedFiles.length} FILES` : 'FILES'}
-              </Button>
-            )}
-            {showResults && (
-              <Button
-                variant="contained"
-                onClick={() => {
-                  setShowResults(false);
-                  setProcessedResults([]);
-                  setSelectedFiles([]);
-                  setExtractedTexts([]);
-                }}
-                sx={{ 
-                  px: 4, 
-                  py: 1.5, 
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderRadius: 2,
-                  backgroundColor: '#6366f1',
-                  '&:hover': {
-                    backgroundColor: '#4f46e5'
-                  }
-                }}
-              >
-                PROCESS NEW FILES
-              </Button>
-            )}
+              {!showResults && (
+                <Button
+                  variant="contained"
+                  onClick={handleSubmit}
+                  disabled={selectedFiles.length === 0 || processingFiles || extractedTexts.length !== selectedFiles.length || !jobDescription.trim()}
+                  sx={{ 
+                    px: 4, 
+                    py: 1.5, 
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    backgroundColor: selectedFiles.length > 0 ? '#6366f1' : '#d1d5db',
+                    '&:hover': {
+                      backgroundColor: selectedFiles.length > 0 ? '#4f46e5' : '#d1d5db'
+                    }
+                  }}
+                >
+                  RANK {selectedFiles.length > 0 ? `${selectedFiles.length} CANDIDATES` : 'CANDIDATES'}
+                </Button>
+              )}
+              {showResults && (
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    setShowResults(false);
+                    setProcessedResults([]);
+                    setSelectedFiles([]);
+                    setExtractedTexts([]);
+                  }}
+                  sx={{ 
+                    px: 4, 
+                    py: 1.5, 
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    backgroundColor: '#6366f1',
+                    '&:hover': {
+                      backgroundColor: '#4f46e5'
+                    }
+                  }}
+                >
+                  RANK NEW CANDIDATES
+                </Button>
+              )}
             </Box>
           </Box>
         </Paper>

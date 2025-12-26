@@ -15,6 +15,9 @@ An AI-powered resume insights and career tooling suite with a FastAPI backend an
 ![Dashboard Page 7](git%20images/landing_page-7.png)
 ![Dashboard Page 8](git%20images/landing_page-8.png)
 
+![Adhoc Candidate Ranking Part 1](git%20images/adhoc_candidate_ranking_part1.png)
+![Adhoc Candidate Ranking Part 2](git%20images/adhoc_candidate_ranking_part2.png)
+![Adhoc Candidate Ranking Part 3](git%20images/adhoc_candidate_ranking_part3.png)
 
 ---
 
@@ -56,7 +59,14 @@ ResumePro analyzes resumes, generates insights, and supports workflows like:
 - AI cover letter generation page integrated with Resume Requests
 - Centralized landing inputs for Name, Job Role, Location, and a single file upload
 - Navigation label updated to "Query Candidate" (URL remains `/insights`)
- - Relevant Candidates page includes Experience filter ranges (<=2y, 2–5y, 5–7y, 7–10y, >10y)
+- Relevant Candidates page includes Experience filter ranges (<=2y, 2–5y, 5–7y, 7–10y, >10y)
+- Adhoc Candidate Ranking: batch resume ranking against job descriptions
+  - Job title dropdown with 30+ predefined IT roles
+  - Multi-file drag & drop upload (PDF, DOC, DOCX)
+  - Real-time text extraction and batch processing with progress tracking
+  - Automatic match score calculation and ranking
+  - Interactive results table with color-coded scores
+  - Click-through to detailed candidate insights
 
 ![Query Candidate](git%20images/Query%20Candidate_new.png)
 ![Bulk Import Facility](git%20images/Bulk_import.png)
@@ -82,6 +92,8 @@ Location: `frontend/`
   - `_app.js`: global wrappers/theme
   - `bulk-import.js`: bulk resume processing with progress bars
   - `cover-letter.js`: AI cover letter generator
+  - `adhoc-candidate-ranking.js`: batch candidate ranking against job descriptions
+  - `insights.js`: comprehensive candidate analysis and insights
   - Additional dashboard/query pages for insights
 
 - Core flows:
@@ -89,6 +101,14 @@ Location: `frontend/`
   - Query Candidate/Insights: analyzes and renders all dynamic sections
   - Resume Requests → Cover Letter: generates tailored cover letters
   - Bulk Import: processes multiple resumes with determinate and spinner progress
+  - Adhoc Candidate Ranking: ranks multiple candidates against specific job requirements
+    - Drag & drop multiple resume files (PDF/DOC/DOCX, max 10MB each)
+    - Automatic text extraction using pdfjs-dist (PDF) and mammoth (Word)
+    - Batch API processing through `/processBulkImport` endpoint
+    - Real-time progress tracking with file names and completion percentage
+    - Results table sorted by match score (descending)
+    - Color-coded match scores: Green (≥80%), Blue (≥60%), Orange (≥40%), Red (<40%)
+    - Clickable table rows to view full candidate profiles in new tab
 
 - Scripts ([frontend/package.json](./frontend/package.json)):
   - `npm run dev` — start dev server (Next.js)
@@ -655,6 +675,33 @@ Python dependencies are managed in [pyproject.toml](./pyproject.toml):
 - Bulk Import
   - Processes multiple resumes with visual progress (Linear + Circular indicators)
   - Shows current file, percentage, and completion
+- Adhoc Candidate Ranking
+  - **Purpose**: Rank multiple candidates against a specific job description on-demand
+  - **Job Title Selection**: Dropdown with 30+ predefined IT roles (Entry-Level to Senior positions)
+    - Includes: Developers, DevOps, Cloud Engineers, Data roles, QA, Product Management, UI/UX, etc.
+  - **Job Description Input**: Multi-line text field for detailed job requirements
+  - **File Upload**:
+    - Drag & drop zone for multiple files
+    - Supports PDF, DOC, DOCX formats (up to 10MB each)
+    - Automatic text extraction with progress indicators
+    - File list shows extraction status and character/page counts
+  - **Batch Processing**:
+    - Uses `/processBulkImport` API for each resume
+    - Real-time progress bar with current file name
+    - Percentage completion tracking
+    - Extracts contact info, calculates match scores, generates summaries
+  - **Results Display**:
+    - Table view sorted by match score (highest to lowest)
+    - Columns: Rank, Status (✓/✗), Score, File Name, Name, Email, Contact, Summary
+    - Color-coded score chips for quick assessment
+    - Success/failure status icons
+    - Click any row to open candidate's full profile in `/insights` page
+  - **Key Features**:
+    - Process multiple candidates simultaneously
+    - Automatic ranking based on AI-analyzed match scores
+    - Direct navigation to detailed candidate profiles
+    - Clear visual feedback throughout the workflow
+    - "Rank New Candidates" option to start fresh analysis
 
 ---
 

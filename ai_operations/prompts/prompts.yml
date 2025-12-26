@@ -1,40 +1,114 @@
 create_resume_score:
   template: >
-    You are an expert resume reviewer and hiring manager with over 10 years of experience screening candidates for technical and non-technical roles.
+    You are an expert technical recruiter and hiring manager with 10+ years of experience evaluating candidates across various industries.
 
-    Your task is to evaluate the quality of a candidate’s resume in relation to a specific job role (provided below). You must provide:
+    Your task is to evaluate a candidate's resume against a job requirement and provide a comprehensive assessment based on **quantifiable criteria**.
     
     ---
+    
+    ### IMPORTANT - Evaluation Mode:
+    
+    **IF Job Description is provided (detailed requirements, responsibilities, skills):**
+    - Use the FULL job description as the primary reference for evaluation
+    - Match resume against SPECIFIC requirements, responsibilities, and qualifications mentioned in the JD
+    - Evaluate technical skills, tools, and technologies explicitly listed in the JD
+    - Assess experience level and domain alignment based on JD details
+    - Prioritize direct matches over inferred relevance
+    
+    **IF Only Job Title is provided (no detailed JD):**
+    - Infer typical requirements and responsibilities for the job title
+    - Evaluate based on general expectations for that role level and domain
+    - Use industry-standard skills and competencies for the role
+    - Be more lenient with interpretation of relevance
+    
+    ---
+    
+    ### Primary Evaluation Criteria (Weighted Scoring):
+    
+    1. **Experience Level Match (20 points)**
+       - Total years of professional experience vs. job requirement
+       - Career progression and role seniority alignment
+       - Experience in relevant domains/industries (if specified in JD)
+       - WITH JD: Match exact experience requirements (e.g., "5+ years in cloud architecture")
+       - WITHOUT JD: Assess general experience appropriateness for job title level
+    
+    2. **Job Responsibilities Alignment (25 points)** ⭐ HIGHEST WEIGHT
+       - Match between candidate's past responsibilities and job requirements
+       - WITH JD: Direct match with listed responsibilities and duties
+       - WITHOUT JD: Match with typical responsibilities for the job title
+       - Evidence of handling similar challenges/tasks
+       - Leadership, ownership, and impact in relevant areas
+    
+    3. **Project Relevance & Delivery (15 points)**
+       - Number and quality of projects matching job domain
+       - WITH JD: Projects aligned with company's domain/industry/tech stack
+       - WITHOUT JD: Projects relevant to typical job title expectations
+       - Scale, complexity, and measurable outcomes of projects
+       - Recent vs. outdated project experience
+    
+    4. **Technical Skills Match (25 points)** ⭐ CRITICAL FOR JD
+       - WITH JD: Direct match with required and preferred technical skills listed
+       - WITH JD: Coverage of must-have vs. nice-to-have technologies
+       - WITHOUT JD: General technical skills expected for job title
+       - Proficiency depth (expert, advanced, working knowledge)
+       - Modern/current vs. legacy technology stack
+    
+    5. **Skills Breadth & Complementary Abilities (10 points)**
+       - Variety and depth beyond core requirements
+       - Cross-functional skills (e.g., DevOps, Agile, Cloud certifications)
+       - Soft skills indicators (leadership, collaboration, communication)
+       - Adaptability and learning capacity indicators
+    
+    6. **Resume Quality & Presentation (5 points)**
+       - Clear structure, consistent formatting, professional language
+       - Quantified achievements with metrics/numbers
+       - Grammar, clarity, and action-oriented descriptions
+    
+    ---
+    
+    ### Output Requirements:
     
     1. **Overall Resume Score (0–100)**  
-       - Base this on clarity, relevance to the role, formatting, structure, language, and completeness.
+       - Calculate based on weighted criteria above
+       - WITH JD: Be strict - score based on explicit matches with JD requirements
+       - WITHOUT JD: Be more flexible - infer typical role expectations
+       - Prioritize evidence-based scoring over assumptions
     
-    2. **Improvement Suggestions**  
-       - Give **clear, constructive, and non-repetitive tips** to improve the resume.
-       - Give a **maximum of 10** tips. If the resume is already strong, return **fewer or none**.
-       - Do **not invent flaws** — if something is already good, **don’t suggest unnecessary changes**.
-       - Focus on things like formatting clarity, missing metrics, vague descriptions, inconsistent verb tenses, or irrelevant content.
-       - Summarize all the suggestions in well under 7 points.
-       - All suggestions should be very crisp and concise. It should be pointwise and one line each.
-       
+    2. **Improvement Suggestions (Maximum 7 points)**  
+       - WITH JD: Focus on gaps in JD-specific requirements (skills, experience, responsibilities)
+       - WITHOUT JD: Focus on general improvements for the job title
+       - Prioritize suggestions based on **lowest-scoring criteria**
+       - Each suggestion should be **one crisp line** addressing a specific gap
+       - Examples: "Add experience with Kubernetes and Docker mentioned in JD" or "Highlight cloud migration projects relevant to the role"
+    
     ---
     
-    ### Evaluation Criteria:
-    - Relevance to the target job
-    - Clear, concise, and action-oriented language
-    - Use of measurable achievements
-    - Logical structure and consistent formatting
-    - Grammar, tone, and professionalism
+    ### Scoring Guidelines:
+    
+    **WITH Job Description:**
+    - **90-100**: Exceptional match - meets/exceeds all required skills, experience, and responsibilities in JD
+    - **75-89**: Strong match - meets most required criteria with minor gaps in preferred qualifications
+    - **60-74**: Moderate match - meets core requirements but lacks several preferred skills or experience areas
+    - **40-59**: Weak match - significant gaps in required skills, experience level, or domain alignment
+    - **Below 40**: Poor match - fails to meet majority of required criteria in JD
+    
+    **WITHOUT Job Description (Title Only):**
+    - **90-100**: Exceptional fit - extensive relevant experience, strong technical skills for role level
+    - **75-89**: Strong fit - good experience and skills alignment with typical role expectations
+    - **60-74**: Moderate fit - adequate experience with some skill/domain gaps
+    - **40-59**: Weak fit - limited relevant experience or significant skill mismatches
+    - **Below 40**: Poor fit - major gaps in expected experience or technical competencies
     
     ---
     
     ### Input:
-    **Target Job Title**: {jobRole}
+    **Target Job Role**: {jobRole}
+    
+    **Job Description** (if provided): {jobDescription}
+    
     **Candidate Resume**:
     {resume}
-    
-    {format_instructions}
-
+ 
 get_contact_information:
   template: >
     You are a resume analysis assistant.
@@ -89,7 +163,7 @@ get_summary_overview:
     ### 🎯 Inputs:
     **Job Role**: {job_role}  
     **Full Resume Text**:  
-    {resume_text}
+    {resume}
     
     ---
     
@@ -162,11 +236,6 @@ get_summary_overview:
     
     Always add a short `"comment"` (1–3 lines) explaining the score.
     ---
-    
-    ### ✅ Output Format (JSON):
-    
-    Return the following JSON:
-    {output_information}
     
 get_custom_scores:
   template: >
@@ -459,7 +528,7 @@ company_extractor:
     ---
 
     ### Resume Text:
-    {resume_text}
+    {resume}
     
     ---
     
@@ -501,11 +570,6 @@ company_extractor:
     - Do not invent or hallucinate companies, roles, or dates.
     - Ensure the final output is in valid JSON format and includes all specified keys for each job.
     
-    ---
-    
-    ### Output Format (JSON):
-    {output_format}
-    
 extract_names:
   template: >
     You are given the text content of a resume and, if available, the candidate’s email address.  
@@ -528,72 +592,39 @@ extract_names:
     
 extract_yoe:
   template: >
-    You are an expert resume parser. Analyze the resume and return:
-    - "yoe": total corporate years of experience (all relevant professional employment after first job start).
-    - "ryoe": relevant years of experience aligned to the target job role.
+    **CRITICAL: Output ONLY the JSON dictionary. NO explanations, NO reasoning, NO extra text.**
     
-    ⚠️ IMPORTANT OUTPUT RULE:
-    - Think step-by-step INTERNALLY but DO NOT output your reasoning.
-    - Output ONLY a single Python dictionary with exactly these two keys: "yoe" and "ryoe".
-    - Both values must be numbers rounded to 1 decimal place.
-    - If nothing is found, use 0.0.
-    - Ensure ryoe ≤ yoe.
+    Task: Calculate total years of experience (yoe) and relevant years for "{job_role}" (ryoe).
     
-    Current date for “Present”: {current_date}.
+    Current date: {current_date}
     
-    Target job role:
-    {job_role}
+    Resume:
+    {resume}
     
-    Resume text:
-    {resume_text}
+    **Rules:**
+    1. YOE = total professional work experience (full-time/part-time/contract/freelance AFTER graduation)
+       - EXCLUDE: internships, academic work, coursework, projects, volunteering
+       - Handle overlapping periods (count each month only once)
+       - Parse date formats: "Oct'17", "2017-2020", "Present" = {current_date}
+       - Month precision: if only year given, assume July 1st
     
-    ———— INTERNAL INSTRUCTIONS (DO NOT OUTPUT) ————
-    1) Extract Employment Spans
-       - Identify all professional roles (full-time, part-time, contract, freelance/consulting) in organizations.
-       - Exclude: internships/apprentices/academic RA unless EXPLICITLY full-time post-graduation employment; coursework; projects; volunteer.
-       - Parse dates from messy formats (e.g., "Oct’17", "Apr'21", "October 2017", "2017–2020", "Present").
-       - Normalize each span to [start_date, end_date):
-           • If only month+year → use day=01.
-           • If only year → use July 01 of that year.
-           • If end is "Present/Current" → use {current_date}.
-           • If only a start date is given (no end) → treat end as {current_date}.
-       - Discard spans clearly tied to education periods unless explicitly professional and post-start of first employment.
+    2. RYOE = experience directly relevant to "{job_role}"
+       - Job title matches or synonymous with {job_role}
+       - OR ≥2 strong signals: relevant skills, tools, responsibilities matching {job_role}
+       - Must be ≤ yoe
     
-    2) Compute YOE (overall years)
-       - Take the UNION of all normalized employment spans (month precision is sufficient).
-       - Count unique months across the union; convert to years = months / 12.
-       - Round to 1 decimal place to produce "yoe".
+    3. Edge cases:
+       - No experience found → yoe: 0.0, ryoe: 0.0
+       - No relevant experience → ryoe: 0.0
     
-    3) Determine Relevance to {job_role} (for RYOE)
-       - Build a relevance profile for {job_role}:
-           • Include common titles, synonyms, and near-synonyms.
-           • Core responsibilities and skills (tools, methods, frameworks, domains) typically expected for {job_role}.
-           • Use domain knowledge to map variants (e.g., "ML", "predictive modeling" for Data Scientist).
-       - For each employment span, classify as RELEVANT if ANY of these hold:
-           • Title matches/contains job-role or close synonym.
-           • Responsibilities/bullets list ≥2 strong signals (skills, methods, tools, deliverables) aligned with the role.
-           • Projects described directly align with the role’s core functions.
-       - If relevance is ambiguous, default to NOT relevant unless there are ≥2 strong signals.
-       - Treat the entire span as relevant or not (no fractional splits) unless the resume provides separate, date-bound sub-projects.
-       - Build the UNION of all RELEVANT spans (again month-level).
-       - Count unique months across the relevant union; convert to years and round to 1 decimal → "ryoe".
-       - Enforce ryoe ≤ yoe.
-    
-    4) Edge Cases
-       - Overlaps: never double-count overlapping time (union logic).
-       - Gaps: do nothing special (they’re naturally excluded by union).
-       - If NO valid employment spans: yoe=0.0, ryoe=0.0.
-       - If relevant signals nowhere: ryoe=0.0.
-    
-    ———— OUTPUT FORMAT (MUST FOLLOW EXACTLY) ————
-    {output_format}
-    
+    **REMINDER: Return ONLY the JSON. Nothing else. No text before or after.**
+
 extract_recruiters_overview:
   template: >
     You are an expert recruiter-assistant and resume summarizer.  
     Input placeholders (replace with actual values before sending):
     - Target job role: "{job_role}"
-    - Resume text: {resume_text}
+    - Resume text: {resume}
     - Current date (for "Present"): {current_date}
     
     GOAL:
@@ -659,16 +690,14 @@ extract_recruiters_overview:
          • "Education & Certifications:" — 1–2 "-" bullets if relevant degrees/certs are present.
        - For each "-" bullet, keep 10–18 words and make it actionable (what they did/used, and for what outcome if present).
        - Avoid listing every minor tool; prioritize role-relevant, resume-supported tools.
+       - Technical proficiencies (3-8 items in the list):
+       - Each item should be 10-20 words covering a specific technology group or domain
     
     5) Tone, wording, and final constraints
        - Use recruiter-friendly concise phrasing (present-tense or past-tense as appropriate).
        - Do NOT include numeric timelines, raw date ranges, or internal calculations in the text.
        - Do NOT output internal reasoning or any extra text beyond the overview.
        - If contradictions or unclear spans exist, omit the uncertain claim rather than guess.
-    
-    OUTPUT FORMAT (exact template to follow — adapt content from resume):
-    Relevant Experience - X+ years.
-    {output_format}
 
 extract_location:
   template: >
@@ -715,46 +744,60 @@ extract_location:
 
 designation_extractor:
   template: >
-    You are an expert in analyzing resumes and extracting candidate information.
+    **Task: Extract the candidate's current and previous job information from the resume.**
+    
+    Resume:
+    {resume}
+    
+    **Steps:**
+    
+    1. **Identify all employment entries** in the resume with job titles, company names, and dates
+    
+    2. **Sort by recency** - Determine which role is most recent based on:
+       - End dates (roles ending with "Present", "Current", ongoing, or latest year)
+       - Start dates if end dates are unclear
+    
+    3. **Extract current_designation:**
+       - Combine job title and company name in format: "Job Title at Company Name"
+       - Use the most recent role
+       - If multiple current roles exist, choose the one listed first
+       - Set to null if NO employment history found
+    
+    4. **Extract previous_designation:**
+       - Combine job title and company name in format: "Job Title at Company Name"
+       - Use the role immediately before the current one
+       - Set to null if less than 2 jobs found
+    
+    **Rules:**
+    - Format: "[Exact Job Title] at [Exact Company Name]"
+    - Use EXACT titles and company names as written in resume
+    - Do NOT invent or modify titles or company names
+    - Include " at " between title and company (lowercase "at")
+    - If employment section is missing/empty → both fields null
+    - If only 1 job exists → current_designation = that job, previous_designation = null
+    
+    **Examples:**
+    
+    Resume: "Data Scientist at Google (2022-Present), Software Engineer at Amazon (2019-2022)"
+    Output: 
+      current_designation = "Data Scientist at Google"
+      previous_designation = "Software Engineer at Amazon"
+    
+    Resume: "Junior Developer at TechStartup (2023-2024)"
+    Output: 
+      current_designation = "Junior Developer at TechStartup"
+      previous_designation = null
+    
+    Resume with no jobs:
+    Output: 
+      current_designation = null
+      previous_designation = null
 
-    Your task is to deduce the **candidate’s location** from the provided resume text and assign a **confidence score (0–100)** for your prediction.
-    
     ---
     
-    ### Step-by-Step Reasoning Process:
-    
-    1. **Identify the Most Recent Job**  
-       - Look for the candidate’s latest job experience.  
-       - If a company and location are mentioned, take this as the primary hint.  
-    
-    2. **Check Personal/Contact Information**  
-       - Scan the top section of the resume for addresses, cities, states, or countries.  
-       - If this matches or complements the most recent job location, increase confidence.  
-    
-    3. **Analyze Education Section**  
-       - If no recent job is available, check the location of the candidate’s most recent education institution.  
-    
-    4. **Cross-Reference Other Clues**  
-       - Phone number country codes, email domains, LinkedIn profiles, or project client regions may hint at location.  
-    
-    5. **Resolve Ambiguities**  
-       - If multiple locations are found, choose the one most closely tied to the **most recent professional or educational activity**.  
-    
-    6. **Assign Confidence Score**  
-       - **80–100 (High confidence):** Location explicitly stated in recent job.  
-       - **50–79 (Medium confidence):** Location inferred from education or older jobs.  
-       - **0–49 (Low confidence):** Ambiguous or no strong evidence; best guess.  
-    
-    ---
-    
-    ### Input:
-    **Resume Text:**  
-    {resume_text}
-    
-    ---
-
-    **Output format:**
+    ### Output Format (JSON):
     {output_format}
+    
 
 
 

@@ -40,11 +40,12 @@ const Navigation = ({ currentPage = 'Home', onQueryCandidateClick }) => {
     { label: 'Bulk Import', path: '/bulk-import', active: currentPage === 'Bulk Import' },
     { 
       label: 'Query', 
-      active: currentPage === 'Query Candidate' || currentPage === 'Relevant Candidates',
+      active: currentPage === 'Query Candidate' || currentPage === 'Relevant Candidates' || currentPage === 'Adhoc Candidate Ranking',
       hasSubmenu: true,
       subItems: [
         { label: 'Query Candidate', path: '/insights', active: currentPage === 'Query Candidate' },
-        { label: 'Relevant Candidates', path: '/relevant-candidates', active: currentPage === 'Relevant Candidates' }
+        { label: 'Relevant Candidates', path: '/relevant-candidates', active: currentPage === 'Relevant Candidates' },
+        { label: 'Adhoc Candidate Ranking', path: '/adhoc-candidate-ranking', active: currentPage === 'Adhoc Candidate Ranking' }
       ]
     }
   ];

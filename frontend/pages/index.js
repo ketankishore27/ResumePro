@@ -2011,14 +2011,24 @@ export default function Home() {
                           Technical Proficiencies
                         </Typography>
                         <List dense>
-                          {recruitersOverview.technical_proficiency.map((tech, index) => (
-                            <ListItem key={index} sx={{ py: 0.5 }}>
-                              <ListItemIcon sx={{ minWidth: 36 }}>
-                                <Code color="primary" fontSize="small" />
-                              </ListItemIcon>
-                              <ListItemText primary={tech} />
-                            </ListItem>
-                          ))}
+                          {recruitersOverview.technical_proficiency.map((tech, index) => {
+                            // Split long text into individual points if needed
+                            const techPoints = tech.includes(' - ') 
+                              ? tech.split(' - ').filter(point => point.trim())
+                              : [tech];
+                            
+                            return techPoints.map((point, subIndex) => (
+                              <ListItem key={`${index}-${subIndex}`} sx={{ py: 0.5, alignItems: 'flex-start' }}>
+                                <ListItemIcon sx={{ minWidth: 36, mt: 0.5 }}>
+                                  <Code color="primary" fontSize="small" />
+                                </ListItemIcon>
+                                <ListItemText 
+                                  primary={point.trim()} 
+                                  primaryTypographyProps={{ variant: 'body2' }}
+                                />
+                              </ListItem>
+                            ));
+                          })}
                         </List>
                       </Box>
                     )}
