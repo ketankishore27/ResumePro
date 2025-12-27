@@ -274,7 +274,8 @@ export default function BulkImport() {
             pageCount: resumeData.pageCount,
             jobRole: jobRole,
             processIndex: i + 1,
-            totalFiles: extractedTexts.length
+            totalFiles: extractedTexts.length,
+            request_type: null
           };
           
           console.log(`Sending individual request ${i + 1} to processBulkImport API:`);

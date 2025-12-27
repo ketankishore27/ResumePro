@@ -255,7 +255,8 @@ export default function AdhocCandidateRanking() {
             jobRole: jobTitle,
             jobDescription: jobDescription,
             processIndex: i + 1,
-            totalFiles: extractedTexts.length
+            totalFiles: extractedTexts.length,
+            request_type: 'adhoc'
           };
           
           try {

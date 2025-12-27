@@ -218,6 +218,16 @@ export default function RelevantCandidates() {
     let candidateData = [];
     
     try {
+      // Format experience filter for backend
+      let experienceFilter = null;
+      if (filters.minExperience && filters.maxExperience) {
+        experienceFilter = `> ${filters.minExperience} and <= ${filters.maxExperience} Years`;
+      } else if (filters.minExperience) {
+        experienceFilter = `> ${filters.minExperience} and <= 100 Years`;
+      } else if (filters.maxExperience) {
+        experienceFilter = `> 0 and <= ${filters.maxExperience} Years`;
+      }
+      
       // Prepare request payload
       const requestPayload = {
         wordList: filters.keywords,
@@ -225,15 +235,13 @@ export default function RelevantCandidates() {
         jobName: jobName,
         jobId: jobId,
         jobDescription: jobDescription,
-        minExperience: filters.minExperience,
-        maxExperience: filters.maxExperience,
+        experienceFilter: experienceFilter,
         recentResumeCount: recentResumesEnabled ? recentResumesCount : null
       };
       
       console.log('Sending filter request:', {
         recentResumeCount: requestPayload.recentResumeCount,
-        minExperience: requestPayload.minExperience,
-        maxExperience: requestPayload.maxExperience
+        experienceFilter: requestPayload.experienceFilter
       });
       
       // Make API call to filterCandidate endpoint

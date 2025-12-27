@@ -98,6 +98,53 @@ def insert_data(assembled_field: dict):
         
     return {"response": "Data inserted successfully"}
 
+def sanitize_data(data, remove_chars=None, strip_whitespace=False, normalize_none=False):
+    """
+    Recursively sanitize data by removing problematic characters from strings.
+    
+    Args:
+        data: The data structure to sanitize (dict, list, str, or primitive)
+        remove_chars: String or list of characters/byte sequences to remove (default: ['\\x00'])
+        strip_whitespace: If True, strip leading/trailing whitespace from strings
+        normalize_none: If True, convert empty strings to None
+    
+    Returns:
+        Sanitized data with the same structure as input
+    """
+    # Default problematic characters
+    if remove_chars is None:
+        remove_chars = ['\x00']  # NUL byte
+    elif isinstance(remove_chars, str):
+        remove_chars = [remove_chars]
+    
+    if isinstance(data, dict):
+        return {k: sanitize_data(v, remove_chars, strip_whitespace, normalize_none) 
+                for k, v in data.items()}
+    
+    elif isinstance(data, list):
+        return [sanitize_data(item, remove_chars, strip_whitespace, normalize_none) 
+                for item in data]
+    
+    elif isinstance(data, str):
+        # Remove problematic characters
+        cleaned = data
+        for char in remove_chars:
+            cleaned = cleaned.replace(char, '')
+        
+        # Optional whitespace stripping
+        if strip_whitespace:
+            cleaned = cleaned.strip()
+        
+        # Optional None normalization
+        if normalize_none and not cleaned:
+            return None
+            
+        return cleaned
+    
+    else:
+        # Return primitives (int, float, bool, None) unchanged
+        return data
+
 async def process_individual_resume(data: dict):
 
     final_payload = {}
@@ -170,14 +217,25 @@ async def process_individual_resume(data: dict):
     input_data = {"input_data": {**get_name, **get_data}}
     get_mode = {"mode": "batch"}
     
-    structlogger.debug("Creating finalPayload for database sync")
+    structlogger.debug("Creating finalPayload for database sync", details = get_name.get("name", None))
     final_payload = {**input_data, **get_contact_information, **get_custom_scores, **get_summary_overview, 
                      **get_functional_constituent, **get_other_comments, **get_education, **get_score_resume, 
                      **get_technical_constituent, **get_comapny, **get_project, **get_yoe, **get_ryoe, 
                      **get_recruiters_overview, **get_designation, **get_location, **get_mode}
     
-    async with httpx.AsyncClient(timeout=60) as client:
-        status = await client.post("http://127.0.0.1:8000/assembleData", json=final_payload, headers=headers)
+    # More aggressive sanitization with whitespace normalization
+    final_payload = sanitize_data(
+        final_payload, 
+        remove_chars=['\x00', '\ufffd'],  # Remove NUL and replacement characters
+        strip_whitespace=True
+    )
+
+    structlogger.debug(f"{data.get('request_type', None)}")
+    
+    if not data.get('request_type', None):
+        async with httpx.AsyncClient(timeout=60) as client:
+            status = await client.post("http://127.0.0.1:8000/assembleData", json=final_payload, headers=headers)
+            structlogger.debug(f"Synced Profile in DB for {get_name.get("name", None)}")
     
     final_payload["parsed_status"] = "Successful"
     return final_payload
@@ -192,8 +250,19 @@ def extract_data(email_id):
 
 def extract_all_resumes():
     base_sql = "select * from resume_store"
-    data = pd.read_sql(base_sql, engine)\
-             .drop(columns = ['candidate_id', 'mode', 'resume_raw_text']).to_dict("records")
+    df = pd.read_sql(base_sql, engine)\
+             .drop(columns = ['candidate_id', 'mode', 'resume_raw_text'])
+    
+    # Convert to dict and replace NaN with None for proper JSON serialization
+    data = df.to_dict("records")
+    
+    # Replace NaN values with None in the resulting dictionaries
+    import math
+    for record in data:
+        for key, value in record.items():
+            if isinstance(value, float) and math.isnan(value):
+                record[key] = None
+    
     return data
 
 def refined_resume(wordList = [], jobRole = None, jobDescription = None, experience = None, recent_resume_count = None):
@@ -218,6 +287,8 @@ def refined_resume(wordList = [], jobRole = None, jobDescription = None, experie
 
         base_sql = base_sql.strip(" or ") + ")"
 
+    structlogger.info("Base SQL after wordList: ", details=base_sql)
+
     if jobRole:
         
         if base_sql.strip().endswith("resume_store"):
@@ -231,6 +302,8 @@ def refined_resume(wordList = [], jobRole = None, jobDescription = None, experie
             
         structlogger.info("Processing jobRole: ", details=jobRole)
         base_sql += f"lower(job_role) = '{jobRole.lower()}'"
+
+    structlogger.info("Base SQL after jobRole: ", details=base_sql)
 
     if experience:
 
@@ -251,6 +324,8 @@ def refined_resume(wordList = [], jobRole = None, jobDescription = None, experie
         start_exp = int(exp_level[0])
         end_exp = int(exp_level[1])
         base_sql += f"get_yoe between {start_exp} and {end_exp}"
+
+    structlogger.info("Base SQL after experience: ", details=base_sql)
 
     if recent_resume_count:
         base_sql += " order by created_at desc limit {}".format(recent_resume_count)

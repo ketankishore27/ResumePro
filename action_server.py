@@ -466,7 +466,6 @@ async def process_bulk_import(data: dict):
 
     try:
         structlogger.debug("API: /processBulkImport - Received request")
-        data['request_type'] = "adhoc"
         return_payload= await process_individual_resume(data)
         structlogger.debug("API: /processBulkImport - Request completed")
         return return_payload
@@ -479,7 +478,7 @@ async def process_bulk_import(data: dict):
                     "summary_overview": "",
                     "parsed_status": "UnSuccessful"
                 }
-    
+
 @app.post("/extractData")
 def extract_data_db(data: dict):
     try:

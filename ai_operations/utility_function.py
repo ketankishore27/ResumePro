@@ -15,18 +15,15 @@ import numpy as np
 import pandas as pd
 from typing import Annotated
 import operator
+from typing import TypedDict
 load_dotenv(override=True)
 
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.)
 llm_fallback = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.)
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-constant_middlewares = [TodoListMiddleware(), ModelFallbackMiddleware(llm_fallback)]
+constant_middlewares = [ModelFallbackMiddleware(llm_fallback)]
 #llm = ChatOpenAI(model="gpt-4.1", temperature=0.)
 #llm = AzureChatOpenAI(model="gpt-4o-mini", api_version="2025-04-01-preview")
-
-class AgentState(TypedDict):
-    messages: Annotated[list, operator.add]
-    todos: Annotated[list, operator.add]  # reducer to merge multiple todo updates
 
 def create_resume_score():
 
@@ -38,8 +35,7 @@ def create_resume_score():
     # output_format = PydanticOutputParser(pydantic_object = ResumeScore).get_format_instructions()
     agent = create_agent(model = llm, 
                         middleware = constant_middlewares, 
-                        response_format = ResumeScore, 
-                        state_type=AgentState)
+                        response_format = ResumeScore)
     
     instruction_prompt = load_prompt(prompt_name = "create_resume_score", filename = "prompts.yml")
 
@@ -81,8 +77,8 @@ def get_summary_overview():
     #output_parser = PydanticOutputParser(pydantic_object = ResumeSummaryScore).get_format_instructions()
     agent = create_agent(model = llm, 
                         middleware = constant_middlewares, 
-                        response_format = ResumeSummaryScore, 
-                        state_type=AgentState)
+                        response_format = ResumeSummaryScore)
+
     instruction_format = load_prompt(prompt_name = "get_summary_overview", filename = "prompts.yml")
 
     prompt_template = PromptTemplate.from_template(template = instruction_format)
@@ -262,8 +258,10 @@ def company_extractor():
     class EmploymentHistory(BaseModel):
         employment_history: List[EmploymentEntry]
 
-    agent = create_agent(model = llm, middleware = constant_middlewares, response_format = EmploymentHistory)
-        
+    agent = create_agent(model = llm, 
+                        middleware = constant_middlewares, 
+                        response_format = EmploymentHistory)
+    
     instruction_format = load_prompt(prompt_name = "company_extractor", filename = "prompts.yml")
 
     prompt = PromptTemplate.from_template(template=instruction_format)
@@ -294,8 +292,10 @@ def extract_yoe():
         yoe: float = Field(..., description="Total years of corporate experience, rounded to 1 decimal place")
         ryoe: float = Field(..., description="Relevant years of experience with respect to the job role, rounded to 1 decimal place")
 
-    agent = create_agent(model = llm, middleware = constant_middlewares, response_format = ExperienceSummary)
-
+    agent = create_agent(model = llm, 
+                        middleware = constant_middlewares, 
+                        response_format = ExperienceSummary)
+                        
     instruction_format = load_prompt(prompt_name = "extract_yoe", filename = "prompts.yml")
 
     prompt = PromptTemplate.from_template(template=instruction_format, 
@@ -313,8 +313,10 @@ def extract_recruiters_overview():
         relevant_experience: str = Field(description="A line summarizing the candidate’s relevant years of experience.")
         technical_proficiency: List[str] = Field(description="Detailed technical proficiencies, grouped by technology or domain area.")
 
-    agent = create_agent(model = llm, middleware = constant_middlewares, response_format = RecruiterOverview)
-    
+    agent = create_agent(model = llm, 
+                        middleware = constant_middlewares, 
+                        response_format = RecruiterOverview)
+                        
     instruction_format = load_prompt(prompt_name = "extract_recruiters_overview", filename = "prompts.yml")
 
     prompt = PromptTemplate.from_template(template = instruction_format,
@@ -381,9 +383,13 @@ def refined_search_results(data, jobDescription, num_results=10):
     name_list, overview_list, resume_score_list = [], [], []
     for candidate in data:
         name_list.append(candidate['name'])
-        overview = candidate['get_recruiters_overview']['bullets']
-        overview_str = " ".join(overview)
-        overview_list.append(overview_str)
+        overview = candidate['get_recruiters_overview'].get("bullets", None)#['bullets']
+        #overview_str = " ".join(overview)
+        if overview is not None:
+            overview_list.append(overview[0])
+        else:
+            overview_list.append(" ")
+        
         resume_score_list.append(candidate['score_resume']['score'])
 
     overview_emb = embeddings.embed_documents(overview_list)
@@ -406,3 +412,4 @@ def refined_search_results(data, jobDescription, num_results=10):
     df = df.sort_values(by='resume_score', ascending=False).drop(columns=['resume_score'])
     
     return df.to_dict("records")
+
