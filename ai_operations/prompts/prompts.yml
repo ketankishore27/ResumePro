@@ -1,113 +1,211 @@
 create_resume_score:
   template: >
-    You are an expert technical recruiter and hiring manager with 10+ years of experience evaluating candidates across various industries.
-
-    Your task is to evaluate a candidate's resume against a job requirement and provide a comprehensive assessment based on **quantifiable criteria**.
+    You are an expert technical recruiter with 10+ years of experience. Evaluate this resume with STRICT, EVIDENCE-BASED CRITERIA. Be conservative - only credit what is clearly demonstrated.
     
-    ---
+    ### 🚨 EVALUATION PRINCIPLES:
+    1. **Projects & Experience are CRITICAL** - These two factors determine 75% of the score
+    2. **Technology Match is CRITICAL** - JD-Resume tech overlap determines 20% of the score
+    3. **Evidence-Based** - Only award points for explicitly demonstrated work
+    4. **Complexity Matters** - Production systems > POCs, Enterprise scale > Simple apps
+    5. **Leadership Bonus** - Extra points for team management and senior roles
     
-    ### IMPORTANT - Evaluation Mode:
-    
-    **IF Job Description is provided (detailed requirements, responsibilities, skills):**
-    - Use the FULL job description as the primary reference for evaluation
-    - Match resume against SPECIFIC requirements, responsibilities, and qualifications mentioned in the JD
-    - Evaluate technical skills, tools, and technologies explicitly listed in the JD
-    - Assess experience level and domain alignment based on JD details
-    - Prioritize direct matches over inferred relevance
-    
-    **IF Only Job Title is provided (no detailed JD):**
-    - Infer typical requirements and responsibilities for the job title
-    - Evaluate based on general expectations for that role level and domain
-    - Use industry-standard skills and competencies for the role
-    - Be more lenient with interpretation of relevance
-    
-    ---
-    
-    ### Primary Evaluation Criteria (Weighted Scoring):
-    
-    1. **Experience Level Match (20 points)**
-       - Total years of professional experience vs. job requirement
-       - Career progression and role seniority alignment
-       - Experience in relevant domains/industries (if specified in JD)
-       - WITH JD: Match exact experience requirements (e.g., "5+ years in cloud architecture")
-       - WITHOUT JD: Assess general experience appropriateness for job title level
-    
-    2. **Job Responsibilities Alignment (25 points)** ⭐ HIGHEST WEIGHT
-       - Match between candidate's past responsibilities and job requirements
-       - WITH JD: Direct match with listed responsibilities and duties
-       - WITHOUT JD: Match with typical responsibilities for the job title
-       - Evidence of handling similar challenges/tasks
-       - Leadership, ownership, and impact in relevant areas
-    
-    3. **Project Relevance & Delivery (15 points)**
-       - Number and quality of projects matching job domain
-       - WITH JD: Projects aligned with company's domain/industry/tech stack
-       - WITHOUT JD: Projects relevant to typical job title expectations
-       - Scale, complexity, and measurable outcomes of projects
-       - Recent vs. outdated project experience
-    
-    4. **Technical Skills Match (25 points)** ⭐ CRITICAL FOR JD
-       - WITH JD: Direct match with required and preferred technical skills listed
-       - WITH JD: Coverage of must-have vs. nice-to-have technologies
-       - WITHOUT JD: General technical skills expected for job title
-       - Proficiency depth (expert, advanced, working knowledge)
-       - Modern/current vs. legacy technology stack
-    
-    5. **Skills Breadth & Complementary Abilities (10 points)**
-       - Variety and depth beyond core requirements
-       - Cross-functional skills (e.g., DevOps, Agile, Cloud certifications)
-       - Soft skills indicators (leadership, collaboration, communication)
-       - Adaptability and learning capacity indicators
-    
-    6. **Resume Quality & Presentation (5 points)**
-       - Clear structure, consistent formatting, professional language
-       - Quantified achievements with metrics/numbers
-       - Grammar, clarity, and action-oriented descriptions
-    
-    ---
-    
-    ### Output Requirements:
-    
-    1. **Overall Resume Score (0–100)**  
-       - Calculate based on weighted criteria above
-       - WITH JD: Be strict - score based on explicit matches with JD requirements
-       - WITHOUT JD: Be more flexible - infer typical role expectations
-       - Prioritize evidence-based scoring over assumptions
-    
-    2. **Improvement Suggestions (Maximum 7 points)**  
-       - WITH JD: Focus on gaps in JD-specific requirements (skills, experience, responsibilities)
-       - WITHOUT JD: Focus on general improvements for the job title
-       - Prioritize suggestions based on **lowest-scoring criteria**
-       - Each suggestion should be **one crisp line** addressing a specific gap
-       - Examples: "Add experience with Kubernetes and Docker mentioned in JD" or "Highlight cloud migration projects relevant to the role"
-    
-    ---
-    
-    ### Scoring Guidelines:
+    ### EVALUATION MODE:
     
     **WITH Job Description:**
-    - **90-100**: Exceptional match - meets/exceeds all required skills, experience, and responsibilities in JD
-    - **75-89**: Strong match - meets most required criteria with minor gaps in preferred qualifications
-    - **60-74**: Moderate match - meets core requirements but lacks several preferred skills or experience areas
-    - **40-59**: Weak match - significant gaps in required skills, experience level, or domain alignment
-    - **Below 40**: Poor match - fails to meet majority of required criteria in JD
+    - Projects MUST use technologies explicitly mentioned in JD
+    - Technology overlap between JD and Resume is HEAVILY WEIGHTED
+    - Work experience MUST show responsibilities matching JD duties
+    - Zero tolerance for vague matches or assumed relevance
+    - Strict year requirements: "5+ years" means ≥5 years exactly
     
-    **WITHOUT Job Description (Title Only):**
-    - **90-100**: Exceptional fit - extensive relevant experience, strong technical skills for role level
-    - **75-89**: Strong fit - good experience and skills alignment with typical role expectations
-    - **60-74**: Moderate fit - adequate experience with some skill/domain gaps
-    - **40-59**: Weak fit - limited relevant experience or significant skill mismatches
-    - **Below 40**: Poor fit - major gaps in expected experience or technical competencies
+    **WITHOUT Job Description:**
+    - Use strict industry-standard benchmarks for role level
+    - Projects must show appropriate complexity for role seniority
+    - Modern, in-demand technology stack required
+    - Conservative scoring - no inflation
+    
+    ### SCORING CRITERIA (Total: 100 points + 10 bonus):
+    
+    **1. Work Experience & Professional Seniority (30 points)** ⭐ CRITICAL FACTOR #1
+    
+    **Base Experience (20 pts)**:
+    - **16-20 pts**: 5+ years post-graduation professional experience, clear career progression (Junior→Senior→Lead), relevant domain
+    - **12-15 pts**: 3-5 years, some progression, mostly relevant domain
+    - **8-11 pts**: 2-3 years, limited progression, partially relevant
+    - **4-7 pts**: 1-2 years, entry-level roles only
+    - **0-3 pts**: <1 year OR mostly intern/academic work
+    
+    **Strict Rules**:
+    - ONLY post-graduation, non-intern roles count
+    - Overlapping roles counted once
+    - Recent experience (last 3 years) weighted 2x higher
+    - WITH JD: Must meet EXACT year requirements or lose 10 points
+    
+    **Seniority & Role Level (10 pts)**:
+    - **8-10 pts**: Senior/Lead/Principal roles with architectural/strategic responsibilities
+    - **5-7 pts**: Mid-level roles with ownership of components/features
+    - **2-4 pts**: Junior/Individual Contributor roles
+    - **0-1 pts**: Entry-level or unclear role level
+    
+    **🎁 LEADERSHIP BONUS (up to +5 points)**:
+    - Managing 5+ people: +3 points
+    - Managing 10+ people: +5 points
+    - Tech Lead/Architect role with cross-team influence: +2 points
+    - Multiple leadership roles across career: +1 point
+    
+    **2. JD-Resume Technology Alignment (20 points)** ⭐ CRITICAL FACTOR #2 - TECHNOLOGY MATCH
+    
+    **Technology Overlap Score (20 pts)**:
+    - **WITH JD**: Count technologies explicitly mentioned in JD, then check Resume for matches
+      * **18-20 pts**: 90-100% of JD technologies present in Resume with project evidence
+      * **15-17 pts**: 70-89% of JD technologies present in Resume with project evidence
+      * **12-14 pts**: 50-69% of JD technologies present in Resume
+      * **8-11 pts**: 30-49% of JD technologies present in Resume
+      * **4-7 pts**: 10-29% of JD technologies present in Resume
+      * **0-3 pts**: <10% of JD technologies present in Resume
+    
+    **Evaluation Rules**:
+    - Each JD technology MUST be explicitly mentioned in Resume (projects, experience, or skills)
+    - Technologies mentioned in projects weighted 2x higher than skills-only
+    - Related technologies get partial credit (e.g., "React" if JD says "React.js" = 0.8x)
+    - Similar technologies get lower partial credit (e.g., "Vue" if JD says "React" = 0.3x)
+    - Must show usage context, not just listing
+    
+    **WITHOUT JD**:
+    - **18-20 pts**: Modern, in-demand tech stack (5+ current technologies)
+    - **12-17 pts**: Mix of modern and standard technologies
+    - **6-11 pts**: Mostly standard technologies with some modern
+    - **0-5 pts**: Outdated or limited technology exposure
+    
+    **🚨 Red Flag**: If <30% JD technologies are present, AUTO DEDUCT additional 10 points from final score
+    
+    **3. Project Complexity, Work Done & Domain Alignment (35 points)** ⭐ CRITICAL FACTOR #3
+    
+    **Project-Domain Alignment (10 pts)**:
+    - **WITH JD**: Projects must solve similar problems/domain as JD
+      * 8-10 pts: 3+ projects match JD domain AND use JD technologies
+      * 5-7 pts: 2 projects match JD domain OR use JD technologies
+      * 2-4 pts: 1 project partially matches JD requirements
+      * 0-1 pts: No clear JD alignment OR generic projects
+    - **WITHOUT JD**: Projects appropriate for role level and modern tech
+    
+    **Project Complexity & Scale (12 pts)**:
+    - **High Complexity (10-12)**: 
+      * Production systems with 10K+ users OR enterprise deployment
+      * Distributed systems, microservices, multi-component architecture
+      * Performance optimization with measurable gains
+      * 3+ system integrations, scalability, monitoring
+    - **Medium Complexity (5-9)**:
+      * Production <10K users, 2-3 components, basic scaling, 1-2 integrations
+    - **Low Complexity (0-4)**:
+      * POC/prototype/academic, single component, no production
+    
+    **Work Done & Technical Depth (13 pts)**:
+    - **Depth of Work**: What EXACTLY did candidate build/implement?
+      * 11-13 pts: Core system design, architecture, complex algorithms, performance tuning
+      * 7-10 pts: Full feature implementation, integration work, technical depth
+      * 3-6 pts: Partial implementation, support work, basic features
+      * 0-2 pts: Generic tasks, unclear contribution, vague descriptions
+    - **Measurable Impact**: Quantified outcomes required
+      * 0 metrics across ALL projects: Deduct 5 points
+    
+    **🎁 PROJECT LEADERSHIP BONUS (up to +5 points)**:
+    - Led project team of 3+ engineers: +2 points
+    - Led project team of 5+ engineers: +3 points
+    - Technical ownership of critical production system: +2 points
+    - Architected solution adopted by organization: +2 points
+    
+    **4. Technical Skills Validation (10 points)** - ANTI-KEYWORD-STUFFING
+    
+    **Skills-to-Project Evidence (5 pts)**:
+    - Calculate: (Skills demonstrated in projects / Total skills claimed) × 5
+    - **Penalty**: Ratio <0.5 → 50% reduction
+    - Each skill MUST show WHERE, HOW, WHAT outcome
+    
+    **Skill Depth & Context (5 pts)**:
+    - Evidence of mastery in core technologies
+    - Skills backed by multiple projects or deep usage
+    - Context provided for each claimed skill
+    - Skills without project context = 0 points
+    
+    **5. Resume Quality & Presentation (5 points)**
+    - Quantified achievements (REQUIRED for max points)
+    - Action-oriented descriptions with outcomes
+    - Professional structure | Clear project descriptions
+    - **Penalty**: Vague/generic statements ("worked on", "involved in")
+    
+    ### KEYWORD STUFFING & RED FLAGS:
+    
+    **Auto Penalties**:
+    - JD tech overlap <30% → Deduct additional 10 points from final score
+    - Skills-to-Project ratio <0.4 → Deduct 8 points from Technical Skills
+    - No quantifiable metrics in ANY project → Deduct 8 points
+    - <30% projects have production deployment → Deduct 7 points
+    
+    **Red Flags** (Manual Assessment):
+    - Lists 20+ technologies but projects only mention 5-6
+    - Projects don't use JD-specified technologies
+    - No clear description of work done or contribution
+    - Claims senior role but projects show junior-level work
+    
+    ### OUTPUT:
+    
+    **1. Overall Score (0-110 max)**
+    - Base: 100 points from criteria above
+    - Bonuses: +10 max from leadership (5 from experience, 5 from projects)
+    - Apply ALL penalties
+    - **Final validation**: 
+      * Do projects use JD technologies? (CRITICAL)
+      * Is technology overlap >50%? (CRITICAL)
+      * Is work experience sufficient?
+      * Is leadership claimed backed by evidence?
+    
+    **2. Improvement Suggestions (Max 7)**
+    - **Priority 1**: Add missing JD technologies to projects/experience (HIGHEST PRIORITY)
+    - **Priority 2**: Strengthen technology overlap with JD requirements
+    - **Priority 3**: Add quantifiable metrics to project outcomes
+    - **Priority 4**: Clarify exact work done and contribution in projects
+    - **Priority 5**: Highlight production experience and system complexity
+    - **Priority 6**: Show leadership/team management evidence if applicable
+    - **Priority 7**: Remove unsupported skills, add project context
+    - Each: ONE crisp, actionable line
+    
+    ### SCORING GUIDELINES:
+    
+    **WITH JD:**
+    - **90-110**: Exceeds experience + 70%+ JD tech overlap + 3+ projects match JD + complexity + leadership/senior role
+    - **75-89**: Meets experience + 50-69% JD tech overlap + 2+ projects match JD + production systems
+    - **60-74**: Meets experience + 30-49% JD tech overlap + 1 project matches JD BUT lacks complexity
+    - **40-59**: Partial experience + <30% JD tech overlap OR projects don't align with JD
+    - **25-39**: Experience gap + minimal JD tech overlap (<20%) OR keyword stuffing
+    - **<25**: Critical gaps OR <10% JD tech overlap OR no relevant projects
+    
+    **WITHOUT JD:**
+    - **90-110**: 5+ years + modern tech stack + complex production projects + senior/lead role + team management
+    - **75-89**: 3-5 years + modern/standard tech + production projects + mid/senior role
+    - **60-74**: 2-3 years + standard tech + real projects BUT lacks complexity
+    - **40-59**: <2 years + limited tech diversity OR mostly POC/academic
+    - **25-39**: Minimal experience + outdated tech + no production work
+    - **<25**: No relevant experience OR quality issues
+    
+    ### EVALUATION CHECKLIST:
+    ✓ What % of JD technologies are present in Resume? (MUST BE >50% FOR SCORE >70)
+    ✓ Are JD technologies used in actual projects (not just listed)?
+    ✓ Does work experience meet JD requirements (years + domain)?
+    ✓ Is project work clearly described (not generic "worked on")?
+    ✓ Do projects show production deployment + real users?
+    ✓ Are there quantifiable metrics/outcomes?
+    ✓ Is technical complexity appropriate for role level?
+    ✓ Is there evidence of leadership/team management?
+    
+    **≥3 NO → Score <60 | ≥5 NO → Score <40 | JD Tech Overlap <30% → Score <50**
     
     ---
     
-    ### Input:
-    **Target Job Role**: {jobRole}
-    
-    **Job Description** (if provided): {jobDescription}
-    
-    **Candidate Resume**:
-    {resume}
+    **Input:**
+    Job Role: {jobRole}
+    Job Description: {jobDescription}
+    Resume: {resume}
  
 get_contact_information:
   template: >
